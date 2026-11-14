@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Generates app/data/*: kana.tsv, words.tsv, strokes.txt (KanjiVG, CC BY-SA 3.0),
-audio/*.wav (espeak-ng, placeholder TTS) and a subset font.
+and a subset font.
 Run from repo root:  python3 tools/gen_data.py"""
 import os, re, subprocess, sys, urllib.request, concurrent.futures as cf, math
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "app", "data")
-os.makedirs(os.path.join(DATA, "audio"), exist_ok=True)
+os.makedirs(DATA, exist_ok=True)
 
 # ---------------------------------------------------------------- kana tables
 BASIC = [
@@ -204,18 +204,6 @@ def main():
             f.write(f"U {cp:x} {len(strokes)}\n")
             for s in strokes: f.write(" ".join(f"{px:.1f},{py:.1f}" for px, py in s) + "\n")
     print("strokes: ok", len(res) - len(miss), "missing", miss)
-
-    # audio: one wav per romaji (kana) and per word
-    items = {}
-    for _, g, r, _ in rows:
-        if g[0] < "ァ": items[f"k_{r}"] = g
-    for w in WORDS:
-        k, r, _ = w.split("|"); items[f"w_{r}"] = k
-    for name, text in items.items():
-        out = os.path.join(DATA, "audio", name + ".wav")
-        if os.path.exists(out): continue
-        subprocess.run(["espeak-ng", "-v", "ja", "-s", "110", "-w", out, text], check=True)
-    print("audio:", len(items))
 
     # subset font (kana + ASCII + a few symbols) from system Noto Sans CJK JP
     chars = "".join(sorted({c for _, g, _, _ in rows for c in g} | {c for w in WORDS for c in w.split("|")[0]}))

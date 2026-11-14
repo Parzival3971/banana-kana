@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
   std::mt19937 rng(42); Progress p;
   for (int sc = 0; sc < 2; sc++) {
     p.settings.script = sc ? Script::Katakana : Script::Hiragana;
-    p.settings.meanings = 2; p.settings.writing = 2; p.settings.typing = 2; p.settings.listening = 2; p.settings.reading = 2;
+    p.settings.meanings = 2; p.settings.writing = 2; p.settings.typing = 2; p.settings.reading = 2;
     std::set<int> types;
     for (int i = 0; i < 2000; i++) {
       Question q = makeQuestion(d, p, rng); types.insert(int(q.type));
@@ -40,14 +40,13 @@ int main(int argc, char** argv) {
         std::set<std::string> u(q.options.begin(), q.options.end()); CHECK(u.size() == 6);
         CHECK(q.options[q.correct] == q.answer);
       }
-      if (!q.audio.empty()) { FILE* f = fopen((dir + "/audio/" + q.audio).c_str(), "rb"); CHECK(f != nullptr); if (f) fclose(f); }
       if (q.type == QType::Write) CHECK(d.glyphFor(q.answer) != nullptr);
       p.record(q.key, i % 3 != 0);
     }
-    CHECK(types.size() == 6);
+    CHECK(types.size() == 5);
   }
   // weak spots get asked more
-  Progress w; w.settings.reading = 2; w.settings.listening = 0; w.settings.writing = 0; w.settings.typing = 0; w.settings.kanaPct = 100;
+  Progress w; w.settings.reading = 2; w.settings.writing = 0; w.settings.typing = 0; w.settings.kanaPct = 100;
   for (auto& x : d.kana) if (x.script == Script::Hiragana) { for (int i = 0; i < 5; i++) w.record(Progress::keyKana(x), true); }
   for (int i = 0; i < 6; i++) w.record("h:あ", false);
   int hits = 0; for (int i = 0; i < 1000; i++) { Question q = makeQuestionOfType(d, w, rng, QType::ReadKana); if (q.key == "h:あ") hits++; }

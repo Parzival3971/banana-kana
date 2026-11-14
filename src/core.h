@@ -33,7 +33,7 @@ struct Stat { int seen = 0, correct = 0, wrong = 0, streak = 0; };
 
 struct Settings {
   int kanaPct = 60;  // % kana questions vs word questions
-  int reading = 2, listening = 2, meanings = 0, writing = 1, typing = 1;  // weight 0..2
+  int reading = 2, meanings = 1, writing = 1, typing = 1;  // weight 0..2
   Script script = Script::Hiragana;
 };
 
@@ -49,14 +49,13 @@ struct Progress {
 };
 
 // ---------------------------------------------------------------- questions
-enum class QType { ReadKana, RecallKana, Listen, Meaning, Write, Type };
+enum class QType { ReadKana, RecallKana, Meaning, Write, Type };
 
 struct Question {
   QType type = QType::ReadKana;
   std::string key;                 // progress key
   std::string prompt;              // big text on top screen
   std::string hint;                // small text under it
-  std::string audio;               // wav file name (relative to data/audio), may be empty
   std::vector<std::string> options;  // choice tiles (empty for Write/Type)
   int correct = -1;                // index into options
   std::string answer;              // expected romaji (Type) or kana glyph (Write)

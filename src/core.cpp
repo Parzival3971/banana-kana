@@ -98,7 +98,6 @@ bool Progress::load(const std::string& path) {
       std::string k; int v; is >> k >> v;
       if (k == "kana_pct") settings.kanaPct = std::clamp(v, 0, 100);
       else if (k == "reading") settings.reading = std::clamp(v, 0, 2);
-      else if (k == "listening") settings.listening = std::clamp(v, 0, 2);
       else if (k == "meanings") settings.meanings = std::clamp(v, 0, 2);
       else if (k == "writing") settings.writing = std::clamp(v, 0, 2);
       else if (k == "typing") settings.typing = std::clamp(v, 0, 2);
@@ -114,8 +113,7 @@ bool Progress::save(const std::string& path) const {
   std::string tmp = path + ".tmp";
   { std::ofstream f(tmp); if (!f) return false;
     f << "# kanji-trainer progress v1\n";
-    f << "set kana_pct " << settings.kanaPct << "\nset reading " << settings.reading << "\nset listening " << settings.listening
-      << "\nset meanings " << settings.meanings << "\nset writing " << settings.writing << "\nset typing " << settings.typing
+    f << "set kana_pct " << settings.kanaPct << "\nset reading " << settings.reading << "\nset meanings " << settings.meanings << "\nset writing " << settings.writing << "\nset typing " << settings.typing
       << "\nset script " << (settings.script == Script::Katakana) << "\n";
     for (const auto& [k, s] : stats) f << "stat " << k << ' ' << s.seen << ' ' << s.correct << ' ' << s.wrong << ' ' << s.streak << '\n';
     if (!f) return false; }
@@ -176,9 +174,9 @@ QType chooseType(const Settings& st, bool wordMode, bool canWrite, std::mt19937&
   std::vector<QType> t; std::vector<double> w;
   auto add = [&](QType q, int weight) { if (weight > 0) { t.push_back(q); w.push_back(weight); } };
   if (wordMode) {
-    add(QType::Meaning, st.meanings); add(QType::Listen, st.listening); add(QType::ReadKana, st.reading); add(QType::Type, st.typing);
+    add(QType::Meaning, st.meanings); add(QType::ReadKana, st.reading); add(QType::Type, st.typing);
   } else {
-    add(QType::ReadKana, st.reading); add(QType::RecallKana, st.reading); add(QType::Listen, st.listening);
+    add(QType::ReadKana, st.reading); add(QType::RecallKana, st.reading);
     if (canWrite) add(QType::Write, st.writing);
     add(QType::Type, st.typing);
   }
@@ -192,7 +190,7 @@ Question makeQuestionOfType(const Data& d, const Progress& p, std::mt19937& rng,
   const Script sc = p.settings.script;
   bool wordMode = (type == QType::Meaning);
   if (type != QType::Meaning && type != QType::Write) {
-    // decided by caller via ratio; word flavour of Listen/Read/Type is handled in makeQuestion
+    // word flavour of Read/Type is handled in makeQuestion
   }
   (void)wordMode;
   std::vector<const Kana*> kpool;
@@ -216,11 +214,8 @@ Question makeQuestionOfType(const Data& d, const Progress& p, std::mt19937& rng,
     case QType::RecallKana:
       q.prompt = k.romaji; q.hint = "Pick the matching kana";
       q.options = fillOptions(kanaPool, k.glyph, rng, 6, &q.correct); q.optionsAreKana = true; q.answer = k.glyph; break;
-    case QType::Listen:
-      q.prompt = "?"; q.hint = "Listen, then pick the kana"; q.audio = "k_" + k.romaji + ".wav";
-      q.options = fillOptions(kanaPool, k.glyph, rng, 6, &q.correct); q.optionsAreKana = true; q.answer = k.glyph; break;
     case QType::Write:
-      q.prompt = k.romaji; q.hint = "Trace the kana"; q.audio = "k_" + k.romaji + ".wav"; q.answer = k.glyph; break;
+      q.prompt = k.romaji; q.hint = "Trace the kana"; q.answer = k.glyph; break;
     case QType::Type:
       q.prompt = k.glyph; q.hint = "Type the romaji"; q.answer = k.romaji; break;
     default: break;
@@ -239,9 +234,6 @@ static Question makeWordQuestion(const Data& d, const Progress& p, std::mt19937&
     case QType::Meaning:
       q.prompt = w.kana; q.hint = "What does it mean?";
       q.options = fillOptions(engPool, w.english, rng, 6, &q.correct); q.answer = w.english; break;
-    case QType::Listen:
-      q.prompt = "?"; q.hint = "Listen, then pick the word"; q.audio = "w_" + w.romaji + ".wav";
-      q.options = fillOptions(kanaPool, w.kana, rng, 6, &q.correct); q.optionsAreKana = true; q.answer = w.kana; break;
     case QType::Type:
       q.prompt = w.kana; q.hint = "Type the romaji (" + w.english + ")"; q.answer = w.romaji; break;
     default:  // ReadKana: word -> romaji

@@ -1,7 +1,6 @@
 // kanji-trainer: kana drills + stylus writing for the Anbernic RG DS Plus (BananaOS).
 // Two SDL windows: top = prompt/feedback, bottom = touch. Logical size 640x480 each.
 #include <SDL.h>
-#include <SDL_mixer.h>
 #include <SDL_ttf.h>
 
 #include <algorithm>
@@ -75,7 +74,7 @@ bool inRect(const SDL_Rect& r, int x, int y) { return x >= r.x && x < r.x + r.w 
 
 enum BtnId {
   B_START = 1, B_SCRIPT, B_SETTINGS, B_QUIT, B_BACK, B_RESET, B_AGAIN, B_HOME,
-  B_TILE0 = 10, B_CHECK = 20, B_CONTINUE, B_REPLAY, B_UNDO, B_CLEAR, B_HINT, B_BKSP = 30, B_RATIO_M, B_RATIO_P,
+  B_TILE0 = 10, B_CHECK = 20, B_CONTINUE, B_UNDO, B_CLEAR, B_HINT, B_BKSP = 30, B_RATIO_M, B_RATIO_P,
   B_KEY0 = 100, B_SEG0 = 200
 };
 
@@ -83,20 +82,12 @@ enum class Screen { Home, Settings, Drill, Result };
 
 struct App {
   Win top, bot; Data data; Progress prog; std::string statePath, dataDir; std::mt19937 rng{(unsigned)time(nullptr)};
-  Screen screen = Screen::Home; bool running = true, audioOk = false; std::map<std::string, Mix_Chunk*> sounds;
+  Screen screen = Screen::Home; bool running = true;
   // drill state
   Question q; int index = 0, score = 0, sel = -1, cursor = 0; bool checked = false, correct = false;
   std::string typed; std::vector<Stroke> strokes; Stroke cur; bool drawing = false, showHint = false; std::vector<int> strokeOk;
   std::vector<std::string> missed; std::string lastKey;
   std::vector<Button> bottomButtons;
-
-  // ---------------------------------------------------------- audio
-  void play(const std::string& file) {
-    if (!audioOk || file.empty()) return;
-    auto it = sounds.find(file);
-    if (it == sounds.end()) it = sounds.emplace(file, Mix_LoadWAV((dataDir + "/audio/" + file).c_str())).first;
-    if (it->second) Mix_PlayChannel(-1, it->second, 0);
-  }
 
   // ---------------------------------------------------------- session flow
   void startSession() { index = 0; score = 0; missed.clear(); screen = Screen::Drill; nextQuestion(true); }
@@ -106,7 +97,6 @@ struct App {
     for (int tries = 0; tries < 6; tries++) { q = makeQuestion(data, prog, rng); if (q.key != lastKey) break; }
     lastKey = q.key; sel = -1; cursor = 0; checked = false; correct = false; typed.clear(); strokes.clear(); cur.clear();
     drawing = false; showHint = false; strokeOk.clear();
-    if (q.type == QType::Listen) play(q.audio);
   }
   const Glyph* glyph() const { return data.glyphFor(q.answer); }
 
@@ -131,7 +121,6 @@ struct App {
     }
     checked = true; correct = ok; if (ok) score++; else missed.push_back(q.key);
     prog.record(q.key, ok);
-    if (q.type == QType::Write || q.type == QType::Type) play(q.audio.empty() ? "" : q.audio);
   }
 
   // ---------------------------------------------------------- input
@@ -148,7 +137,6 @@ struct App {
       case B_RATIO_P: prog.settings.kanaPct = std::min(100, prog.settings.kanaPct + 10); break;
       case B_CHECK: check(); break;
       case B_CONTINUE: nextQuestion(); break;
-      case B_REPLAY: play(q.audio); break;
       case B_UNDO: if (!checked && !strokes.empty()) strokes.pop_back(); break;
       case B_CLEAR: if (!checked) strokes.clear(); break;
       case B_HINT: showHint = !showHint; break;
@@ -156,9 +144,9 @@ struct App {
       default:
         if (id >= B_TILE0 && id < B_TILE0 + 6 && !checked) { sel = id - B_TILE0; cursor = sel; }
         else if (id >= B_KEY0 && id < B_KEY0 + 26 && !checked && typed.size() < 24) typed += char('a' + id - B_KEY0);
-        else if (id >= B_SEG0 && id < B_SEG0 + 15) {
+        else if (id >= B_SEG0 && id < B_SEG0 + 12) {
           int mode = (id - B_SEG0) / 3, val = (id - B_SEG0) % 3; Settings& s = prog.settings;
-          int* t[5] = {&s.reading, &s.listening, &s.meanings, &s.writing, &s.typing}; *t[mode] = val;
+          int* t[4] = {&s.reading, &s.meanings, &s.writing, &s.typing}; *t[mode] = val;
         }
     }
   }
@@ -187,7 +175,7 @@ struct App {
         break;
       case SDL_CONTROLLER_BUTTON_B: if (screen == Screen::Drill || screen == Screen::Settings || screen == Screen::Result) press(B_HOME); break;
       case SDL_CONTROLLER_BUTTON_X: if (screen == Screen::Drill) { if (checked) press(B_CONTINUE); else check(); } break;
-      case SDL_CONTROLLER_BUTTON_Y: if (screen == Screen::Drill) press(q.audio.empty() ? B_HINT : B_REPLAY); break;
+      case SDL_CONTROLLER_BUTTON_Y: if (screen == Screen::Drill) press(B_HINT); break;
       case SDL_CONTROLLER_BUTTON_START: if (screen == Screen::Home) press(B_START); break;
       default: break;
     }
@@ -264,13 +252,13 @@ struct App {
     progressBar(top, SDL_Rect{40, 320, 560, 18}, s.kanaPct / 100.f);
     addBtn(SDL_Rect{20, 14, 90, 52}, B_RATIO_M, "Kana-", F_TINY); addBtn(SDL_Rect{120, 14, 90, 52}, B_RATIO_P, "Kana+", F_TINY);
     addBtn(SDL_Rect{430, 14, 190, 52}, B_BACK, "Back", F_SMALL);
-    const char* names[5] = {"Reading", "Listening", "Word meanings", "Writing", "Typing"};
-    const int vals[5] = {s.reading, s.listening, s.meanings, s.writing, s.typing};
-    for (int i = 0; i < 5; i++) {
-      int y = 90 + i * 70;
+    const char* names[4] = {"Reading", "Word meanings", "Writing", "Typing"};
+    const int vals[4] = {s.reading, s.meanings, s.writing, s.typing};
+    for (int i = 0; i < 4; i++) {
+      int y = 100 + i * 80;
       drawText(bot, names[i], SDL_Rect{20, y, 250, 56}, FG, F_SMALL, true);
       for (int v = 0; v < 3; v++)
-        addBtn(SDL_Rect{300 + v * 105, y, 95, 56}, B_SEG0 + i * 3 + v, std::to_string(v), F_SMALL, true, vals[i] == v ? SEL : PANEL);
+        addBtn(SDL_Rect{300 + v * 105, y, 95, 60}, B_SEG0 + i * 3 + v, std::to_string(v), F_SMALL, true, vals[i] == v ? SEL : PANEL);
     }
     addBtn(SDL_Rect{20, 440, 200, 34}, B_RESET, "Reset", F_TINY);
   }
@@ -323,9 +311,7 @@ struct App {
     // bottom
     if (!q.options.empty()) {
       drawTiles();
-      addBtn(SDL_Rect{20, 352, 120, 100}, B_REPLAY, "Replay", F_TINY, !q.audio.empty());
-      if (q.audio.empty()) bottomButtons.pop_back();
-      SDL_Rect cb = q.audio.empty() ? SDL_Rect{20, 352, 600, 100} : SDL_Rect{150, 352, 470, 100};
+      SDL_Rect cb{20, 352, 600, 100};
       if (checked) addBtn(cb, B_CONTINUE, "Continue", F_MID, true, ACCENT);
       else addBtn(cb, B_CHECK, "Check Answer", F_MID, sel >= 0);
     } else if (q.type == QType::Type) {
@@ -333,10 +319,9 @@ struct App {
       if (checked) addBtn(SDL_Rect{210, 250, 410, 66}, B_CONTINUE, "Continue", F_SMALL, true, ACCENT);
       else addBtn(SDL_Rect{210, 250, 410, 66}, B_CHECK, "Check Answer", F_SMALL, !typed.empty());
     } else {  // Write: canvas drawn in drawWritingExtras (after buttons so buttons stay on top)
-      addBtn(SDL_Rect{10, 40, 110, 70}, B_UNDO, "Undo", F_TINY, !checked);
-      addBtn(SDL_Rect{10, 130, 110, 70}, B_CLEAR, "Clear", F_TINY, !checked);
-      addBtn(SDL_Rect{10, 220, 110, 70}, B_HINT, "Hint", F_TINY, !checked);
-      addBtn(SDL_Rect{10, 310, 110, 70}, B_REPLAY, "Listen", F_TINY);
+      addBtn(SDL_Rect{10, 60, 110, 90}, B_UNDO, "Undo", F_TINY, !checked);
+      addBtn(SDL_Rect{10, 170, 110, 90}, B_CLEAR, "Clear", F_TINY, !checked);
+      addBtn(SDL_Rect{10, 280, 110, 90}, B_HINT, "Hint", F_TINY, !checked);
       if (checked) addBtn(SDL_Rect{130, 416, 500, 56}, B_CONTINUE, "Continue", F_SMALL, true, ACCENT);
       else addBtn(SDL_Rect{130, 416, 500, 56}, B_CHECK, "Check Answer", F_SMALL, !strokes.empty());
     }
@@ -409,14 +394,14 @@ static int selfTest(App& app, const std::string& shotDir) {
   auto click = [&](int id) { frame(); for (auto& b : app.bottomButtons) if (b.id == id && b.enabled) { app.pointer(0, b.r.x + b.r.w / 2, b.r.y + b.r.h / 2); return true; } return false; };
   auto shot = [&](const char* name) { if (shotDir.empty()) return; frame(); saveShot(app.top, shotDir + "/" + name + "_top.bmp"); saveShot(app.bot, shotDir + "/" + name + "_bot.bmp"); };
   frame(); shot("home");
-  app.prog.settings.reading = 2; app.prog.settings.listening = 2; app.prog.settings.meanings = 2; app.prog.settings.writing = 2; app.prog.settings.typing = 2;
+  app.prog.settings.reading = 2; app.prog.settings.meanings = 2; app.prog.settings.writing = 2; app.prog.settings.typing = 2;
   CHECK(click(B_SETTINGS), "open settings"); shot("settings"); CHECK(click(B_BACK), "back from settings");
-  std::map<int, int> seen; bool shotOf[6] = {};
+  std::map<int, int> seen; bool shotOf[5] = {};
   for (int round = 0; round < 3; round++) {
     CHECK(click(round == 0 ? B_START : B_AGAIN), "start session");
     for (int i = 0; i < SESSION_LEN; i++) {
       frame(); QType t = app.q.type; seen[(int)t]++;
-      const char* names[6] = {"read", "recall", "listen", "meaning", "write", "type"};
+      const char* names[5] = {"read", "recall", "meaning", "write", "type"};
       if (!shotOf[(int)t] && !shotDir.empty()) { shotOf[(int)t] = true; shot((std::string("q_") + names[(int)t] + "_a").c_str()); }
       if (!app.q.options.empty()) { CHECK(click(B_TILE0 + app.q.correct), "tile"); CHECK(click(B_CHECK), "check"); }
       else if (t == QType::Type) { for (char ch : app.q.answer) click(B_KEY0 + (ch - 'a')); CHECK(click(B_CHECK), "check typed"); }
@@ -430,13 +415,13 @@ static int selfTest(App& app, const std::string& shotDir) {
         CHECK(click(B_CHECK), "check write");
       }
       CHECK(app.checked, "checked"); CHECK(app.correct, "scripted answer should be correct");
-      if (!shotOf[(int)t] || true) { static bool done[6]; if (!done[(int)t] && !shotDir.empty()) { done[(int)t] = true; shot((std::string("q_") + names[(int)t] + "_b").c_str()); } }
+      if (!shotOf[(int)t] || true) { static bool done[5]; if (!done[(int)t] && !shotDir.empty()) { done[(int)t] = true; shot((std::string("q_") + names[(int)t] + "_b").c_str()); } }
       CHECK(click(B_CONTINUE), "continue");
     }
     CHECK(app.screen == Screen::Result, "result screen"); CHECK(app.score == SESSION_LEN, "perfect score");
     if (round == 0) shot("result");
   }
-  for (int t = 0; t < 6; t++) if (!seen[t]) { printf("never saw question type %d\n", t); fails++; }
+  for (int t = 0; t < 5; t++) if (!seen[t]) { printf("never saw question type %d\n", t); fails++; }
   // a wrong answer is recorded and scored as wrong
   CHECK(click(B_AGAIN), "again"); frame();
   while (app.q.options.empty()) { app.press(B_CHECK); app.checked = false; app.nextQuestion(); frame(); }
@@ -444,7 +429,7 @@ static int selfTest(App& app, const std::string& shotDir) {
   CHECK(app.checked && !app.correct, "wrong answer must be marked wrong"); CHECK(app.prog.stats[app.q.key].wrong >= 1, "wrong recorded");
   shot("q_wrong");
   CHECK(app.prog.save(app.statePath), "save progress");
-  printf(fails ? "SELFTEST: %d failure(s)\n" : "SELFTEST: all passed (types seen: read=%d recall=%d listen=%d meaning=%d write=%d type=%d)\n", fails ? fails : seen[0], seen[1], seen[2], seen[3], seen[4], seen[5]);
+  printf(fails ? "SELFTEST: %d failure(s)\n" : "SELFTEST: all passed (types seen: read=%d recall=%d meaning=%d write=%d type=%d)\n", fails ? fails : seen[0], seen[1], seen[2], seen[3], seen[4]);
   return fails ? 1 : 0;
 }
 
@@ -471,16 +456,12 @@ int main(int argc, char** argv) {
   mkdirs(stateDir); app.statePath = stateDir + "/progress.txt"; app.prog.load(app.statePath);
 
   SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
-  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_AUDIO) != 0) {
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0) { fprintf(stderr, "SDL_Init: %s\n", SDL_GetError()); return 3; }
-  }
+  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0) { fprintf(stderr, "SDL_Init: %s\n", SDL_GetError()); return 3; }
   if (TTF_Init() != 0) { fprintf(stderr, "TTF_Init: %s\n", TTF_GetError()); return 3; }
   for (int i = 0; i < F_COUNT; i++) {
     fonts[i] = TTF_OpenFont((dataDir + "/font.ttf").c_str(), FONT_PX[i]);
     if (!fonts[i]) { fprintf(stderr, "font: %s\n", TTF_GetError()); return 3; }
   }
-  app.audioOk = Mix_OpenAudio(22050, MIX_DEFAULT_FORMAT, 1, 1024) == 0;
-  if (!app.audioOk) fprintf(stderr, "audio disabled: %s\n", Mix_GetError());
 
   int displays = SDL_GetNumVideoDisplays();
   bool dual = (displays >= 2) || forceDual;
@@ -490,7 +471,7 @@ int main(int argc, char** argv) {
   }
   SDL_ShowCursor(SDL_ENABLE);
 
-  if (self) { int rc = selfTest(app, shotDir); Mix_CloseAudio(); SDL_Quit(); return rc; }
+  if (self) { int rc = selfTest(app, shotDir); SDL_Quit(); return rc; }
 
   while (app.running) {
     SDL_Event e;
@@ -514,5 +495,5 @@ int main(int argc, char** argv) {
     app.render(); SDL_Delay(8);
   }
   app.prog.save(app.statePath);
-  Mix_CloseAudio(); TTF_Quit(); SDL_Quit(); return 0;
+  TTF_Quit(); SDL_Quit(); return 0;
 }

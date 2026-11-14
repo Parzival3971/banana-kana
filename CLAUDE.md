@@ -20,7 +20,7 @@ Top screen: kanji, readings, example. Bottom screen (touch/stylus): trace stroke
 - Top panel = DSI-2 connector; bottom panel is a separate SDL window. Bottom touch is
   one-finger evdev, identified by sysfs path `fe5e0000.i2c` (SDL can't tell the two touchscreens apart).
 - Buttons via SDL GameController, Nintendo layout (A = east).
-- Only the bottom screen is touch. Audio: ALSA default.
+- Only the bottom screen is touch. Audio unused for now.
 
 ## Toolkit
 SDL2 + C++ (CMake), two SDL windows (top = DSI-2 connector, bottom = touch), like Banana Player.
@@ -31,19 +31,19 @@ windows side by side; cross-compile to aarch64 for the release zip.
 Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
 
 ## Build / test (PC)
-- Deps: `libsdl2-dev libsdl2-ttf-dev libsdl2-mixer-dev cmake g++`; asset generation also needs `espeak-ng`, `python3 fonttools`.
+- Deps: `libsdl2-dev libsdl2-ttf-dev cmake g++`; asset generation needs `python3 fonttools`.
 - `cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure` (core logic tests)
 - UI self-test (scripted clicks through every drill type, dummy displays):
-  `SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy KT_SOFTWARE=1 build/kanji_trainer --selftest --shots /tmp/shots --state-dir /tmp/kt`
-- Regenerate assets: `python3 tools/gen_data.py` (kana.tsv, words.tsv, KanjiVG strokes.txt, espeak audio, subset font).
+  `SDL_VIDEODRIVER=dummy KT_SOFTWARE=1 build/kanji_trainer --selftest --shots /tmp/shots --state-dir /tmp/kt`
+- Regenerate assets: `python3 tools/gen_data.py` (kana.tsv, words.tsv, KanjiVG strokes.txt, subset font).
 
 ## Code map
 - `src/core.{h,cpp}`: data loading, progress/weak-spot weighting, question generation, stroke scoring (no SDL).
 - `src/main.cpp`: two SDL windows, screens (Home/Settings/Drill/Result), input (mouse=touch, gamepad, keyboard), `--selftest`.
-- Drill types: ReadKana, RecallKana, Listen, Meaning, Write (stylus trace vs KanjiVG), Type (on-screen romaji keys).
+- Drill types: ReadKana, RecallKana, Meaning, Write (stylus trace vs KanjiVG), Type (on-screen romaji keys).
+- No audio / Listening drill: removed on purpose (no clips available). Re-add only if real recordings exist.
 
 ## Known gaps / to verify on device
 - Dual-screen window placement (uses 2 displays if SDL reports them) and bottom touch routing (evdev `fe5e0000.i2c`) untested.
-- Listening audio is placeholder espeak-ng TTS; replace with better recordings if available.
 - Yoon kana (きゃ etc.) have no Write drill (two glyphs). Typing has no Japanese-keyboard mode (romaji only).
 - Kana count is 104 per script (Maru shows 105).
