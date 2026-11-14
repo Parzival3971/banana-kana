@@ -24,7 +24,8 @@ running BananaOS. Top screen: prompt and feedback. Bottom screen (touch/stylus):
 - Apps run via BananaOS `run-store-app`; HOME=/data/home, SDL_KMSDRM_FIRST = top connector.
 - Top panel = DSI-2 connector; bottom panel is a separate SDL window. Bottom touch is
   one-finger evdev, identified by sysfs path `fe5e0000.i2c` (SDL can't tell the two touchscreens apart).
-- Buttons via SDL GameController, Nintendo layout (A = east).
+- Buttons via SDL GameController, which reports by POSITION (SDL A = south). Device labels are Nintendo (A = east), so
+  main.cpp swaps A<->B and X<->Y before handling (confirmed on device: unswapped A/B were backwards). KT_POSITIONAL=1 disables.
 - Only the bottom screen is touch. Audio unused for now.
 
 ## Toolkit

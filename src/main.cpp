@@ -580,7 +580,17 @@ int main(int argc, char** argv) {
       switch (e.type) {
         case SDL_QUIT: app.running = false; break;
         case SDL_CONTROLLERDEVICEADDED: SDL_GameControllerOpen(e.cdevice.which); break;
-        case SDL_CONTROLLERBUTTONDOWN: app.padButton((SDL_GameControllerButton)e.cbutton.button); break;
+        case SDL_CONTROLLERBUTTONDOWN: {
+          // SDL names face buttons by position (A = south). The RG DS Plus is labelled Nintendo-style
+          // (A = east, B = south, X = north, Y = west), so translate to the printed labels. KT_POSITIONAL=1 disables.
+          auto b = (SDL_GameControllerButton)e.cbutton.button;
+          if (!getenv("KT_POSITIONAL")) {
+            if (b == SDL_CONTROLLER_BUTTON_A) b = SDL_CONTROLLER_BUTTON_B;
+            else if (b == SDL_CONTROLLER_BUTTON_B) b = SDL_CONTROLLER_BUTTON_A;
+            else if (b == SDL_CONTROLLER_BUTTON_X) b = SDL_CONTROLLER_BUTTON_Y;
+            else if (b == SDL_CONTROLLER_BUTTON_Y) b = SDL_CONTROLLER_BUTTON_X;
+          }
+          app.padButton(b); break; }
         case SDL_KEYDOWN: app.key(e.key.keysym.sym); break;
         case SDL_MOUSEBUTTONDOWN: case SDL_MOUSEBUTTONUP: case SDL_MOUSEMOTION: {
           // Touch is synthesised into mouse events by SDL. Only the bottom window is interactive.
