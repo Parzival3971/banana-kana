@@ -464,6 +464,11 @@ int main(int argc, char** argv) {
   }
 
   int displays = SDL_GetNumVideoDisplays();
+  { SDL_version v; SDL_GetVersion(&v);
+    fprintf(stderr, "kanji-trainer: SDL %d.%d.%d video=%s displays=%d data=%s\n", v.major, v.minor, v.patch,
+            SDL_GetCurrentVideoDriver() ? SDL_GetCurrentVideoDriver() : "?", displays, dataDir.c_str());
+    for (int i = 0; i < displays; i++) { SDL_Rect b{}; SDL_GetDisplayBounds(i, &b);
+      const char* n = SDL_GetDisplayName(i); fprintf(stderr, "  display %d: %s %dx%d at (%d,%d)\n", i, n ? n : "?", b.w, b.h, b.x, b.y); } }
   bool dual = (displays >= 2) || forceDual;
   if (!makeWin(app.top, "Kanji Trainer - top", 80, 40, 560, 420, dual && displays >= 2, 0) ||
       !makeWin(app.bot, "Kanji Trainer - bottom (touch)", 80, 500, 560, 420, dual && displays >= 2, displays >= 2 ? 1 : 0)) {

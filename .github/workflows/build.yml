@@ -1,0 +1,29 @@
+name: Build (aarch64)
+
+# Builds and tests the app on arm64 (QEMU) for every push/PR. Does NOT create releases.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  aarch64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - name: Build, test and self-test on arm64
+        run: ./scripts/docker-build-aarch64.sh
+      - name: Show requirements
+        run: cat dist/aarch64/REQUIREMENTS.txt | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Package dry run (not a release)
+        run: ./scripts/package.sh 0.0.0-ci
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kanji_trainer-aarch64
+          path: |
+            dist/aarch64/
+            dist/*.zip

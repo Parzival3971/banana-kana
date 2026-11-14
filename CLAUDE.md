@@ -12,8 +12,12 @@ Top screen: kanji, readings, example. Bottom screen (touch/stylus): trace stroke
 ## Packaging (BananaOS Ports layout)
 - `scripts/package.sh <version>` -> `dist/KanjiTrainer-<version>-aarch64.zip`
 - Zip holds `Kanji Trainer.sh` + `KanjiTrainer/`; user unzips into `roms/ports` on the SD card.
-- Source: `launcher/Kanji Trainer.sh` (NOT written yet), `app/data/` (generated assets). The aarch64 binary still has to be
-  built and its shared libs bundled (Banana Player bundles its libs) - NOT done, so do not bump VERSION yet.
+- Source: `launcher/Kanji Trainer.sh`, `app/data/` (generated assets), aarch64 binary from `scripts/docker-build-aarch64.sh`.
+- Device build: arm64 Debian bookworm container (QEMU in CI). BananaOS ships SDL2, SDL2_ttf, FreeType and ALSA, so we link
+  them dynamically and bundle nothing but libstdc++/libgcc (static). `dist/aarch64/REQUIREMENTS.txt` records the glibc/SDL
+  versions the binary needs - compare with the device before releasing.
+- `.github/workflows/build.yml` builds, tests, self-tests and package-dry-runs on every push (no release).
+- Launcher writes `~/.config/kanji-trainer/launch.log` (env + display info) - ask for it when debugging on device.
 
 ## Device facts (from tonywei92/banana-player DEVELOPMENT.md)
 - Apps run via BananaOS `run-store-app`; HOME=/data/home, SDL_KMSDRM_FIRST = top connector.

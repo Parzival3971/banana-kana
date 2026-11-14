@@ -20,3 +20,9 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL2_TTF REQUIRED IMPORTED_TARGET SDL2_ttf)
 add_executable(kanji_trainer src/main.cpp)
 target_link_libraries(kanji_trainer ktcore SDL2::SDL2 PkgConfig::SDL2_TTF)
+# Device build: SDL2/SDL2_ttf/FreeType/ALSA come from BananaOS, so link them dynamically but
+# carry libstdc++/libgcc inside the binary to avoid depending on the device's C++ runtime.
+option(KT_STATIC_STDCPP "Statically link libstdc++ and libgcc" OFF)
+if(KT_STATIC_STDCPP)
+  target_link_options(kanji_trainer PRIVATE -static-libstdc++ -static-libgcc)
+endif()

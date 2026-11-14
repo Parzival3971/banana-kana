@@ -35,6 +35,15 @@ jobs:
           fi
           echo "go=true" >> "$GITHUB_OUTPUT"
 
+      - uses: docker/setup-qemu-action@v3
+        if: steps.gate.outputs.go == 'true'
+        with:
+          platforms: arm64
+
+      - name: Build and test on arm64
+        if: steps.gate.outputs.go == 'true'
+        run: ./scripts/docker-build-aarch64.sh
+
       - name: Package
         if: steps.gate.outputs.go == 'true'
         run: ./scripts/package.sh "${{ steps.v.outputs.version }}"
@@ -46,4 +55,5 @@ jobs:
           VERSION: ${{ steps.v.outputs.version }}
         run: |
           gh release create "v$VERSION" "dist/KanjiTrainer-$VERSION-aarch64.zip" \
-            --target "$GITHUB_SHA" --title "Kanji Trainer v$VERSION" --generate-notes
+            --target "$GITHUB_SHA" --title "Kanji Trainer v$VERSION" --generate-notes \
+            --notes-file dist/aarch64/REQUIREMENTS.txt
