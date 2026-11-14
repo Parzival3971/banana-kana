@@ -2,7 +2,7 @@
 
 Banana Kana: hiragana/katakana drills (reading, word meanings, typing) and stylus tracing for the Anbernic RG DS Plus
 running BananaOS. Top screen: prompt and feedback. Bottom screen (touch/stylus): answer tiles, keyboard, tracing canvas.
-(Renamed from kanji-trainer; GitHub repo may still be called kanji-trainer until the owner renames it.)
+(Renamed from kanji-trainer; GitHub repo is Parzival3971/banana-kana.)
 
 ## Git
 - Commit straight to `main`.
@@ -12,7 +12,7 @@ running BananaOS. Top screen: prompt and feedback. Bottom screen (touch/stylus):
 
 ## Packaging (BananaOS Ports layout)
 - `scripts/package.sh <version>` -> `dist/BananaKana-<version>-aarch64.zip`
-- Zip holds `Banana Kana.sh` + `BananaKana/`; user unzips into `roms/ports` on the SD card.
+- Zip holds `Banana Kana.sh` + `BananaKana/` + `media/box/Banana Kana.png`; user unzips into `roms/ports` on the SD card.
 - Source: `launcher/Banana Kana.sh`, `app/data/` (generated assets), aarch64 binary from `scripts/docker-build-aarch64.sh`.
 - Device build: arm64 Debian bookworm container (QEMU in CI). BananaOS ships SDL2, SDL2_ttf, FreeType and ALSA, so we link
   them dynamically and bundle nothing but libstdc++/libgcc (static). `dist/aarch64/REQUIREMENTS.txt` records the glibc/SDL
@@ -64,3 +64,11 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
   as fallback; touch-synthesised mouse events are ignored. Env: KT_TOUCH=sdl, KT_TOUCH_DEV, KT_TOUCH_SWAPXY/FLIPX/FLIPY.
   Launch log prints input devices, the chosen device, axis ranges and the first raw->logical touches.
 - Env switches: `KT_NOFS=1` (borderless instead of fullscreen), `KT_VSYNC=1` (vsync per window), `KT_SOFTWARE=1`.
+
+## Banana Player lessons applied (pre-emptive, 2026-11-14)
+- Quit anywhere: F + START (F assumed = SDL GUIDE, unverified; SELECT + START also quits). App logs first 30 button presses to find F.
+- Touch buttons activate on release, slide off to cancel (stylus misfires).
+- Progress saved after every answer; SIGTERM/SIGINT/SIGHUP exit cleanly with a save (lid/power-off safety).
+- App re-enables the bottom backlight every 2 s if bl_power != 0 (BananaOS panel-off can re-darken it after sleep).
+- Ports shelf box art: `media/box/Banana Kana.png` (512x512, size unverified) shipped in the zip.
+- README install notes include the Mac "zip opens into its own folder" gotcha.

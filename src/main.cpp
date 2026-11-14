@@ -12,6 +12,7 @@
 #include <functional>
 #include <map>
 #include <string>
+#include <csignal>
 #include <sys/stat.h>
 
 #include "core.h"
@@ -28,6 +29,8 @@
 using namespace kt;
 
 namespace {
+volatile std::sig_atomic_t gStop = 0;
+void onSignal(int) { gStop = 1; }
 constexpr int LW = 640, LH = 480;
 constexpr int SESSION_LEN = 10;
 
@@ -97,6 +100,7 @@ struct App {
   std::string typed; std::vector<Stroke> strokes; Stroke cur; bool drawing = false, showHint = false; std::vector<int> strokeOk;
   std::vector<std::string> missed; std::string lastKey;
   std::vector<Button> bottomButtons;
+  int pressedId = -1;  // touch buttons act on release (slide off to cancel), like Banana Player
 
   // ---------------------------------------------------------- session flow
   void startSession() { index = 0; score = 0; missed.clear(); screen = Screen::Drill; nextQuestion(true); }
@@ -130,6 +134,7 @@ struct App {
     }
     checked = true; correct = ok; if (ok) score++; else missed.push_back(q.key);
     prog.record(q.key, ok);
+    prog.save(statePath);  // the handheld can be closed or powered off at any moment
   }
 
   // ---------------------------------------------------------- input
@@ -167,7 +172,14 @@ struct App {
       if (type == 1 && drawing) { cur.push_back(toGlyph(x, y)); return; }
       if (type == 2 && drawing) { drawing = false; if (cur.size() >= 2) strokes.push_back(cur); cur.clear(); return; }
     }
-    if (type == 0) for (auto& b : bottomButtons) if (b.enabled && inRect(b.r, x, y)) { press(b.id); return; }
+    if (type == 0) { pressedId = -1; for (auto& b : bottomButtons) if (b.enabled && inRect(b.r, x, y)) { pressedId = b.id; return; } }
+    if (type == 1 && pressedId >= 0) {  // slid off the button: cancel
+      for (auto& b : bottomButtons) if (b.id == pressedId && !inRect(b.r, x, y)) pressedId = -1;
+    }
+    if (type == 2 && pressedId >= 0) {
+      int id = pressedId; pressedId = -1;
+      for (auto& b : bottomButtons) if (b.id == id && b.enabled && inRect(b.r, x, y)) { press(id); return; }
+    }
   }
 
   void padButton(SDL_GameControllerButton b) {
@@ -211,7 +223,8 @@ struct App {
   void drawButtons() {
     for (auto& b : bottomButtons) {
       Col line = b.enabled ? b.line : Col{70, 70, 74}, txt = b.enabled ? FG : Col{90, 90, 94};
-      fillRect(bot, b.r, b.fill); frameRect(bot, b.r, line, 3);
+      Col fill = b.fill; if (b.id == pressedId) fill = Col{Uint8(std::min(255, fill.r + 50)), Uint8(std::min(255, fill.g + 50)), Uint8(std::min(255, fill.b + 50))};
+      fillRect(bot, b.r, fill); frameRect(bot, b.r, line, 3);
       drawText(bot, b.label, SDL_Rect{b.r.x + 6, b.r.y + 2, b.r.w - 12, b.r.h - 4}, txt, b.font);
     }
   }
@@ -484,7 +497,7 @@ struct EvTouch {
 static int selfTest(App& app, const std::string& shotDir) {
   int fails = 0; auto CHECK = [&](bool c, const char* m) { if (!c) { printf("FAIL: %s\n", m); fails++; } };
   auto frame = [&]() { app.render(); };
-  auto click = [&](int id) { frame(); for (auto& b : app.bottomButtons) if (b.id == id && b.enabled) { app.pointer(0, b.r.x + b.r.w / 2, b.r.y + b.r.h / 2); return true; } return false; };
+  auto click = [&](int id) { frame(); for (auto& b : app.bottomButtons) if (b.id == id && b.enabled) { int cx = b.r.x + b.r.w / 2, cy = b.r.y + b.r.h / 2; app.pointer(0, cx, cy); app.pointer(2, cx, cy); return true; } return false; };
   auto shot = [&](const char* name) { if (shotDir.empty()) return; frame(); saveShot(app.top, shotDir + "/" + name + "_top.bmp"); saveShot(app.bot, shotDir + "/" + name + "_bot.bmp"); };
   frame(); shot("home");
   app.prog.settings.reading = 2; app.prog.settings.meanings = 2; app.prog.settings.writing = 2; app.prog.settings.typing = 2;
@@ -572,9 +585,16 @@ int main(int argc, char** argv) {
   if (self) { int rc = selfTest(app, shotDir); SDL_Quit(); return rc; }
 
   fprintf(stderr, "  sdl touch devices: %d\n", SDL_GetNumTouchDevices());
-  EvTouch touch; touch.open(); int sdlTouchLogged = 0; fflush(stderr);
+  EvTouch touch; touch.open(); int sdlTouchLogged = 0, buttonsLogged = 0; fflush(stderr);
+  std::signal(SIGTERM, onSignal); std::signal(SIGINT, onSignal); std::signal(SIGHUP, onSignal);
+  // Keep the bottom backlight on: BananaOS can switch it off again after sleep (/run/banana/panel-off).
+  std::string blPower;
+  { FILE* f = fopen("/run/banana/backlight-bottom", "r"); char buf[256] = {0};
+    if (f) { if (fgets(buf, sizeof buf, f)) { buf[strcspn(buf, "\n")] = 0; std::string p = buf;
+        if (!p.empty()) blPower = (p[0] == '/' ? p : "/sys/class/backlight/" + p) + "/bl_power"; } fclose(f); } }
+  Uint32 lastBlCheck = 0; int blFixes = 0;
   int frames = 0;
-  while (app.running) {
+  while (app.running && !gStop) {
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
       switch (e.type) {
@@ -584,6 +604,13 @@ int main(int argc, char** argv) {
           // SDL names face buttons by position (A = south). The RG DS Plus is labelled Nintendo-style
           // (A = east, B = south, X = north, Y = west), so translate to the printed labels. KT_POSITIONAL=1 disables.
           auto b = (SDL_GameControllerButton)e.cbutton.button;
+          SDL_GameController* gc = SDL_GameControllerFromInstanceID(e.cbutton.which);
+          if (buttonsLogged < 30) { buttonsLogged++; const char* bn = SDL_GameControllerGetStringForButton(b);
+            fprintf(stderr, "  button %d (%s)\n", (int)b, bn ? bn : "?"); fflush(stderr); }
+          // Quit to the BananaOS menu from anywhere: F + START (F is assumed to be GUIDE; SELECT + START also works).
+          if (b == SDL_CONTROLLER_BUTTON_START && gc &&
+              (SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_GUIDE) || SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_BACK))) {
+            app.running = false; break; }
           if (!getenv("KT_POSITIONAL")) {
             if (b == SDL_CONTROLLER_BUTTON_A) b = SDL_CONTROLLER_BUTTON_B;
             else if (b == SDL_CONTROLLER_BUTTON_B) b = SDL_CONTROLLER_BUTTON_A;
@@ -611,6 +638,13 @@ int main(int argc, char** argv) {
       }
     }
     touch.poll([&](int t, int x, int y) { app.pointer(t, x, y); });
+    if (!blPower.empty() && SDL_GetTicks() - lastBlCheck > 2000) {
+      lastBlCheck = SDL_GetTicks();
+      FILE* f = fopen(blPower.c_str(), "r"); int v = 0;
+      if (f) { if (fscanf(f, "%d", &v) != 1) v = 0; fclose(f); }
+      if (v != 0) { FILE* w = fopen(blPower.c_str(), "w"); if (w) { fputs("0", w); fclose(w); }
+        if (blFixes++ < 5) { fprintf(stderr, "  bottom backlight was off (bl_power=%d), switched on\n", v); fflush(stderr); } }
+    }
     app.render(); SDL_Delay(8);
     if (++frames == 90) {
       fprintf(stderr, "  after 90 frames: top flags=0x%x bottom flags=0x%x sdl_error='%s'\n",
@@ -618,5 +652,6 @@ int main(int argc, char** argv) {
     }
   }
   app.prog.save(app.statePath);
+  fprintf(stderr, "  exit (%s)\n", gStop ? "signal" : "quit");
   TTF_Quit(); SDL_Quit(); return 0;
 }

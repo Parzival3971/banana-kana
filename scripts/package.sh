@@ -13,6 +13,7 @@ stage="$(mktemp -d)"; trap 'rm -rf "$stage"' EXIT
 file "$bin" | grep -q "ARM aarch64" || { echo "$bin is not an aarch64 binary"; exit 1; }
 
 cp "$root/launcher/Banana Kana.sh" "$stage/"; chmod +x "$stage/Banana Kana.sh"
+mkdir -p "$stage/media/box"; cp "$root/launcher/media/box/Banana Kana.png" "$stage/media/box/"
 mkdir -p "$stage/BananaKana"
 cp "$bin" "$stage/BananaKana/banana_kana"; chmod +x "$stage/BananaKana/banana_kana"
 cp -r "$root/app/data" "$stage/BananaKana/data"
