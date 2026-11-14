@@ -58,5 +58,8 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
 - SDL reports 2 displays, both 1024x768 (display 1 at x=1024). Top window + buttons worked; bottom panel was blank on the first build.
 - Suspects for blank bottom: bottom backlight off (`/run/banana/backlight-bottom` names the device, `bl_power` 0=on/4=off, `/run/banana/panel-off`
   keeps it dark) and non-fullscreen window (KMSDRM needs fullscreen). Launcher now logs panel state and sets bl_power=0.
-- If still blank: next step is raw KMS/DRM output for the bottom panel (Banana Player's fallback).
+- Bottom panel fixed by the launcher turning the bottom backlight on (bl_power=0) + fullscreen windows.
+- Touch: SDL touch did nothing on device. Now read via evdev (device whose sysfs path has fe5e0000.i2c), SDL finger events
+  as fallback; touch-synthesised mouse events are ignored. Env: KT_TOUCH=sdl, KT_TOUCH_DEV, KT_TOUCH_SWAPXY/FLIPX/FLIPY.
+  Launch log prints input devices, the chosen device, axis ranges and the first raw->logical touches.
 - Env switches: `KT_NOFS=1` (borderless instead of fullscreen), `KT_VSYNC=1` (vsync per window), `KT_SOFTWARE=1`.

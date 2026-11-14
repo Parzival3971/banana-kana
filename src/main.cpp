@@ -16,6 +16,15 @@
 
 #include "core.h"
 
+#ifdef __linux__
+#include <climits>
+#include <dirent.h>
+#include <fcntl.h>
+#include <linux/input.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#endif
+
 using namespace kt;
 
 namespace {
@@ -398,6 +407,78 @@ bool saveShot(Win& w, const std::string& path) {
 }
 }  // namespace
 
+
+// ------------------------------------------------------------------ bottom touchscreen via evdev
+// SDL can't tell the RG DS Plus touch devices apart, so (like Banana Player) read the bottom panel's
+// touchscreen directly: the input device whose sysfs path contains fe5e0000.i2c. KT_TOUCH_DEV overrides it,
+// KT_TOUCH=sdl disables this, KT_TOUCH_SWAPXY / KT_TOUCH_FLIPX / KT_TOUCH_FLIPY fix orientation.
+struct EvTouch {
+  int fd = -1, minX = 0, maxX = 1, minY = 0, maxY = 1, x = 0, y = 0, slot = 0, logged = 0;
+  bool down = false, wasDown = false, swapXY = false, flipX = false, flipY = false;
+#ifdef __linux__
+  static bool absRange(int fd, int code, int* mn, int* mx) {
+    struct input_absinfo ai{}; if (ioctl(fd, EVIOCGABS(code), &ai) < 0 || ai.maximum <= ai.minimum) return false;
+    *mn = ai.minimum; *mx = ai.maximum; return true;
+  }
+  bool open() {
+    const char* force = getenv("KT_TOUCH"); if (force && std::string(force) == "sdl") { fprintf(stderr, "  touch: KT_TOUCH=sdl, evdev off\n"); return false; }
+    swapXY = getenv("KT_TOUCH_SWAPXY"); flipX = getenv("KT_TOUCH_FLIPX"); flipY = getenv("KT_TOUCH_FLIPY");
+    std::string dev = getenv("KT_TOUCH_DEV") ? getenv("KT_TOUCH_DEV") : "";
+    if (dev.empty()) {
+      DIR* d = opendir("/sys/class/input"); if (!d) return false;
+      while (dirent* e = readdir(d)) {
+        std::string n = e->d_name; if (n.rfind("event", 0) != 0) continue;
+        char real[PATH_MAX]; std::string link = "/sys/class/input/" + n + "/device";
+        if (!realpath(link.c_str(), real)) continue;
+        char name[128] = "?"; FILE* f = fopen((link + "/name").c_str(), "r"); if (f) { if (!fgets(name, sizeof name, f)) name[0] = 0; fclose(f); name[strcspn(name, "\n")] = 0; }
+        fprintf(stderr, "  input %s: %s  [%s]\n", n.c_str(), name, real);
+        if (dev.empty() && strstr(real, "fe5e0000.i2c")) dev = "/dev/input/" + n;
+      }
+      closedir(d);
+    }
+    if (dev.empty()) { fprintf(stderr, "  touch: no fe5e0000.i2c input device found, using SDL touch\n"); return false; }
+    fd = ::open(dev.c_str(), O_RDONLY | O_NONBLOCK);
+    if (fd < 0) { fprintf(stderr, "  touch: cannot open %s: %s, using SDL touch\n", dev.c_str(), strerror(errno)); return false; }
+    if (!absRange(fd, ABS_MT_POSITION_X, &minX, &maxX)) absRange(fd, ABS_X, &minX, &maxX);
+    if (!absRange(fd, ABS_MT_POSITION_Y, &minY, &maxY)) absRange(fd, ABS_Y, &minY, &maxY);
+    fprintf(stderr, "  touch: evdev %s x=%d..%d y=%d..%d swap=%d flipx=%d flipy=%d\n", dev.c_str(), minX, maxX, minY, maxY, swapXY, flipX, flipY);
+    return true;
+  }
+  template <class F> void poll(F&& pointer) {
+    if (fd < 0) return;
+    struct input_event ev[64];
+    for (;;) {
+      ssize_t n = read(fd, ev, sizeof ev); if (n <= 0) break;
+      for (size_t i = 0; i < size_t(n) / sizeof(ev[0]); i++) {
+        const auto& e = ev[i];
+        if (e.type == EV_ABS) {
+          if (e.code == ABS_MT_SLOT) slot = e.value;
+          else if (slot != 0) continue;
+          else if (e.code == ABS_MT_POSITION_X || e.code == ABS_X) x = e.value;
+          else if (e.code == ABS_MT_POSITION_Y || e.code == ABS_Y) y = e.value;
+          else if (e.code == ABS_MT_TRACKING_ID) down = e.value >= 0;
+        } else if (e.type == EV_KEY && e.code == BTN_TOUCH) {
+          down = e.value != 0;
+        } else if (e.type == EV_SYN && e.code == SYN_REPORT) {
+          float fx = float(x - minX) / float(maxX - minX), fy = float(y - minY) / float(maxY - minY);
+          if (swapXY) std::swap(fx, fy);
+          if (flipX) fx = 1 - fx;
+          if (flipY) fy = 1 - fy;
+          int lx = int(std::clamp(fx, 0.f, 1.f) * (LW - 1)), ly = int(std::clamp(fy, 0.f, 1.f) * (LH - 1));
+          int type = (down && !wasDown) ? 0 : down ? 1 : (wasDown ? 2 : -1);
+          if (type == 0 && logged < 8) { logged++; fprintf(stderr, "  touch down raw=(%d,%d) -> logical (%d,%d)\n", x, y, lx, ly); fflush(stderr); }
+          if (type >= 0) pointer(type, lx, ly);
+          wasDown = down;
+        }
+      }
+    }
+  }
+#else
+  bool open() { return false; }
+  template <class F> void poll(F&&) {}
+#endif
+};
+
 // ------------------------------------------------------------------ scripted self-test
 // Drives the real UI with synthetic input: correct answers for every question type.
 static int selfTest(App& app, const std::string& shotDir) {
@@ -490,6 +571,8 @@ int main(int argc, char** argv) {
 
   if (self) { int rc = selfTest(app, shotDir); SDL_Quit(); return rc; }
 
+  fprintf(stderr, "  sdl touch devices: %d\n", SDL_GetNumTouchDevices());
+  EvTouch touch; touch.open(); int sdlTouchLogged = 0; fflush(stderr);
   int frames = 0;
   while (app.running) {
     SDL_Event e;
@@ -502,14 +585,22 @@ int main(int argc, char** argv) {
         case SDL_MOUSEBUTTONDOWN: case SDL_MOUSEBUTTONUP: case SDL_MOUSEMOTION: {
           // Touch is synthesised into mouse events by SDL. Only the bottom window is interactive.
           // NOTE: on the handheld the bottom touchscreen may need an evdev reader (see CLAUDE.md).
+          if ((e.type == SDL_MOUSEMOTION ? e.motion.which : e.button.which) == SDL_TOUCH_MOUSEID) break;  // touch: see finger/evdev
           if (e.type == SDL_MOUSEMOTION && !(e.motion.state & SDL_BUTTON_LMASK)) break;
           Uint32 wid = e.type == SDL_MOUSEMOTION ? e.motion.windowID : e.button.windowID; if (wid != app.bot.id) break;
           int wx = e.type == SDL_MOUSEMOTION ? e.motion.x : e.button.x, wy = e.type == SDL_MOUSEMOTION ? e.motion.y : e.button.y;
           float lx, ly; SDL_RenderWindowToLogical(app.bot.r, wx, wy, &lx, &ly);
           app.pointer(e.type == SDL_MOUSEBUTTONDOWN ? 0 : e.type == SDL_MOUSEMOTION ? 1 : 2, (int)lx, (int)ly); break; }
+        case SDL_FINGERDOWN: case SDL_FINGERMOTION: case SDL_FINGERUP: {
+          // SDL touch fallback: only the bottom panel has touch, so map the whole surface onto it.
+          if (touch.fd >= 0) break;
+          int lx = int(std::clamp(e.tfinger.x, 0.f, 1.f) * (LW - 1)), ly = int(std::clamp(e.tfinger.y, 0.f, 1.f) * (LH - 1));
+          if (e.type == SDL_FINGERDOWN && sdlTouchLogged < 8) { sdlTouchLogged++; fprintf(stderr, "  sdl finger down (%.3f,%.3f) -> (%d,%d)\n", e.tfinger.x, e.tfinger.y, lx, ly); fflush(stderr); }
+          app.pointer(e.type == SDL_FINGERDOWN ? 0 : e.type == SDL_FINGERMOTION ? 1 : 2, lx, ly); break; }
         default: break;
       }
     }
+    touch.poll([&](int t, int x, int y) { app.pointer(t, x, y); });
     app.render(); SDL_Delay(8);
     if (++frames == 90) {
       fprintf(stderr, "  after 90 frames: top flags=0x%x bottom flags=0x%x sdl_error='%s'\n",

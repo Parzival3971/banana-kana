@@ -15,6 +15,7 @@ LOG="$STATE/launch.log"
   uname -a
   (ldd --version 2>&1 | head -1) 2>/dev/null
   env | grep -E '^(SDL_|BANANA|BP_|KT_|XDG_|HOME=|DISPLAY|WAYLAND)' | sort
+  echo "--- input devices:"; cat /proc/bus/input/devices 2>&1; ls -l /dev/input 2>&1
   echo "--- /run/banana:"; ls -l /run/banana 2>&1
   echo "--- backlights:"
   for b in /sys/class/backlight/*; do
