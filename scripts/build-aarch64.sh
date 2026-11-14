@@ -3,6 +3,8 @@
 # Builds, runs the core tests and the scripted UI self-test, and records what the binary needs.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# Hand build output back to the host user (container runs as root) even if the build fails.
+trap '[ -n "${HOST_UID:-}" ] && chown -R "$HOST_UID:${HOST_GID:-$HOST_UID}" dist build-arm 2>/dev/null || true' EXIT
 [ "$(uname -m)" = aarch64 ] || { echo "must run on aarch64 (use scripts/docker-build-aarch64.sh)"; exit 1; }
 if command -v apt-get >/dev/null; then
   export DEBIAN_FRONTEND=noninteractive
