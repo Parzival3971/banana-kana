@@ -54,6 +54,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.v.outputs.version }}
         run: |
-          gh release create "v$VERSION" "dist/KanjiTrainer-$VERSION-aarch64.zip" \
-            --target "$GITHUB_SHA" --title "Kanji Trainer v$VERSION" --generate-notes \
+          gh release create "v$VERSION" "dist/BananaKana-$VERSION-aarch64.zip" \
+            --target "$GITHUB_SHA" --title "Banana Kana v$VERSION" --generate-notes \
             --notes-file dist/aarch64/REQUIREMENTS.txt

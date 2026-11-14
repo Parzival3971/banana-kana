@@ -23,7 +23,7 @@ jobs:
         run: ./scripts/package.sh 0.0.0-ci
       - uses: actions/upload-artifact@v4
         with:
-          name: kanji_trainer-aarch64
+          name: banana_kana-aarch64
           path: |
             dist/aarch64/
             dist/*.zip

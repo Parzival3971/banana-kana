@@ -112,7 +112,7 @@ bool Progress::load(const std::string& path) {
 bool Progress::save(const std::string& path) const {
   std::string tmp = path + ".tmp";
   { std::ofstream f(tmp); if (!f) return false;
-    f << "# kanji-trainer progress v1\n";
+    f << "# banana-kana progress v1\n";
     f << "set kana_pct " << settings.kanaPct << "\nset reading " << settings.reading << "\nset meanings " << settings.meanings << "\nset writing " << settings.writing << "\nset typing " << settings.typing
       << "\nset script " << (settings.script == Script::Katakana) << "\n";
     for (const auto& [k, s] : stats) f << "stat " << k << ' ' << s.seen << ' ' << s.correct << ' ' << s.wrong << ' ' << s.streak << '\n';

@@ -1,4 +1,4 @@
-// kanji-trainer: kana drills + stylus writing for the Anbernic RG DS Plus (BananaOS).
+// banana-kana: kana drills + stylus writing for the Anbernic RG DS Plus (BananaOS).
 // Two SDL windows: top = prompt/feedback, bottom = touch. Logical size 640x480 each.
 #include <SDL.h>
 #include <SDL_ttf.h>
@@ -225,7 +225,7 @@ struct App {
   }
 
   void drawHome() {
-    drawText(top, "Kanji Trainer", SDL_Rect{20, 20, 600, 80}, FG, F_BIG);
+    drawText(top, "Banana Kana", SDL_Rect{20, 20, 600, 80}, FG, F_BIG);
     drawText(top, "kana drills for BananaOS", SDL_Rect{20, 100, 600, 40}, DIM, F_SMALL);
     int y = 190;
     for (Script s : {Script::Hiragana, Script::Katakana}) {
@@ -367,15 +367,27 @@ bool mkdirs(const std::string& p) {
   struct stat st; return stat(p.c_str(), &st) == 0;
 }
 
-bool makeWin(Win& w, const char* title, int x, int y, int ww, int wh, bool fullscreenOnDisplay, int display) {
+bool makeWin(Win& w, const char* title, int x, int y, int ww, int wh, bool onDisplay, int display) {
   Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE;
-  if (fullscreenOnDisplay) { SDL_Rect b; SDL_GetDisplayBounds(display, &b); x = b.x; y = b.y; ww = b.w; wh = b.h; flags = SDL_WINDOW_SHOWN | SDL_WINDOW_BORDERLESS; }
-  w.w = SDL_CreateWindow(title, x, y, ww, wh, flags); if (!w.w) return false;
+  if (onDisplay) {
+    SDL_Rect b{}; SDL_GetDisplayBounds(display, &b); x = b.x; y = b.y; ww = b.w; wh = b.h;
+    // KMSDRM only puts a window on a panel when it is fullscreen. KT_NOFS=1 falls back to borderless.
+    flags = SDL_WINDOW_SHOWN | (getenv("KT_NOFS") ? SDL_WINDOW_BORDERLESS : SDL_WINDOW_FULLSCREEN_DESKTOP);
+  }
+  w.w = SDL_CreateWindow(title, x, y, ww, wh, flags);
+  if (!w.w) { fprintf(stderr, "  create window '%s' failed: %s\n", title, SDL_GetError()); return false; }
   bool soft = getenv("KT_SOFTWARE") != nullptr;
-  w.r = SDL_CreateRenderer(w.w, -1, soft ? SDL_RENDERER_SOFTWARE : SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-  if (!w.r) w.r = SDL_CreateRenderer(w.w, -1, SDL_RENDERER_SOFTWARE);
-  if (!w.r) return false;
-  SDL_RenderSetLogicalSize(w.r, LW, LH); w.id = SDL_GetWindowID(w.w); return true;
+  // With two windows on two CRTCs, per-window vsync can stall the other panel: off by default on device.
+  bool vsync = !onDisplay || getenv("KT_VSYNC");
+  Uint32 rf = soft ? SDL_RENDERER_SOFTWARE : (SDL_RENDERER_ACCELERATED | (vsync ? SDL_RENDERER_PRESENTVSYNC : 0));
+  w.r = SDL_CreateRenderer(w.w, -1, rf);
+  if (!w.r) { fprintf(stderr, "  accelerated renderer for '%s' failed (%s), trying software\n", title, SDL_GetError()); w.r = SDL_CreateRenderer(w.w, -1, SDL_RENDERER_SOFTWARE); }
+  if (!w.r) { fprintf(stderr, "  create renderer '%s' failed: %s\n", title, SDL_GetError()); return false; }
+  SDL_RenderSetLogicalSize(w.r, LW, LH); w.id = SDL_GetWindowID(w.w);
+  SDL_RendererInfo ri{}; SDL_GetRendererInfo(w.r, &ri); int aw = 0, ah = 0; SDL_GetWindowSize(w.w, &aw, &ah);
+  fprintf(stderr, "  window '%s': id=%u display=%d size=%dx%d flags=0x%x renderer=%s vsync=%d\n", title, w.id,
+          SDL_GetWindowDisplayIndex(w.w), aw, ah, SDL_GetWindowFlags(w.w), ri.name, vsync ? 1 : 0);
+  return true;
 }
 
 bool saveShot(Win& w, const std::string& path) {
@@ -449,7 +461,7 @@ int main(int argc, char** argv) {
   }
   if (stateDir.empty()) {
     const char* x = getenv("XDG_CONFIG_HOME"); const char* h = getenv("HOME");
-    stateDir = x ? std::string(x) + "/kanji-trainer" : std::string(h ? h : ".") + "/.config/kanji-trainer";
+    stateDir = x ? std::string(x) + "/banana-kana" : std::string(h ? h : ".") + "/.config/banana-kana";
   }
   App app; app.dataDir = dataDir; std::string err;
   if (!app.data.load(dataDir, &err)) { fprintf(stderr, "cannot load data from '%s': %s\n", dataDir.c_str(), err.c_str()); return 2; }
@@ -465,19 +477,20 @@ int main(int argc, char** argv) {
 
   int displays = SDL_GetNumVideoDisplays();
   { SDL_version v; SDL_GetVersion(&v);
-    fprintf(stderr, "kanji-trainer: SDL %d.%d.%d video=%s displays=%d data=%s\n", v.major, v.minor, v.patch,
+    fprintf(stderr, "banana-kana: SDL %d.%d.%d video=%s displays=%d data=%s\n", v.major, v.minor, v.patch,
             SDL_GetCurrentVideoDriver() ? SDL_GetCurrentVideoDriver() : "?", displays, dataDir.c_str());
     for (int i = 0; i < displays; i++) { SDL_Rect b{}; SDL_GetDisplayBounds(i, &b);
       const char* n = SDL_GetDisplayName(i); fprintf(stderr, "  display %d: %s %dx%d at (%d,%d)\n", i, n ? n : "?", b.w, b.h, b.x, b.y); } }
   bool dual = (displays >= 2) || forceDual;
-  if (!makeWin(app.top, "Kanji Trainer - top", 80, 40, 560, 420, dual && displays >= 2, 0) ||
-      !makeWin(app.bot, "Kanji Trainer - bottom (touch)", 80, 500, 560, 420, dual && displays >= 2, displays >= 2 ? 1 : 0)) {
+  if (!makeWin(app.top, "Banana Kana - top", 80, 40, 560, 420, dual && displays >= 2, 0) ||
+      !makeWin(app.bot, "Banana Kana - bottom (touch)", 80, 500, 560, 420, dual && displays >= 2, displays >= 2 ? 1 : 0)) {
     fprintf(stderr, "window: %s\n", SDL_GetError()); return 3;
   }
   SDL_ShowCursor(SDL_ENABLE);
 
   if (self) { int rc = selfTest(app, shotDir); SDL_Quit(); return rc; }
 
+  int frames = 0;
   while (app.running) {
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
@@ -498,6 +511,10 @@ int main(int argc, char** argv) {
       }
     }
     app.render(); SDL_Delay(8);
+    if (++frames == 90) {
+      fprintf(stderr, "  after 90 frames: top flags=0x%x bottom flags=0x%x sdl_error='%s'\n",
+              SDL_GetWindowFlags(app.top.w), SDL_GetWindowFlags(app.bot.w), SDL_GetError());
+    }
   }
   app.prog.save(app.statePath);
   TTF_Quit(); SDL_Quit(); return 0;

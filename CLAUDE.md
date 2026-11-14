@@ -1,7 +1,8 @@
-# kanji-trainer
+# banana-kana
 
-Kanji stroke-order trainer for the Anbernic RG DS Plus running BananaOS.
-Top screen: kanji, readings, example. Bottom screen (touch/stylus): trace strokes.
+Banana Kana: hiragana/katakana drills (reading, word meanings, typing) and stylus tracing for the Anbernic RG DS Plus
+running BananaOS. Top screen: prompt and feedback. Bottom screen (touch/stylus): answer tiles, keyboard, tracing canvas.
+(Renamed from kanji-trainer; GitHub repo may still be called kanji-trainer until the owner renames it.)
 
 ## Git
 - Commit straight to `main`.
@@ -10,14 +11,14 @@ Top screen: kanji, readings, example. Bottom screen (touch/stylus): trace stroke
   (`0.0.0` = placeholder, no release). To release: bump `VERSION`, push to main.
 
 ## Packaging (BananaOS Ports layout)
-- `scripts/package.sh <version>` -> `dist/KanjiTrainer-<version>-aarch64.zip`
-- Zip holds `Kanji Trainer.sh` + `KanjiTrainer/`; user unzips into `roms/ports` on the SD card.
-- Source: `launcher/Kanji Trainer.sh`, `app/data/` (generated assets), aarch64 binary from `scripts/docker-build-aarch64.sh`.
+- `scripts/package.sh <version>` -> `dist/BananaKana-<version>-aarch64.zip`
+- Zip holds `Banana Kana.sh` + `BananaKana/`; user unzips into `roms/ports` on the SD card.
+- Source: `launcher/Banana Kana.sh`, `app/data/` (generated assets), aarch64 binary from `scripts/docker-build-aarch64.sh`.
 - Device build: arm64 Debian bookworm container (QEMU in CI). BananaOS ships SDL2, SDL2_ttf, FreeType and ALSA, so we link
   them dynamically and bundle nothing but libstdc++/libgcc (static). `dist/aarch64/REQUIREMENTS.txt` records the glibc/SDL
   versions the binary needs - compare with the device before releasing.
 - `.github/workflows/build.yml` builds, tests, self-tests and package-dry-runs on every push (no release).
-- Launcher writes `~/.config/kanji-trainer/launch.log` (env + display info) - ask for it when debugging on device.
+- Launcher writes `~/.config/banana-kana/launch.log` (env + display info) - ask for it when debugging on device.
 
 ## Device facts (from tonywei92/banana-player DEVELOPMENT.md)
 - Apps run via BananaOS `run-store-app`; HOME=/data/home, SDL_KMSDRM_FIRST = top connector.
@@ -38,7 +39,7 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
 - Deps: `libsdl2-dev libsdl2-ttf-dev cmake g++`; asset generation needs `python3 fonttools`.
 - `cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure` (core logic tests)
 - UI self-test (scripted clicks through every drill type, dummy displays):
-  `SDL_VIDEODRIVER=dummy KT_SOFTWARE=1 build/kanji_trainer --selftest --shots /tmp/shots --state-dir /tmp/kt`
+  `SDL_VIDEODRIVER=dummy KT_SOFTWARE=1 build/banana_kana --selftest --shots /tmp/shots --state-dir /tmp/kt`
 - Regenerate assets: `python3 tools/gen_data.py` (kana.tsv, words.tsv, KanjiVG strokes.txt, subset font).
 
 ## Code map
@@ -51,3 +52,11 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
 - Dual-screen window placement (uses 2 displays if SDL reports them) and bottom touch routing (evdev `fe5e0000.i2c`) untested.
 - Yoon kana (きゃ etc.) have no Write drill (two glyphs). Typing has no Japanese-keyboard mode (romaji only).
 - Kana count is 104 per script (Maru shows 105).
+
+## Device findings (first on-device test, 2026-11-14)
+- BananaOS: Linux 7.2.7-banana aarch64, Buildroot glibc 2.41, SDL 2.32.10 with KMSDRM, SDL_KMSDRM_FIRST=DSI-2.
+- SDL reports 2 displays, both 1024x768 (display 1 at x=1024). Top window + buttons worked; bottom panel was blank on the first build.
+- Suspects for blank bottom: bottom backlight off (`/run/banana/backlight-bottom` names the device, `bl_power` 0=on/4=off, `/run/banana/panel-off`
+  keeps it dark) and non-fullscreen window (KMSDRM needs fullscreen). Launcher now logs panel state and sets bl_power=0.
+- If still blank: next step is raw KMS/DRM output for the bottom panel (Banana Player's fallback).
+- Env switches: `KT_NOFS=1` (borderless instead of fullscreen), `KT_VSYNC=1` (vsync per window), `KT_SOFTWARE=1`.

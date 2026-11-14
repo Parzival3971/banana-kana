@@ -1,4 +1,4 @@
-// kanji-trainer core: data, progress, question generation, stroke scoring. No SDL here.
+// banana-kana core: data, progress, question generation, stroke scoring. No SDL here.
 #pragma once
 #include <cstdint>
 #include <map>

@@ -15,16 +15,16 @@ fi
 cmake -S . -B build-arm -DCMAKE_BUILD_TYPE=Release -DKT_STATIC_STDCPP=ON >/dev/null
 cmake --build build-arm -j"$(nproc)"
 ctest --test-dir build-arm --output-on-failure
-SDL_VIDEODRIVER=dummy KT_SOFTWARE=1 timeout 600 build-arm/kanji_trainer --selftest --state-dir /tmp/kt --data app/data
+SDL_VIDEODRIVER=dummy KT_SOFTWARE=1 timeout 600 build-arm/banana_kana --selftest --state-dir /tmp/kt --data app/data
 
 mkdir -p dist/aarch64
-cp build-arm/kanji_trainer dist/aarch64/kanji_trainer
-strip dist/aarch64/kanji_trainer
+cp build-arm/banana_kana dist/aarch64/banana_kana
+strip dist/aarch64/banana_kana
 {
-  echo "Kanji Trainer aarch64 build requirements"
+  echo "Banana Kana aarch64 build requirements"
   echo "built on: $(. /etc/os-release && echo "$PRETTY_NAME"), glibc $(ldd --version | head -1 | grep -o '[0-9.]*$')"
   echo "built against SDL2 $(pkg-config --modversion sdl2), SDL2_ttf $(pkg-config --modversion SDL2_ttf)"
-  echo "needs glibc symbols up to: $(objdump -T dist/aarch64/kanji_trainer | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1)"
+  echo "needs glibc symbols up to: $(objdump -T dist/aarch64/banana_kana | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1)"
   echo "shared libraries (NEEDED):"
-  readelf -d dist/aarch64/kanji_trainer | grep NEEDED | sed 's/.*\[\(.*\)\]/  \1/'
+  readelf -d dist/aarch64/banana_kana | grep NEEDED | sed 's/.*\[\(.*\)\]/  \1/'
 } | tee dist/aarch64/REQUIREMENTS.txt
