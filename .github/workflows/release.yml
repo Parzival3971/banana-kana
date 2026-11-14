@@ -1,0 +1,49 @@
+name: Release
+
+# Releases are created ONLY by this workflow, when VERSION changes on main.
+# Never create tags or GitHub releases by hand.
+on:
+  push:
+    branches: [main]
+    paths: [VERSION]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: v
+        run: echo "version=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Decide whether to release
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          if [ "$VERSION" = "0.0.0" ]; then
+            echo "VERSION is 0.0.0 (placeholder), skipping."; echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "Release v$VERSION already exists, skipping."; echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "go=true" >> "$GITHUB_OUTPUT"
+
+      - name: Package
+        if: steps.gate.outputs.go == 'true'
+        run: ./scripts/package.sh "${{ steps.v.outputs.version }}"
+
+      - name: Create release
+        if: steps.gate.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          gh release create "v$VERSION" "dist/KanjiTrainer-$VERSION-aarch64.zip" \
+            --target "$GITHUB_SHA" --title "Kanji Trainer v$VERSION" --generate-notes
