@@ -12,7 +12,8 @@ Top screen: kanji, readings, example. Bottom screen (touch/stylus): trace stroke
 ## Packaging (BananaOS Ports layout)
 - `scripts/package.sh <version>` -> `dist/KanjiTrainer-<version>-aarch64.zip`
 - Zip holds `Kanji Trainer.sh` + `KanjiTrainer/`; user unzips into `roms/ports` on the SD card.
-- Source: `launcher/Kanji Trainer.sh`, `app/` (not created yet; app/ holds the aarch64 binary + assets).
+- Source: `launcher/Kanji Trainer.sh` (NOT written yet), `app/data/` (generated assets). The aarch64 binary still has to be
+  built and its shared libs bundled (Banana Player bundles its libs) - NOT done, so do not bump VERSION yet.
 
 ## Device facts (from tonywei92/banana-player DEVELOPMENT.md)
 - Apps run via BananaOS `run-store-app`; HOME=/data/home, SDL_KMSDRM_FIRST = top connector.
@@ -28,3 +29,21 @@ windows side by side; cross-compile to aarch64 for the release zip.
 
 ## Data
 Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
+
+## Build / test (PC)
+- Deps: `libsdl2-dev libsdl2-ttf-dev libsdl2-mixer-dev cmake g++`; asset generation also needs `espeak-ng`, `python3 fonttools`.
+- `cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure` (core logic tests)
+- UI self-test (scripted clicks through every drill type, dummy displays):
+  `SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy KT_SOFTWARE=1 build/kanji_trainer --selftest --shots /tmp/shots --state-dir /tmp/kt`
+- Regenerate assets: `python3 tools/gen_data.py` (kana.tsv, words.tsv, KanjiVG strokes.txt, espeak audio, subset font).
+
+## Code map
+- `src/core.{h,cpp}`: data loading, progress/weak-spot weighting, question generation, stroke scoring (no SDL).
+- `src/main.cpp`: two SDL windows, screens (Home/Settings/Drill/Result), input (mouse=touch, gamepad, keyboard), `--selftest`.
+- Drill types: ReadKana, RecallKana, Listen, Meaning, Write (stylus trace vs KanjiVG), Type (on-screen romaji keys).
+
+## Known gaps / to verify on device
+- Dual-screen window placement (uses 2 displays if SDL reports them) and bottom touch routing (evdev `fe5e0000.i2c`) untested.
+- Listening audio is placeholder espeak-ng TTS; replace with better recordings if available.
+- Yoon kana (きゃ etc.) have no Write drill (two glyphs). Typing has no Japanese-keyboard mode (romaji only).
+- Kana count is 104 per script (Maru shows 105).
