@@ -12,7 +12,7 @@ Top screen: kanji, readings, example. Bottom screen (touch/stylus): trace stroke
 ## Packaging (BananaOS Ports layout)
 - `scripts/package.sh <version>` -> `dist/KanjiTrainer-<version>-aarch64.zip`
 - Zip holds `Kanji Trainer.sh` + `KanjiTrainer/`; user unzips into `roms/ports` on the SD card.
-- Source: `launcher/Kanji Trainer.sh`, `app/` (not created yet).
+- Source: `launcher/Kanji Trainer.sh`, `app/` (not created yet; app/ holds the aarch64 binary + assets).
 
 ## Device facts (from tonywei92/banana-player DEVELOPMENT.md)
 - Apps run via BananaOS `run-store-app`; HOME=/data/home, SDL_KMSDRM_FIRST = top connector.
@@ -21,9 +21,10 @@ Top screen: kanji, readings, example. Bottom screen (touch/stylus): trace stroke
 - Buttons via SDL GameController, Nintendo layout (A = east).
 - Only the bottom screen is touch. Audio: ALSA default.
 
-## Open risk
-Love2D normally owns a single window, so driving both panels may not work. Verify on
-device early; fallback is SDL2 (C++) with two windows, as Banana Player does.
+## Toolkit
+SDL2 + C++ (CMake), two SDL windows (top = DSI-2 connector, bottom = touch), like Banana Player.
+Decided over Love2D because Love2D owns a single window. Develop on PC with the two
+windows side by side; cross-compile to aarch64 for the release zip.
 
 ## Data
 Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
