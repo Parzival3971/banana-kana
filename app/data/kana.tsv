@@ -102,6 +102,7 @@ hiragana	びょ	byo	yoon
 hiragana	ぴゃ	pya	yoon
 hiragana	ぴゅ	pyu	yoon
 hiragana	ぴょ	pyo	yoon
+hiragana	っ	small tsu	extra
 katakana	ア	a	gojuon
 katakana	イ	i	gojuon
 katakana	ウ	u	gojuon
@@ -206,3 +207,18 @@ katakana	ビョ	byo	yoon
 katakana	ピャ	pya	yoon
 katakana	ピュ	pyu	yoon
 katakana	ピョ	pyo	yoon
+katakana	ッ	small tsu	extra
+katakana	ー	long vowel	extra
+katakana	ティ	ti	extra
+katakana	ディ	di	extra
+katakana	ファ	fa	extra
+katakana	フィ	fi	extra
+katakana	フェ	fe	extra
+katakana	フォ	fo	extra
+katakana	ウィ	wi	extra
+katakana	ウェ	we	extra
+katakana	ウォ	wo	extra
+katakana	ヴ	vu	extra
+katakana	チェ	che	extra
+katakana	シェ	she	extra
+katakana	ジェ	je	extra

@@ -27,6 +27,8 @@ Third-party data in app/data (not covered by the MIT licence above):
   See app/data/licenses/KanjiVG-CC-BY-SA-3.0.txt.
 - kana.ttf, ui.ttf: subsets of Zen Maru Gothic, SIL Open Font License 1.1.
   See app/data/licenses/ZenMaruGothic-OFL.txt.
+- kana_hand.ttf: subset of Klee One, SIL Open Font License 1.1.
+  See app/data/licenses/KleeOne-OFL.txt.
 - fallback.ttf: subset of Noto Sans CJK JP, SIL Open Font License 1.1.
   See app/data/licenses/NotoSansCJK-OFL.txt.
 

@@ -154,6 +154,7 @@ int main(int argc, char** argv) {
   }
   SDL_ShowCursor(SDL_ENABLE);
   if (!loadFonts(dataDir, app.top.scale, &err)) { fprintf(stderr, "font: %s\n", err.c_str()); return 3; }
+  setKanaHand(app.prog.settings.kanaHand);
 
   if (self) { int rc = app.selfTest(shotDir); SDL_Quit(); return rc; }
 

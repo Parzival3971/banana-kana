@@ -8,6 +8,7 @@
 #include <set>
 #include <sstream>
 #include <ctime>
+#include <cstring>
 
 namespace kt {
 
@@ -61,7 +62,9 @@ const StageDef STAGE_DEFS[STAGE_COUNT] = {
   {"ま row", "まみむめも", false}, {"や row", "やゆよ", false}, {"ら row", "らりるれろ", false},
   {"わ を ん", "わをん", false}, {"が ざ だ", "がぎぐげござじずぜぞだぢづでど", false},
   {"ば ぱ", "ばびぶべぼぱぴぷぺぽ", false}, {"きゃ … ひゃ", "きしちにひ", true}, {"みゃ … ぴゃ", "みりぎじびぴ", true},
+  {"Small っ", "っ", false},  // katakana uses EXTRA_K instead
 };
+const char* EXTRA_K = "ッ ー ティ ディ ファ フィ フェ フォ ウィ ウェ ウォ ヴ チェ シェ ジェ";
 struct MixDef { const char* kana; const char* note; };
 const MixDef MIX_DEFS[] = {
   {"さ き", "き has two bars across, さ has one."},
@@ -74,6 +77,8 @@ const MixDef MIX_DEFS[] = {
   {"こ に", "に is こ with a post on the left."},
   {"あ お", "あ has a cross through its loop; お has one bar and an open loop with a dot."},
   {"う つ", "う has a dash on top; つ is just the wave."},
+  {"つ っ", "っ is つ written small: it makes no sound, it doubles the next consonant (きって = kitte)."},
+  {"ツ ッ", "ッ is ツ written small: it doubles the next consonant (カップ = kappu)."},
   {"ま も", "ま loops at the bottom of its post; も is a hook with two bars."},
   {"た な", "た ends in こ; な ends in a loop."},
   {"ば ぱ", "Two marks make b; a little circle makes p."},
@@ -149,6 +154,15 @@ bool Data::load(const std::string& dir, std::string* err) {
     for (int i = 0; i < STAGE_COUNT; i++) {
       const StageDef& def = STAGE_DEFS[i];
       Stage st; st.name = s == Script::Hiragana ? def.name : toKatakana(def.name);
+      if (i == STAGE_COUNT - 1 && s == Script::Katakana) {  // ッ, ー and new sounds: their own list
+        st.name = "ッ ー and new sounds";
+        for (const std::string& g : split(EXTRA_K, ' ')) {
+          int idx = findKana(s, g);
+          if (idx < 0) return fail("stage kana missing from kana.tsv: " + g);
+          st.kana.push_back(idx); stageOfKana[idx] = i;
+        }
+        list.push_back(std::move(st)); continue;
+      }
       for (const std::string& base : chars(def.kana)) {
         std::vector<std::string> glyphsHere;
         if (def.yoon) for (const char* small : {"ゃ", "ゅ", "ょ"}) glyphsHere.push_back(base + small);
@@ -164,6 +178,7 @@ bool Data::load(const std::string& dir, std::string* err) {
     }
   }
   for (size_t i = 0; i < kana.size(); i++) if (stageOfKana[i] < 0) return fail("kana in no stage: " + kana[i].glyph);
+  for (auto& k : kana) k.special = k.glyph == "っ" || k.glyph == "ッ" || k.glyph == "ー";
   for (const MixDef& m : MIX_DEFS) {
     MixSet set; set.note = m.note;
     for (const std::string& g : chars(m.kana)) {
@@ -180,6 +195,10 @@ bool Data::load(const std::string& dir, std::string* err) {
 int Data::findKana(Script s, const std::string& g) const {
   for (size_t i = 0; i < kana.size(); i++) if (kana[i].script == s && kana[i].glyph == g) return int(i);
   return -1;
+}
+
+int Data::scriptCount(Script s) const {
+  int n = 0; for (auto& k : kana) if (k.script == s) n++; return n;
 }
 
 const Glyph* Data::glyphFor(const std::string& g) const {
@@ -199,12 +218,13 @@ std::vector<std::string> Data::partNames(const std::string& g) {
 }
 
 std::vector<const Glyph*> Data::writeParts(const std::string& g) const {
-  static const std::map<std::string, std::string> BIG = {{"ゃ", "や"}, {"ゅ", "ゆ"}, {"ょ", "よ"}, {"っ", "つ"},
-                                                         {"ャ", "ヤ"}, {"ュ", "ユ"}, {"ョ", "ヨ"}, {"ッ", "ツ"}};
+  static const std::map<std::string, std::string> BIG = {
+    {"ゃ", "や"}, {"ゅ", "ゆ"}, {"ょ", "よ"}, {"っ", "つ"}, {"ャ", "ヤ"}, {"ュ", "ユ"}, {"ョ", "ヨ"}, {"ッ", "ツ"},
+    {"ァ", "ア"}, {"ィ", "イ"}, {"ゥ", "ウ"}, {"ェ", "エ"}, {"ォ", "オ"}};  // small kana are traced full size
   std::vector<const Glyph*> out;
   for (const std::string& c : partNames(g)) {
     auto it = BIG.find(c);
-    const Glyph* gl = glyphFor(it != BIG.end() && partNames(g).size() > 1 ? it->second : c);
+    const Glyph* gl = glyphFor(it != BIG.end() ? it->second : c);
     if (!gl) return {};
     out.push_back(gl);
   }
@@ -376,6 +396,10 @@ bool Progress::load(const std::string& path, const Data* d) {
       else if (k == "best_streak") bestStreak = std::max(0, v);
       else if (k == "last_goal_day") lastGoalDay = v;
       else if (k == "kana_keys") settings.kanaKeys = v != 0;
+      else if (k == "kana_hand") settings.kanaHand = v != 0;
+      else if (k == "guide_lines") settings.guideLines = std::clamp(v, 0, 2);
+      else if (k == "ink") settings.ink = std::clamp(v, 0, 2);
+      else if (k == "strict") settings.strict = std::clamp(v, 0, 2);
       else if (k == "timed_best_h") timedBest[0] = std::max(0, v);
       else if (k == "timed_best_k") timedBest[1] = std::max(0, v);
       else if (k == "script") settings.script = v ? Script::Katakana : Script::Hiragana;
@@ -423,7 +447,8 @@ bool Progress::save(const std::string& path) const {
       << "\nset writing " << settings.writing << "\nset typing " << settings.typing << "\nset session_len " << settings.sessionLen
       << "\nset script " << (settings.script == Script::Katakana) << "\nset theme " << settings.light
       << "\nset daily_goal " << settings.dailyGoal << "\nset today " << today << "\nset today_count " << todayCount
-      << "\nset kana_keys " << int(settings.kanaKeys) << "\nset timed_best_h " << timedBest[0] << "\nset timed_best_k " << timedBest[1]
+      << "\nset kana_keys " << int(settings.kanaKeys) << "\nset kana_hand " << int(settings.kanaHand)
+      << "\nset guide_lines " << settings.guideLines << "\nset ink " << settings.ink << "\nset strict " << settings.strict << "\nset timed_best_h " << timedBest[0] << "\nset timed_best_k " << timedBest[1]
       << "\nset streak " << streak << "\nset best_streak " << bestStreak << "\nset last_goal_day " << lastGoalDay
       << "\nset session " << session << "\nset last_score " << lastScore << "\nset last_len " << lastLen << "\nset unlocked_h " << unlocked[0] << "\nset unlocked_k " << unlocked[1]
       << "\nset lessons_h " << lessons[0] << "\nset lessons_k " << lessons[1] << "\n";
@@ -514,7 +539,7 @@ bool allowedType(const Data& d, const Progress& p, int ki, QType t) {
   if (ki < 0) return false;
   int st = p.step(Progress::keyKana(d.kana[ki]));
   if (t == QType::Write) return st >= PRODUCE_STEP && !d.writeParts(d.kana[ki].glyph).empty();
-  if (t == QType::Type) return st >= (p.settings.kanaKeys ? PRODUCE_STEP : TYPE_STEP);
+  if (t == QType::Type) return !d.kana[ki].special && st >= (p.settings.kanaKeys ? PRODUCE_STEP : TYPE_STEP);
   return true;
 }
 
@@ -544,12 +569,39 @@ Question makeKanaQuestion(const Data& d, const Progress& p, std::mt19937& rng, i
   std::vector<std::string> kanaPool, romajiPool;
   for (int i : pool) {
     const Kana& o = d.kana[i];
-    if (o.glyph == k.glyph || o.romaji == k.romaji) continue;
+    if (o.glyph == k.glyph || o.romaji == k.romaji || (o.special && !k.special)) continue;  // っ/ー are never a wrong "sound"
     int reps = (d.stageOfKana[i] == d.stageOfKana[ki]) ? 3 : 1;  // prefer look-alikes from the same stage
     for (int r = 0; r < reps; r++) { kanaPool.push_back(o.glyph); romajiPool.push_back(o.romaji); }
   }
   std::set<std::string> distinct(romajiPool.begin(), romajiPool.end());
   size_t n = distinct.size() >= 5 ? 6 : 4;
+  if (k.special && type == QType::ReadKana) {  // っ / ー have no sound of their own: read a word that uses them
+    std::vector<const Word*> ws;
+    for (auto& w : d.words) if (w.katakana == (k.script == Script::Katakana) && w.kana.find(k.glyph) != std::string::npos) ws.push_back(&w);
+    if (ws.empty()) type = QType::RecallKana;
+    else {
+      const Word& w = *ws[std::uniform_int_distribution<int>(0, int(ws.size()) - 1)(rng)];
+      auto variants = [&](const std::string& r) {  // near misses: the mark ignored, or put in the wrong place
+        std::vector<std::string> v;
+        for (size_t i = 0; i + 1 < r.size(); i++)
+          if (r[i] == r[i + 1] && !std::strchr("n", r[i])) { std::string x = r; x.erase(i, 1); v.push_back(x); break; }
+        for (size_t i = 0; i + 1 < r.size(); i++)
+          if (std::strchr("aiueo", r[i]) && !std::strchr("aiueo", r[i + 1])) { std::string x = r; x.insert(i, 1, r[i]); v.push_back(x); break; }
+        for (size_t i = 1; i + 1 < r.size(); i++)
+          if (!std::strchr("aiueo", r[i]) && std::strchr("aiueo", r[i + 1]) && r[i - 1] != r[i]) { std::string x = r; x.insert(i, 1, r[i]); v.push_back(x); break; }
+        return v;
+      };
+      std::vector<std::string> opts{w.romaji};
+      for (auto& x : variants(w.romaji)) if (!std::count(opts.begin(), opts.end(), x)) opts.push_back(x);
+      std::vector<const Word*> others = ws; std::shuffle(others.begin(), others.end(), rng);
+      for (auto* o : others) if (opts.size() < 4 && !std::count(opts.begin(), opts.end(), o->romaji)) opts.push_back(o->romaji);
+      while (opts.size() > 4) opts.pop_back();
+      std::shuffle(opts.begin(), opts.end(), rng);
+      q.type = QType::ReadKana; q.prompt = w.kana; q.hint = "How do you read this word? · " + w.english;
+      q.options = opts; q.answer = w.romaji; q.correct = int(std::find(opts.begin(), opts.end(), w.romaji) - opts.begin());
+      return q;
+    }
+  }
   switch (type) {
     case QType::ReadKana:
       q.prompt = k.glyph; q.hint = "What sound is this?";
@@ -752,7 +804,80 @@ Stroke resample(const Stroke& s, int n) {
   return out;
 }
 
-StrokeResult scoreStroke(const Stroke& user, const Stroke& ref, float tol) {
+std::vector<Guess> recognizeKana(const Data& d, const std::vector<Stroke>& strokes, int topN) {
+  std::vector<Guess> out;
+  if (strokes.empty()) return out;
+  auto bbox = [](const std::vector<Stroke>& ss, float& x0, float& y0, float& x1, float& y1) {
+    x0 = y0 = 1e9f; x1 = y1 = -1e9f;
+    for (auto& s : ss) for (auto& p : s) { x0 = std::min(x0, p.x); y0 = std::min(y0, p.y); x1 = std::max(x1, p.x); y1 = std::max(y1, p.y); }
+  };
+  float ux0, uy0, ux1, uy1; bbox(strokes, ux0, uy0, ux1, uy1);
+  float uw = std::max(ux1 - ux0, 1.f), uh = std::max(uy1 - uy0, 1.f), ucx = (ux0 + ux1) / 2, ucy = (uy0 + uy1) / 2;
+  const int N = 16; const int n = int(strokes.size());
+  std::vector<Stroke> ur; for (auto& s : strokes) ur.push_back(resample(s, N));
+  std::set<std::string> seen;
+  for (size_t ki = 0; ki < d.kana.size(); ki++) {
+    const Kana& k = d.kana[ki];
+    if (seen.count(k.glyph)) continue;
+    seen.insert(k.glyph);
+    const Glyph* g = d.glyphFor(k.glyph);  // single characters only (small kana are drawn small: their own data)
+    if (!g) continue;
+    int m = int(g->strokes.size());
+    if (std::abs(m - n) > 1) continue;
+    float gx0, gy0, gx1, gy1; bbox(g->strokes, gx0, gy0, gx1, gy1);
+    float gw = std::max(gx1 - gx0, 1.f), gh = std::max(gy1 - gy0, 1.f), gcx = (gx0 + gx1) / 2, gcy = (gy0 + gy1) / 2;
+    float sc = std::max(gw, gh) / std::max(uw, uh);  // same box, keeping the drawing's proportions
+    int cnt = std::min(n, m);
+    std::vector<Stroke> gr; for (auto& gs : g->strokes) gr.push_back(resample(gs, N));
+    auto dist = [&](int ui, int gi, bool rev) {
+      float dsum = 0;
+      for (int j = 0; j < N; j++) {
+        const Pt& u = ur[ui][rev ? N - 1 - j : j];
+        dsum += std::hypot((u.x - ucx) * sc + gcx - gr[gi][j].x, (u.y - ucy) * sc + gcy - gr[gi][j].y);
+      }
+      return dsum / N;
+    };
+    float inOrder = 0; for (int i = 0; i < cnt; i++) inOrder += dist(i, i, false);
+    inOrder /= cnt;
+    float shape = inOrder;
+    if (n == m) {  // the right kana in the wrong order or direction should still be recognised (the order is checked after)
+      std::vector<std::vector<float>> c(n, std::vector<float>(m));
+      for (int i = 0; i < n; i++) for (int j = 0; j < m; j++) c[i][j] = std::min(dist(i, j, false), dist(i, j, true));
+      std::vector<bool> uu(n, false), gu(m, false); float free = 0;
+      for (int k2 = 0; k2 < n; k2++) {
+        int bi = -1, bj = -1; float best = 1e9f;
+        for (int i = 0; i < n; i++) if (!uu[i]) for (int j = 0; j < m; j++) if (!gu[j] && c[i][j] < best) { best = c[i][j]; bi = i; bj = j; }
+        uu[bi] = gu[bj] = true; free += best;
+      }
+      shape = std::min(inOrder, free / n + 4.f);
+    }
+    float aspect = std::abs(std::log((uw / uh) / (gw / gh)));  // a tall drawing isn't a wide kana
+    out.push_back({int(ki), shape + 14.f * std::abs(m - n) + 6.f * aspect});
+  }
+  std::sort(out.begin(), out.end(), [](const Guess& a, const Guess& b) { return a.score < b.score; });
+  if (int(out.size()) > topN) out.resize(topN);
+  return out;
+}
+
+std::vector<Stroke> fitStrokes(const std::vector<Stroke>& user, const Glyph& g) {
+  auto bbox = [](const std::vector<Stroke>& ss, float& x0, float& y0, float& x1, float& y1) {
+    x0 = y0 = 1e9f; x1 = y1 = -1e9f;
+    for (auto& s : ss) for (auto& p : s) { x0 = std::min(x0, p.x); y0 = std::min(y0, p.y); x1 = std::max(x1, p.x); y1 = std::max(y1, p.y); }
+  };
+  if (user.empty() || g.strokes.empty()) return user;
+  float ux0, uy0, ux1, uy1, gx0, gy0, gx1, gy1; bbox(user, ux0, uy0, ux1, uy1); bbox(g.strokes, gx0, gy0, gx1, gy1);
+  float sc = std::max(std::max(gx1 - gx0, gy1 - gy0), 1.f) / std::max(std::max(ux1 - ux0, uy1 - uy0), 1.f);
+  std::vector<Stroke> out = user;
+  for (auto& s : out) for (auto& p : s) { p.x = (p.x - (ux0 + ux1) / 2) * sc + (gx0 + gx1) / 2; p.y = (p.y - (uy0 + uy1) / 2) * sc + (gy0 + gy1) / 2; }
+  return out;
+}
+
+StrokeResult scoreStrokeAt(const Stroke& user, const Stroke& ref, int strictness) {
+  const float tol[3] = {22.f, 17.f, 12.5f};
+  return scoreStroke(user, ref, tol[std::clamp(strictness, 0, 2)], strictness >= 2);
+}
+
+StrokeResult scoreStroke(const Stroke& user, const Stroke& ref, float tol, bool strictLen) {
   if (user.size() < 2 || ref.size() < 2) return {false, 999.f};
   if (strokeLength(user) < 6.f) return {false, 999.f};  // a tap, not a stroke
   const int N = 24; Stroke a = resample(user, N), b = resample(ref, N);
@@ -764,7 +889,7 @@ StrokeResult scoreStroke(const Stroke& user, const Stroke& ref, float tol) {
   if (std::hypot(rx, ry) > 15.f) dirOk = (ux * rx + uy * ry) > 0;
   // length ratio sanity
   float lr = strokeLength(user) / std::max(1.f, strokeLength(ref));
-  bool lenOk = lr > 0.45f && lr < 2.2f;
+  bool lenOk = strictLen ? (lr > 0.65f && lr < 1.5f) : (lr > 0.45f && lr < 2.2f);
   return {mean <= tol && dirOk && lenOk, mean};
 }
 

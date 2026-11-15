@@ -17,8 +17,9 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 
 ## Features
 
-- **Stages, not a wall of kana.** 14 stages per script: the 10 basic rows, voiced kana (が, ぱ...) and combinations (きゃ...).
-  Katakana opens up once you've finished hiragana stage 10.
+- **Stages, not a wall of kana.** 15 stages per script: the 10 basic rows, voiced kana (が, ぱ...), combinations (きゃ...),
+  and an Extras stage for small っ, the long-vowel ー and katakana made for foreign words (ティ, ファ, ヴ...).
+  That's 105 hiragana and 119 katakana. Katakana opens up once you've finished hiragana stage 10.
 - **A lesson for every stage.** Each new kana gets a memory hint, stroke-order frames and a practice trace before it's tested.
 - **Four kinds of drill:**
   - reading, from kana to sound and back;
@@ -36,6 +37,12 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 - **Timed challenge.** One-tap answers for 60 seconds, with a personal best for each script.
 - **Practice sets and free writing.** Pick kana in the chart and drill just those (a single kana is mixed with its
   look-alikes), or write them freely with a full guide, an outline or none, without touching your progress.
+- **Draw any kana.** Write whatever you like from memory and Banana Kana works out which kana it is, then checks your
+  stroke order against it. Good for practising on your own.
+- **See the stroke order.** Show me (or START) animates each stroke in turn. Arrows on the guide show which way each
+  stroke goes.
+- **Your kind of writing.** Kana in rounded print or a textbook handwriting font, canvas guide lines (cross, grid or
+  none), ink thickness, and how strictly strokes are checked (relaxed, normal or strict).
 - **Daily goal and streak**, plus a stats screen with your last 14 days and an accuracy heatmap of every kana.
 - **Made for the device.**
   - Prompts on the top screen, answers and the tracing canvas on the touch screen.
@@ -56,6 +63,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 | <img src="docs/img/settings.png" width="250"><br>Settings | <img src="docs/img/light-home.png" width="250"><br>Light theme | <img src="docs/img/light-stats.png" width="250"><br>Light theme stats |
 | <img src="docs/img/welcome.png" width="250"><br>First launch | <img src="docs/img/practice-set.png" width="250"><br>Practice set | <img src="docs/img/free-write.png" width="250"><br>Free writing |
 | <img src="docs/img/skip.png" width="250"><br>Skipping ahead | <img src="docs/img/guided.png" width="250"><br>Guided writing | <img src="docs/img/credits.png" width="250"><br>Credits |
+| <img src="docs/img/draw-any.png" width="250"><br>Draw any kana | <img src="docs/img/extras.png" width="250"><br>Extras stage | <img src="docs/img/handwriting.png" width="250"><br>Handwriting font and grid |
 
 </details>
 
@@ -86,7 +94,7 @@ You need an Anbernic RG DS Plus running BananaOS.
 | **B** | Back. In drills: undo a stroke or delete a letter |
 | **X** | Check the answer |
 | **Y** | Hint while writing, guide in free writing. On Home and stats: switch hiragana / katakana |
-| **START** | In the chart: write the practice set freely |
+| **START** | Show me (stroke-order animation) when writing; in the chart, write the practice set freely |
 | **L / R** | Switch tabs, scripts or settings groups |
 | **F** (or **SELECT**) | Pause during practice: resume, back to menu or quit |
 | **F + START** | Quit from anywhere (BananaOS's F + SELECT works too) |
@@ -100,6 +108,8 @@ You need an Anbernic RG DS Plus running BananaOS.
   stage, and older stages come back as review (you can turn this down in Settings > Sessions).
 - **Spaced review.** A known kana is due again 1 day later, then 3, 7, 14, 30 and 90 days. Each right answer moves it
   to the next interval; a miss moves it back one and costs it a step, so it has to be re-learnt.
+- **っ and ー.** These have no sound of their own, so they're practised by reading words that use them (きって = kitte,
+  コーヒー = koohii), with near-miss answers that ignore the mark.
 - **Mix-ups.** When you pick the wrong kana, the pair is remembered. Mix-up drills show only the look-alikes as options.
 - **Staging.** Step 0: multiple choice only. Step 1: romaji typing too. Step 2: the kana keyboard and writing.
   Writing has its own three levels (full guide, outline, memory) and moves up one level per session. Guided writing
@@ -113,9 +123,9 @@ Six groups, laid out like BananaOS's own Settings app:
 | Group | Settings |
 |---|---|
 | **Practice** | How often each drill appears, and whether typing uses a romaji or kana keyboard |
-| **Sessions** | Session length, how much older stages come back, and the daily goal |
+| **Sessions** | Session length, how much older stages come back, the daily goal and how strict the writing check is |
 | **Script** | Which script you practise, and skipping ahead to a later stage (or unlocking katakana early) |
-| **Display** | Dark or light theme |
+| **Display** | Dark or light theme, kana font (rounded or handwriting), canvas lines and ink |
 | **Progress** | Your stats, and resetting progress (press twice; settings are kept) |
 | **About** | Version and credits |
 
@@ -196,8 +206,9 @@ self-test, plus the arm64 build and a package dry run.
 - **Stroke data:** [KanjiVG](https://kanjivg.tagaini.net/) © Ulrich Apel,
   [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). The sampled `app/data/strokes.txt` is shared
   under the same licence.
-- **Fonts:** [Zen Maru Gothic](https://fonts.google.com/specimen/Zen+Maru+Gothic) and
-  [Noto Sans CJK JP](https://github.com/notofonts/noto-cjk), both under the SIL Open Font License 1.1.
+- **Fonts:** [Zen Maru Gothic](https://fonts.google.com/specimen/Zen+Maru+Gothic),
+  [Klee One](https://fonts.google.com/specimen/Klee+One) and [Noto Sans CJK JP](https://github.com/notofonts/noto-cjk),
+  all under the SIL Open Font License 1.1.
 - **Text:** the lesson hints, words and look-alike notes were written for Banana Kana.
 - **BananaOS:** [BananaLinux](https://github.com/JorreFog/BananaLinux) by JorreFog, the OS this all runs on.
 - **Thanks:** [Banana Player](https://github.com/tonywei92/banana-player) for documenting how apps work on BananaOS.

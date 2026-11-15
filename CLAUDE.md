@@ -63,6 +63,12 @@ README has an AI disclosure section (user asked 2026-11-15): keep it accurate wh
   2 memory, +1 per session on a right guided write; guided writes (recordWrite level<2) never move steps; a memory miss
   drops wlv to 1. skipTo(script, stage|SKIP_ALL): earlier stages known with srs 1 due in 1-2 days (user chose "known,
   early review"); only moves forwards.
+  Kana Draw comparison (2026-11-15, user said "do all of them"): STAGE_COUNT 15 = Extras (hiragana: っ; katakana:
+  ッ ー + 13 foreign-sound kana from EXTRA_K). Kana.special (っ ッ ー): ReadKana becomes a word question with near-miss
+  romaji (mark ignored / misplaced), never typed, never a distractor sound. 105 hiragana / 119 katakana: use
+  Data::scriptCount, never 104. writeParts traces every small kana full size. Settings: strict (scoreStrokeAt 0/1/2),
+  kanaHand (kana_hand.ttf = Klee One, setKanaHand in gfx), guideLines, ink. recognizeKana(): order-free stroke matching
+  after fitting to the glyph box (draw-any mode); fitStrokes() for its order check.
 - `src/gfx.{h,cpp}`: themes/palettes, fonts + mixed-script text (per run; spaces always UI font), wrapping, rounded shapes
   (rows overlap 1px: avoids seams at non-integer scale), pixel icons, glyph stroke drawing, windows, screenshots.
   Text is rasterised at the panel's real scale (Win::scale, 1.6 on device) for sharpness.
@@ -74,7 +80,9 @@ README has an AI disclosure section (user asked 2026-11-15): keep it accurate wh
   new / know hiragana / know both / some -> Settings > Script), Settings > Script skip-ahead rows (kind 3: arrows pick,
   A confirms), Chart practice set (chartPick; tap twice/A toggles, X drill = Mode::Focus on focusSet, a single kana is
   mixed with its look-alikes and row-mates; START = FreeWrite), FreeWrite (guide full/outline/none, no progress),
-  Credits (animated via tick(), BananaOS/JorreFog first), d-pad cross drawn for the "+" chip key, Stages (14-tile map, replay lessons), Lesson (hint, stroke-order frames, practice trace),
+  Credits (animated via tick(), BananaOS/JorreFog first), d-pad cross drawn for the "+" chip key, Show me = stroke-order
+  animation (animStart, tick() redraws at ~30 fps; auto in lessons and guided writes; START), arrows on full guides,
+  Draw any (FreeWrite with empty fwList; chart "Draw any"), Chart Extras tab, stage map 8 per row, Stages (14-tile map, replay lessons), Lesson (hint, stroke-order frames, practice trace),
   Unlocked, Drill (choice/typing/writing + feedback banner with hint), Pause, Result, Chart (Basic/Voiced/Combos tabs,
   scroll, tap twice / A = 5-question drill of one kana), Settings, Credits.
 - Settings copy BananaOS's Settings (user asked, 2026-11-15; reference shot: BananaLinux docs/img/readme/shot-settings.png):
@@ -93,7 +101,7 @@ README has an AI disclosure section (user asked 2026-11-15): keep it accurate wh
 - New UI (M3/M4) not yet seen on device: check text sharpness at 1.6x, readability at F_MICRO (17px logical),
   L/R shoulder buttons (Stages script switch, Chart tabs) and that GUIDE really is the F key.
 - Kana keyboard and romaji keyboard are touch-only (no d-pad cursor).
-- Kana count is 104 per script (Maru shows 105).
+- Kana count: 105 hiragana (matches Maru), 119 katakana (with Extras).
 
 ## Device findings (first on-device test, 2026-11-14)
 - BananaOS: Linux 7.2.7-banana aarch64, Buildroot glibc 2.41, SDL 2.32.10 with KMSDRM, SDL_KMSDRM_FIRST=DSI-2.
@@ -126,7 +134,7 @@ README has an AI disclosure section (user asked 2026-11-15): keep it accurate wh
 
 ## v1 spec (decided 2026-11-15; mockups: https://claude.ai/artifact/AHzvzZCbRSnBpttUyaXq6z)
 - Look: BananaOS palette (banana yellow #FFD23F on warm neutrals), button-hint chips, cartridge tiles.
-  Fonts: kana in Zen Maru Gothic Bold, English/UI/keyboard in Zen Maru Gothic Medium (both OFL). Pixelify Sans (Banana
+  Fonts: kana in Zen Maru Gothic Bold (or Klee One SemiBold, setting), English/UI/keyboard in Zen Maru Gothic Medium (all OFL). Pixelify Sans (Banana
   Player's pixel font) was tried and DROPPED 2026-11-15: user found it hard to read. Don't reintroduce pixel fonts.
   Fallback for missing glyphs: Noto Sans CJK JP subset (fallback.ttf) instead of Fusion Pixel (already had it, OFL).
   Source TTFs: github.com/google/fonts (ofl/zenmarugothic). Licences ship in app/data/licenses/.

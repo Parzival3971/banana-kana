@@ -44,8 +44,15 @@ def kana_rows():
             rows.append((base + sm, r, "yoon"))
     out = []
     for g, r, grp in rows: out.append(("hiragana", g, r, grp))
+    out.append(("hiragana", "っ", "small tsu", "extra"))
     for g, r, grp in rows: out.append(("katakana", to_kata(g), r, grp))
+    for g, r in EXTRA_K: out.append(("katakana", g, r, "extra"))
     return out
+
+# Stage 15: small tsu, the long-vowel mark, and katakana sounds made for foreign words
+EXTRA_K = [("ッ", "small tsu"), ("ー", "long vowel"), ("ティ", "ti"), ("ディ", "di"), ("ファ", "fa"), ("フィ", "fi"),
+           ("フェ", "fe"), ("フォ", "fo"), ("ウィ", "wi"), ("ウェ", "we"), ("ウォ", "wo"), ("ヴ", "vu"),
+           ("チェ", "che"), ("シェ", "she"), ("ジェ", "je")]
 
 # ---------------------------------------------------------------- words
 WORDS = """
@@ -189,6 +196,31 @@ WORDS = """
 サッカー|sakkaa|soccer
 ギター|gitaa|guitar
 ピアノ|piano|piano
+きって|kitte|stamp
+ざっし|zasshi|magazine
+きっぷ|kippu|ticket
+もっと|motto|more
+ちょっと|chotto|a little
+いっぱい|ippai|full
+にっき|nikki|diary
+がっこう|gakkou|school
+カップ|kappu|cup
+ベッド|beddo|bed
+ネット|netto|internet
+チケット|chiketto|ticket
+クッキー|kukkii|cookie
+コピー|kopii|copy
+パーティー|paatii|party
+カフェ|kafe|café
+フォーク|fooku|fork
+ウェブ|webu|web
+ソファ|sofa|sofa
+ジェット|jetto|jet
+チェック|chekku|check
+シェフ|shefu|chef
+ディスク|disuku|disc
+フィルム|firumu|film
+ウィンク|winku|wink
 """.strip().splitlines()
 
 # ---------------------------------------------------------------- KanjiVG strokes
@@ -365,7 +397,12 @@ HINTS_K = {
  "ワ":"A box with an open bottom, like a wide mouth: \"wa\".",
  "ヲ":"Like フ with an extra bar: \"wo\". Rare in modern Japanese.",
  "ン":"One dot and one stroke rising up: \"n\". Compare ソ.",
+ "ッ":"A small ツ makes no sound of its own: it doubles the next consonant, like a tiny pause. カップ is \"kappu\".",
+ "ー":"The long-vowel bar stretches the vowel before it: コーヒー is \"koohii\". Written down the page, it turns sideways.",
+ "ヴ":"ウ with two little marks (dakuten): a \"v\" sound for foreign words, \"vu\".",
 }
+HINTS_H["っ"] = "A small つ makes no sound of its own: it doubles the next consonant, like a tiny pause. きって is \"kitte\"."
+
 def hint_rows(rows):
     def base_of(g, script):  # voiced -> plain base
         voiced = "がぎぐげござじずぜぞだぢづでどばびぶべぼ"; plain = "かきくけこさしすせそたちつてとはひふへほ"
@@ -381,6 +418,9 @@ def hint_rows(rows):
         if g in table: out.append((g, table[g])); continue
         if grp == "yoon":
             out.append((g, f'{g[0]} plus a small {g[1]}, said as one beat: "{r}".'))
+            continue
+        if grp == "extra" and len(g) == 2:
+            out.append((g, f'{g[0]} plus a small {g[1]}: a sound made for foreign words, "{r}".'))
             continue
         b, kind = base_of(g, script)
         if kind == "dakuten":
@@ -410,6 +450,9 @@ def build_fonts(rows):
     latin = "".join(chr(c) for c in range(0x20, 0x7f)) + "".join(chr(c) for c in range(0xa0, 0x180)) + "‹›–—‘’“”…•·×←→↑↓"
     subprocess.run([sys.executable, "-m", "fontTools.subset", zenm, f"--text={latin}", "--layout-features=*",
                     f"--output-file={os.path.join(DATA, 'ui.ttf')}"], check=True)
+    klee = fetch(GF + "ofl/kleeone/KleeOne-SemiBold.ttf", "KleeOne-SemiBold.ttf")
+    subprocess.run([sys.executable, "-m", "fontTools.subset", klee, f"--text={''.join(kana)}{jp_extra}",
+                    "--layout-features=*", f"--output-file={os.path.join(DATA, 'kana_hand.ttf')}"], check=True)
     noto = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
     fb = "".join(kana) + jp_extra + latin + "✓✗▲▼◀▶✛"
     subprocess.run([sys.executable, "-m", "fontTools.subset", noto, "--font-number=0", f"--text={fb}",
@@ -418,7 +461,7 @@ def build_fonts(rows):
     if os.path.exists(old): os.remove(old)
     stale = os.path.join(lic, "PixelifySans-OFL.txt")
     if os.path.exists(stale): os.remove(stale)
-    for url, name in [(GF + "ofl/zenmarugothic/OFL.txt", "ZenMaruGothic-OFL.txt")]:
+    for url, name in [(GF + "ofl/zenmarugothic/OFL.txt", "ZenMaruGothic-OFL.txt"), (GF + "ofl/kleeone/OFL.txt", "KleeOne-OFL.txt")]:
         open(os.path.join(lic, name), "w").write(open(fetch(url, name)).read())
     noto_lic = open(fetch("https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/LICENSE", "NotoSansCJK-LICENSE.txt")).read()
     open(os.path.join(lic, "NotoSansCJK-OFL.txt"), "w").write(
@@ -426,7 +469,7 @@ def build_fonts(rows):
     stale = os.path.join(lic, "NotoSansCJK.txt")
     if os.path.exists(stale): os.remove(stale)
     open(os.path.join(lic, "KanjiVG-CC-BY-SA-3.0.txt"), "w").write(KANJIVG_NOTICE)
-    print("fonts: kana.ttf ui.ttf fallback.ttf")
+    print("fonts: kana.ttf kana_hand.ttf ui.ttf fallback.ttf")
 
 KANJIVG_NOTICE = """strokes.txt - kana stroke data from KanjiVG
 

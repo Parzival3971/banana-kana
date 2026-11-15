@@ -14,7 +14,7 @@ enum class Script { Hiragana, Katakana };
 inline const char* scriptName(Script s) { return s == Script::Hiragana ? "Hiragana" : "Katakana"; }
 inline int si(Script s) { return s == Script::Hiragana ? 0 : 1; }
 
-struct Kana { Script script; std::string glyph, romaji, group; };
+struct Kana { Script script; std::string glyph, romaji, group; bool special = false; };  // special: っ ッ ー (read through words)
 struct Word { std::string kana, romaji, english; bool katakana; };
 struct Pt { float x, y; };
 using Stroke = std::vector<Pt>;
@@ -22,7 +22,7 @@ struct Glyph { std::vector<Stroke> strokes; };  // coordinates in KanjiVG 109x10
 
 // ---------------------------------------------------------------- stages
 // 14 stages per script: 10 basic rows, が-ざ-だ, ば-ぱ, then two groups of combination kana (yōon).
-constexpr int STAGE_COUNT = 14;
+constexpr int STAGE_COUNT = 15;  // 14 + Extras (small tsu, long vowel, katakana for foreign sounds)
 constexpr int KATAKANA_AFTER = 10;     // katakana unlocks once hiragana stage 10 is passed
 constexpr int KNOWN_STEP = 4;          // a kana is "known" at step 4
 constexpr int SKIP_ALL = STAGE_COUNT + 1;  // skipTo(): every stage known
@@ -52,6 +52,7 @@ struct Data {
   std::vector<MixSet> mixSets;               // built-in look-alike sets (both scripts)
   bool load(const std::string& dir, std::string* err = nullptr);
   const Glyph* glyphFor(const std::string& kanaGlyph) const;  // single-codepoint kana only
+  int scriptCount(Script s) const;  // kana in a script (105 hiragana, 119 katakana)
   // Glyphs to trace for a kana, one per character (combos: き + ゃ, small kana traced full size). Empty if any is missing.
   std::vector<const Glyph*> writeParts(const std::string& kanaGlyph) const;
   static std::vector<std::string> partNames(const std::string& kanaGlyph);  // the characters, small ones as written
@@ -71,6 +72,10 @@ struct Settings {
   int sessionLen = 10;
   int dailyGoal = 10;  // answers per day for the streak
   bool kanaKeys = false;  // Typing answers with a kana keyboard (see romaji, type kana) instead of romaji
+  bool kanaHand = false;  // kana drawn in a handwriting (textbook) font instead of rounded print
+  int guideLines = 0;     // writing canvas: 0 cross, 1 grid, 2 none
+  int ink = 1;            // 0 thin, 1 normal, 2 thick
+  int strict = 1;         // stroke checking: 0 relaxed, 1 normal, 2 strict
   Script script = Script::Hiragana;
   bool light = false;  // UI theme
 };
@@ -160,6 +165,12 @@ int dayDiff(int dayA, int dayB);  // calendar days from A to B (YYYYMMDD)
 Stroke resample(const Stroke& s, int n);
 float strokeLength(const Stroke& s);
 struct StrokeResult { bool ok; float meanDist; };
-StrokeResult scoreStroke(const Stroke& user, const Stroke& ref, float tol = 17.f);
+StrokeResult scoreStroke(const Stroke& user, const Stroke& ref, float tol = 17.f, bool strictLen = false);
+struct Guess { int kana; float score; };  // lower score = closer
+// What a freely drawn kana most likely is: compares the strokes (in order) with every single-part kana's stroke data,
+// after fitting both to the same box. Best first.
+std::vector<Guess> recognizeKana(const Data& d, const std::vector<Stroke>& strokes, int topN = 3);
+std::vector<Stroke> fitStrokes(const std::vector<Stroke>& user, const Glyph& g);  // user strokes moved/scaled onto the glyph's box
+StrokeResult scoreStrokeAt(const Stroke& user, const Stroke& ref, int strictness);  // 0 relaxed, 1 normal, 2 strict
 
 }  // namespace kt

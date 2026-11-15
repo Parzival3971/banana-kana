@@ -8,7 +8,8 @@ the release notes come from the matching section below.
 First release for BananaOS on the Anbernic RG DS Plus.
 
 ### Learning
-- Hiragana, then katakana, in 14 stages each: the 10 basic rows, voiced kana, then combinations.
+- Hiragana, then katakana, in 15 stages each: the 10 basic rows, voiced kana, combinations, then Extras
+  (small っ, the long-vowel ー and katakana for foreign sounds such as ティ, ファ and ヴ). 105 hiragana, 119 katakana.
 - Every stage opens with a lesson: an original memory hint, stroke-order frames and untimed tracing.
 - A kana is known after 4 steps, with at most 2 per session, so it has to stick across days. A miss takes one step away.
   Knowing a whole stage unlocks the next. Katakana unlocks after hiragana stage 10.
@@ -26,6 +27,10 @@ First release for BananaOS on the Anbernic RG DS Plus.
 - Timed challenge: 60 seconds of one-tap answers, with a personal best per script.
 - Practice sets: pick kana in the chart and drill just those. A single kana is mixed with its look-alikes and row-mates.
 - Free writing: trace any kana with a full guide, an outline or none. It doesn't touch your progress.
+- Draw any kana: write freely and the app recognises which kana it is, then checks your stroke order.
+- Stroke-order animation (Show me / START) and direction arrows on the guide.
+- Writing options: rounded or handwriting (Klee One) kana font, canvas lines (cross, grid, none), ink thickness,
+  and a relaxed / normal / strict writing check.
 
 ### App
 - Two-screen layout: prompt and feedback on the top screen, answers, keyboard and tracing canvas on the touch screen.

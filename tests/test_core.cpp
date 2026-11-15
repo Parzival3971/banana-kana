@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstdio>
 #include <fstream>
 #include <set>
@@ -16,16 +17,16 @@ int main(int argc, char** argv) {
   int fails = 0; std::string dir = argc > 1 ? argv[1] : "app/data", err;
   Data d; CHECK(d.load(dir, &err)); if (!err.empty()) printf("err: %s\n", err.c_str());
   int h = 0, k = 0; for (auto& x : d.kana) (x.script == Script::Hiragana ? h : k)++;
-  CHECK(h == 104 && k == 104); CHECK(d.words.size() >= 120);
-  CHECK(d.hints.size() == 208);
+  CHECK(h == 105 && k == 119); CHECK(d.scriptCount(Script::Hiragana) == 105 && d.scriptCount(Script::Katakana) == 119); CHECK(d.words.size() >= 120);
+  CHECK(d.hints.size() == 224);
   for (auto& x : d.kana) CHECK(d.hints.count(x.glyph) == 1);
 
   // ---- stages: 14 per script, every kana in exactly one, sizes as designed
   for (Script s : {Script::Hiragana, Script::Katakana}) {
     CHECK(d.stages[si(s)].size() == STAGE_COUNT);
     size_t total = 0; for (auto& st : d.stages[si(s)]) total += st.kana.size();
-    CHECK(total == 104);
-    const int sizes[STAGE_COUNT] = {5, 5, 5, 5, 5, 5, 5, 3, 5, 3, 15, 10, 15, 18};
+    CHECK(int(total) == d.scriptCount(s));
+    const int sizes[STAGE_COUNT] = {5, 5, 5, 5, 5, 5, 5, 3, 5, 3, 15, 10, 15, 18, s == Script::Hiragana ? 1 : 15};
     for (int i = 0; i < STAGE_COUNT; i++) CHECK(int(d.stages[si(s)][i].kana.size()) == sizes[i]);
   }
   CHECK(d.kana[d.stages[0][0].kana[0]].glyph == "あ"); CHECK(d.kana[d.stages[1][1].kana[0]].glyph == "カ");
@@ -98,12 +99,12 @@ int main(int argc, char** argv) {
     CHECK(w1.size() >= 6); CHECK(types.size() == 3);  // brand-new kana: reading and meanings only
     CHECK(!types.count(int(QType::Write)) && !types.count(int(QType::Type)));
     // everything unlocked: 6 options, all five types
-    for (int s = 0; s < 13; s++) knowStage(d, p, Script::Hiragana, s);
+    for (int s = 0; s < STAGE_COUNT - 1; s++) knowStage(d, p, Script::Hiragana, s);
     p.checkUnlocks(d); CHECK(p.unlocked[0] == STAGE_COUNT);
     types.clear();
     for (int n = 0; n < 2000; n++) {
       Question q = makeQuestion(d, p, rng); types.insert(int(q.type));
-      if (!q.options.empty()) CHECK(q.options.size() == 6);
+      if (!q.options.empty() && !(q.kanaIdx >= 0 && d.kana[q.kanaIdx].special)) CHECK(q.options.size() == 6);
       if (q.type == QType::Write) CHECK(!d.writeParts(q.answer).empty());
     }
     CHECK(types.size() == 5);
@@ -267,8 +268,74 @@ int main(int argc, char** argv) {
     CHECK(!p.scriptUnlocked(Script::Katakana)); p.skipTo(d, Script::Katakana, 1);
     CHECK(p.unlocked[1] == 1 && p.lessons[1] == 0 && p.lessonPending(Script::Katakana));
     Progress all; all.skipTo(d, Script::Hiragana, SKIP_ALL);
-    CHECK(all.knownCount(d, Script::Hiragana) == 104 && all.unlocked[0] == STAGE_COUNT && !all.lessonPending(Script::Hiragana));
+    CHECK(all.knownCount(d, Script::Hiragana) == 105 && all.unlocked[0] == STAGE_COUNT && !all.lessonPending(Script::Hiragana));
     CHECK(all.scriptUnlocked(Script::Katakana) && all.unlocked[1] == 1);          // katakana opens as usual after stage 10
+  }
+  // ---- stage 15 extras: っ ッ ー are read through words; extended katakana write in two parts
+  {
+    Progress p; p.unlocked = {STAGE_COUNT, STAGE_COUNT}; std::mt19937 rng(21);
+    int tsu = d.findKana(Script::Hiragana, "っ"), cho = d.findKana(Script::Katakana, "ー"), fa = d.findKana(Script::Katakana, "ファ");
+    CHECK(tsu >= 0 && cho >= 0 && fa >= 0 && d.kana[tsu].special && d.kana[cho].special && !d.kana[fa].special);
+    CHECK(d.stageOfKana[tsu] == STAGE_COUNT - 1 && d.stageOfKana[fa] == STAGE_COUNT - 1);
+    for (int n = 0; n < 50; n++) {
+      Question q = makeKanaQuestion(d, p, rng, n % 2 ? tsu : cho, QType::ReadKana);
+      CHECK(q.prompt.size() > 3 && q.options.size() >= 2 && q.options[q.correct] == q.answer && q.key == Progress::keyKana(d.kana[n % 2 ? tsu : cho]));
+      std::set<std::string> u(q.options.begin(), q.options.end()); CHECK(u.size() == q.options.size());
+    }
+    { Question r = makeKanaQuestion(d, p, rng, tsu, QType::RecallKana); CHECK(r.options.size() >= 4 && r.options[r.correct] == "っ"); }
+    p.stats["h:っ"].step = 3; CHECK(!typeAllowed(d, p, tsu, QType::Type) && typeAllowed(d, p, tsu, QType::Write));
+    CHECK(d.writeParts("ファ").size() == 2 && d.writeParts("ファ")[1] == d.glyphFor("ア"));
+    CHECK(d.writeParts("っ").size() == 1 && d.writeParts("っ")[0] == d.glyphFor("つ"));
+    for (int n = 0; n < 300; n++) { Question q = makeKanaQuestion(d, p, rng, fa, QType::ReadKana);
+      for (auto& o : q.options) CHECK(o != "small tsu" && o != "long vowel"); }   // っ/ー never stand in as sounds
+  }
+  // ---- stroke checking strictness
+  {
+    const Glyph* g = d.glyphFor("し"); Stroke s0 = g->strokes[0], off = s0;
+    for (auto& pt : off) { pt.x += 15; pt.y += 4; }
+    CHECK(scoreStrokeAt(s0, s0, 2).ok && scoreStrokeAt(off, s0, 0).ok && !scoreStrokeAt(off, s0, 2).ok);
+    Stroke shortS(s0.begin(), s0.begin() + s0.size() * 3 / 5);
+    CHECK(!scoreStrokeAt(shortS, s0, 2).ok);
+    Progress p; p.settings.strict = 2; p.settings.ink = 0; p.settings.guideLines = 1; p.settings.kanaHand = true;
+    CHECK(p.save("/tmp/kt_set.txt")); Progress b; CHECK(b.load("/tmp/kt_set.txt", &d));
+    CHECK(b.settings.strict == 2 && b.settings.ink == 0 && b.settings.guideLines == 1 && b.settings.kanaHand);
+  }
+  // ---- recognising a freely drawn kana: the real strokes, moved and resized, come back as themselves
+  {
+    int right = 0, total = 0;
+    for (auto& k : d.kana) {
+      const Glyph* g = d.glyphFor(k.glyph); if (!g || k.special) continue;
+      std::vector<Stroke> drawn = g->strokes;
+      for (auto& st : drawn) for (auto& pt : st) { pt.x = pt.x * 0.7f + 20; pt.y = pt.y * 0.75f + 10; }
+      auto gs = recognizeKana(d, drawn); total++;
+      if (!gs.empty() && d.kana[gs[0].kana].glyph == k.glyph) right++;
+      else if (!gs.empty()) { // identical shapes across scripts (へ/ヘ, り/リ...) are fine
+        std::string a = d.kana[gs[0].kana].romaji; if (a == k.romaji) right++; }
+    }
+    printf("recogniser: %d/%d exact or same-sound\n", right, total);
+    CHECK(right * 100 >= total * 95);
+    CHECK(recognizeKana(d, {}).empty());
+    // wobbly hand: smooth wave plus jitter on every point, stroke ends trimmed a little
+    std::mt19937 jr(42); std::normal_distribution<float> nd(0.f, 2.0f); int r2 = 0, t2 = 0, top3 = 0;
+    for (auto& k : d.kana) {
+      const Glyph* g = d.glyphFor(k.glyph); if (!g || k.special) continue;
+      std::vector<Stroke> drawn;
+      for (size_t si2 = 0; si2 < g->strokes.size(); si2++) {
+        Stroke rs = resample(g->strokes[si2], 30), o;
+        for (size_t j = 2; j + 2 < rs.size(); j++)
+          o.push_back({rs[j].x + 3.f * std::sin(j * 0.5f + si2) + nd(jr), rs[j].y + 3.f * std::cos(j * 0.4f) + nd(jr)});
+        drawn.push_back(o);
+      }
+      auto gs = recognizeKana(d, drawn); t2++;
+      bool ok = !gs.empty() && (d.kana[gs[0].kana].glyph == k.glyph || d.kana[gs[0].kana].romaji == k.romaji);
+      if (ok) r2++;
+      for (auto& g3 : gs) if (d.kana[g3.kana].glyph == k.glyph || d.kana[g3.kana].romaji == k.romaji) { top3++; break; }
+    }
+    { const Glyph* g = d.glyphFor("シ"); std::vector<Stroke> rev(g->strokes.rbegin(), g->strokes.rend());
+      for (auto& st : rev) std::reverse(st.begin(), st.end());
+      auto gs = recognizeKana(d, rev); CHECK(!gs.empty() && d.kana[gs[0].kana].glyph == "シ"); }   // wrong order and direction: still シ
+    printf("recogniser, wobbly: %d/%d first, %d/%d in top 3\n", r2, t2, top3, t2);
+    CHECK(r2 * 100 >= t2 * 85 && top3 * 100 >= t2 * 95);
   }
   printf(fails ? "%d FAILURES\n" : "all core tests passed\n", fails); return fails != 0;
 }

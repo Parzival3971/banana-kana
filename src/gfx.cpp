@@ -32,6 +32,8 @@ void applyTheme(bool light) {
 namespace {
 const int FONT_PX[F_COUNT] = {170, 100, 52, 30, 22, 17};
 TTF_Font* kanaF[F_COUNT];  // Zen Maru Gothic: kana
+TTF_Font* kanaHF[F_COUNT]; // Klee One: kana in a handwriting (textbook) style, optional
+bool gKanaHand = false;
 TTF_Font* uiF[F_COUNT];    // Zen Maru Gothic Medium (Latin): English / UI
 TTF_Font* fbF[F_COUNT];    // Noto subset: anything the others lack
 float gFontScale = 1.f;
@@ -46,6 +48,7 @@ std::string utf8Encode(uint32_t cp) {
 }
 TTF_Font* pickFont(int size, uint32_t cp) {
   bool jp = (cp >= 0x3000 && cp <= 0x30FF) || (cp >= 0x4E00 && cp <= 0x9FFF) || (cp >= 0xFF00 && cp <= 0xFFEF);
+  if (jp && gKanaHand && kanaHF[size] && TTF_GlyphIsProvided32(kanaHF[size], cp)) return kanaHF[size];
   if (jp && TTF_GlyphIsProvided32(kanaF[size], cp)) return kanaF[size];
   if (!jp && TTF_GlyphIsProvided32(uiF[size], cp)) return uiF[size];
   if (TTF_GlyphIsProvided32(kanaF[size], cp)) return kanaF[size];
@@ -79,7 +82,7 @@ SDL_Surface* renderMixed(int size, const std::string& s, SDL_Color col) {
 }
 
 SDL_Texture* textTex(Win& w, int font, const std::string& s, Col c, int* tw, int* th) {
-  char key[48]; snprintf(key, sizeof key, "%d|%02x%02x%02x|", font, c.r, c.g, c.b);
+  char key[48]; snprintf(key, sizeof key, "%d|%d|%02x%02x%02x|", font, int(gKanaHand), c.r, c.g, c.b);
   std::string k = std::string(key) + s;
   auto it = w.cache.find(k);
   if (it == w.cache.end()) {
@@ -103,10 +106,14 @@ bool loadFonts(const std::string& dir, float scale, std::string* err) {
     uiF[i] = TTF_OpenFont((dir + "/ui.ttf").c_str(), px);
     fbF[i] = TTF_OpenFont((dir + "/fallback.ttf").c_str(), px);
     if (!kanaF[i] || !uiF[i] || !fbF[i]) { if (err) *err = TTF_GetError(); return false; }
+    kanaHF[i] = TTF_OpenFont((dir + "/kana_hand.ttf").c_str(), px);  // optional
+    if (kanaHF[i]) TTF_SetFontHinting(kanaHF[i], TTF_HINTING_LIGHT);
     for (TTF_Font* f : {kanaF[i], uiF[i], fbF[i]}) TTF_SetFontHinting(f, TTF_HINTING_LIGHT);  // keeps thin strokes (H crossbar) at small sizes
   }
   return true;
 }
+
+void setKanaHand(bool on) { gKanaHand = on; }
 
 void clearTextCache(Win& w) { for (auto& [_, t] : w.cache) SDL_DestroyTexture(t); w.cache.clear(); }
 

@@ -14,6 +14,7 @@ SHOTS = {  # output name -> self-test shot
     "stats": "stats", "chart": "chart", "stages": "stages", "unlocked": "unlocked", "settings": "settings_practice",
     "light-home": "light_home", "light-stats": "light_stats", "welcome": "welcome", "practice-set": "chart_set",
     "free-write": "free_write", "skip": "settings_skip", "guided": "q_write", "credits": "credits",
+    "draw-any": "draw_any_checked", "extras": "lesson_extras_fa", "handwriting": "lesson_handwriting_grid",
 }
 WIDTH = 480  # README width of each device image
 BODY, HINGE = (27, 26, 23), (16, 15, 13)

@@ -32,9 +32,9 @@ enum BtnId {
   // lesson
   B_LESSON_NEXT = 95, B_LESSON_PREV, B_LESSON_CLEAR,
   // chart
-  B_TAB0 = 100, B_SCROLL_UP = 110, B_SCROLL_DOWN, B_PICK_DRILL, B_PICK_WRITE, B_PICK_CLEAR, B_CELL0 = 1000,
+  B_TAB0 = 100, B_SCROLL_UP = 110, B_SCROLL_DOWN, B_PICK_DRILL, B_PICK_WRITE, B_PICK_CLEAR, B_PICK_ANY, B_CELL0 = 1000,
   // free writing, welcome
-  B_FW_GUIDE = 130, B_FW_NEXT, B_FW_PREV, B_WELCOME0 = 140,
+  B_FW_GUIDE = 130, B_FW_NEXT, B_FW_PREV, B_SHOWME, B_WELCOME0 = 140,
   // settings (BananaOS style: group tiles -> rows with < value >)
   B_GROUP0 = 200, B_SROW0 = 220, B_SDEC0 = 240, B_SINC0 = 260, B_FOOT_L = 280, B_FOOT_R,
   // keyboard
@@ -76,9 +76,11 @@ struct App {
   std::vector<int> chartPick;  // practice set picked in the chart (drill it, or write it freely)
   std::vector<int> focusSet;   // what a Focus session draws from
   // free writing
-  std::vector<int> fwList; int fwIdx = 0, fwGuide = 0;  // fwGuide 0 full, 1 outline, 2 none
+  std::vector<int> fwList; int fwIdx = 0, fwGuide = 0;  // fwGuide 0 full, 1 outline, 2 none; empty list = draw any kana
+  std::vector<Guess> guesses;  // draw-any: what it looks like, best first
   // first launch, settings skip-ahead
-  Uint32 creditsLast = 0;
+  Uint32 creditsLast = 0, animStart = 0, animLast = 0;  // stroke-order animation (0 = not playing)
+  void playStrokes() { animStart = SDL_GetTicks(); if (!animStart) animStart = 1; }
   bool firstRun = false; int welcomeSel = 0; int skipPending[2] = {0, 0};
   // timed challenge
   int timedLeft = 0; Uint32 timedLast = 0; bool timedNewBest = false; int flash = 0; std::string flashText;  // flash 1 right, 2 wrong
@@ -146,6 +148,7 @@ struct App {
   struct Cell { int kana, row, col; };
   std::vector<Cell> chartCells(Script s, int tab) const;
   int chartCols(int tab) const { return tab == 2 ? 3 : 5; }
+  static const int CHART_TABS = 4;
 
   // self-test (scripted UI run with dummy video)
   int selfTest(const std::string& shotDir);

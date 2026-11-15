@@ -36,6 +36,7 @@ struct Win {
 enum FontId { F_HUGE, F_BIG, F_MID, F_SMALL, F_TINY, F_MICRO, F_COUNT };
 bool loadFonts(const std::string& dataDir, float scale, std::string* err);
 void clearTextCache(Win& w);
+void setKanaHand(bool on);  // kana in the handwriting font (kana_hand.ttf) instead of rounded print
 
 enum Align { A_CENTER, A_LEFT, A_RIGHT };
 void clearWin(Win& w, Col c);

@@ -156,8 +156,20 @@ int App::selfTest(const std::string& shotDir) {
   padButton(SDL_CONTROLLER_BUTTON_Y); padButton(SDL_CONTROLLER_BUTTON_Y); CHECK(fwGuide == 0, "guide cycles");
   padButton(SDL_CONTROLLER_BUTTON_B); CHECK(screen == Screen::Chart, "free write back to chart");
   CHECK(click(B_PICK_CLEAR), "clear set"); CHECK(chartPick.empty(), "set cleared");
+  // draw any kana: it guesses what you drew
+  CHECK(click(B_PICK_ANY), "draw any"); CHECK(screen == Screen::FreeWrite && fwList.empty(), "draw-any screen"); shot("draw_any");
+  { const Glyph* g = data.glyphFor("ね"); trace(*g, 0.8f, -0.6f); }
+  CHECK(click(B_CHECK), "what is it"); CHECK(checked && !guesses.empty() && data.kana[guesses[0].kana].glyph == "ね", "guessed ね");
+  CHECK(correct, "ね strokes in order"); shot("draw_any_checked");
+  CHECK(click(B_SHOWME), "show me plays"); CHECK(animStart != 0, "animation running"); frame();
+  CHECK(click(B_CHECK), "again"); CHECK(!checked && strokes.empty() && guesses.empty(), "draw any cleared");
+  { const Glyph* g = data.glyphFor("シ"); std::vector<Stroke> rev = g->strokes; std::reverse(rev.begin(), rev.end());  // wrong order
+    for (auto& st : rev) { strokes.push_back(st); } }
+  CHECK(click(B_CHECK), "check reversed"); CHECK(checked && !correct && !guesses.empty() && data.kana[guesses[0].kana].glyph == "シ", "シ recognised, wrong order flagged"); shot("draw_any_wrong_order");
+  CHECK(click(B_BACK), "draw any back"); CHECK(screen == Screen::Chart, "back to chart");
   padButton(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER); CHECK(chartTab == 1, "voiced tab"); shot("chart_voiced");
   padButton(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER); CHECK(chartTab == 2, "combos tab"); shot("chart_combos");
+  padButton(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER); CHECK(chartTab == 3, "extras tab"); shot("chart_extras");
   padButton(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER); CHECK(chartTab == 0, "basic tab");
   CHECK(click(B_SCROLL_DOWN), "scroll"); CHECK(chartScroll == 1, "scrolled");
   padButton(SDL_CONTROLLER_BUTTON_B);
@@ -305,13 +317,44 @@ int App::selfTest(const std::string& shotDir) {
     prog.settings = keep; prog.unlocked[0] = KATAKANA_AFTER + 1; go(Screen::Home);
   }
 
+  // ---- 15b. Show me in a lesson, display settings, strict checking, the extras stage
+  openLesson(Script::Hiragana, 0, true); CHECK(animStart != 0, "lesson plays the order"); shot("lesson_showme");
+  { Uint32 a0 = animStart; CHECK(tick(SDL_GetTicks() + 40), "animation redraws"); (void)a0; }
+  CHECK(click(B_SHOWME), "lesson show me"); go(Screen::Home);
+  go(Screen::Settings); setGroup = 3; CHECK(click(B_FOOT_R), "open Display");
+  CHECK(click(B_SINC0 + 1), "kana font >"); CHECK(prog.settings.kanaHand, "handwriting font"); shot("settings_display");
+  CHECK(click(B_SINC0 + 2), "canvas lines >"); CHECK(prog.settings.guideLines == 1, "grid");
+  CHECK(click(B_SINC0 + 3), "ink >"); CHECK(prog.settings.ink == 2, "thick ink");
+  openLesson(Script::Hiragana, 1, true); animStart = 0; trace(*activeGlyph(), 0.5f, 0.5f); shot("lesson_handwriting_grid");
+  prog.settings.kanaHand = false; setKanaHand(false); prog.settings.guideLines = 0; prog.settings.ink = 1;
+  go(Screen::Settings); setGroup = 1; CHECK(click(B_FOOT_R), "open Sessions");
+  CHECK(click(B_SINC0 + 3), "writing check >"); CHECK(prog.settings.strict == 2, "strict"); prog.settings.strict = 1;
+  { Progress keep = prog; prog.skipTo(data, Script::Hiragana, STAGE_COUNT); prog.skipTo(data, Script::Katakana, STAGE_COUNT);
+    CHECK(prog.unlocked[1] == STAGE_COUNT, "katakana extras open");
+    setScript(Script::Katakana); go(Screen::Stages); shot("stages_15");
+    openLesson(Script::Katakana, STAGE_COUNT - 1, true); shot("lesson_extras");
+    for (int i = 0; i < 3; i++) click(B_LESSON_NEXT);
+    shot("lesson_extras_fa");
+    int cho = data.findKana(Script::Katakana, "ー"); prog.stats[Progress::keyKana(data.kana[cho])].step = 2;
+    startFocus({cho}); bool wordQ = false;
+    for (int i = 0; i < 30 && screen == Screen::Drill; i++) {
+      if (q.kanaIdx == cho && q.type == QType::ReadKana && !wordQ) {
+        wordQ = true; CHECK(q.prompt.find("ー") != std::string::npos, "ー read through a word"); shot("q_long_vowel");
+        for (auto& o : q.options) CHECK(o.size() >= 3 && o != "fo" && o != "fi", "word options stay words");
+      }
+      answer(true, false);
+    }
+    CHECK(wordQ, "saw a ー word question");
+    go(Screen::Stats); shot("stats_katakana");
+    prog = keep; setScript(Script::Hiragana); go(Screen::Home); }
+
   // ---- 16. first launch and skipping ahead (on a fresh profile, then put back)
   { Progress keep = prog;
     prog = Progress{}; prog.settings = keep.settings; prog.settings.script = Script::Hiragana;
     go(Screen::Welcome); shot("welcome");
     padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); CHECK(welcomeSel == 1, "welcome move");
     CHECK(click(B_WELCOME0 + 1), "I know hiragana");
-    CHECK(screen == Screen::Home && prog.knownCount(data, Script::Hiragana) == 104 && prog.settings.script == Script::Katakana &&
+    CHECK(screen == Screen::Home && prog.knownCount(data, Script::Hiragana) == data.scriptCount(Script::Hiragana) && prog.settings.script == Script::Katakana &&
           prog.lessonPending(Script::Katakana), "hiragana skipped, katakana lesson next");
     shot("home_after_welcome");
     prog = Progress{}; prog.settings = keep.settings; prog.settings.script = Script::Hiragana;
