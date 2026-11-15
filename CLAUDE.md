@@ -73,3 +73,23 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
 - App re-enables the bottom backlight every 2 s if bl_power != 0 (BananaOS panel-off can re-darken it after sleep).
 - Ports shelf box art: `media/box/Banana Kana.png` (512x512, size unverified) shipped in the zip.
 - README install notes include the Mac "zip opens into its own folder" gotcha.
+
+## v1 spec (decided 2026-11-15; mockups: https://claude.ai/artifact/AHzvzZCbRSnBpttUyaXq6z)
+- Look: BananaOS palette (banana yellow #FFD23F on warm neutrals), button-hint chips, cartridge tiles.
+  Fonts: kana in Zen Maru Gothic (OFL), English/UI/keyboard in Pixelify Sans (OFL, Banana Player's UI font),
+  Fusion Pixel as fallback for missing glyphs. Source TTFs: github.com/google/fonts (ofl/zenmarugothic, ofl/pixelifysans).
+- Theme: Dark and Light, user can switch in settings. On light, yellow is fill only; yellow-on-light text needs a darker shade.
+- Icon: "Cartridge" design, rendered to launcher/media/box/Banana Kana.png (512x512; shelf size still unverified).
+- Stages: 14 per script (10 basic rows, が-ざ-だ, ば-ぱ, 2 yōon). Katakana unlocks after hiragana stage 10.
+  Each stage starts with a lesson (stroke order + hint + untimed tracing). Drills only use unlocked kana;
+  word questions only use words made entirely of unlocked kana; older stages return as weighted review.
+- Pass rule (proposed, confirm with user): each kana has 4 steps. Right = +1 step, at most 2 steps per session,
+  wrong = -1 step (not a reset). Known = step 4. Stage unlocks when every kana in it is known.
+  Rationale: WaniKani needs 4 correct reviews spread over time to "Guru"; Nihongo Master uses a 5-correct streak
+  that resets on a miss. Spreading over 2+ sessions tests memory, not short-term recall.
+- Lesson hints: from Wikibooks "Memorizing the Hiragana" / "Memorizing the Katakana" (CC BY-SA 3.0); gaps filled
+  with our own. Hints file must carry CC BY-SA 3.0 + attribution (like KanjiVG), shown in an About/credits screen.
+- Screens: Home, Stage map, Lesson, Stage unlocked, Drill (reading/meanings/writing/typing), Feedback, Pause menu,
+  Kana chart (locked/learning/known/weak), Practice mix/settings (incl. theme), Results.
+- Milestones: 1 fonts+theme, 2 stages+progress migration (keep v1 progress), 3 mockup screens, lessons, unlock,
+  4 chart + settings, 5 device test, then first release 0.1.0 via VERSION bump.
