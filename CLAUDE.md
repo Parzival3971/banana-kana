@@ -82,9 +82,9 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
 - Bottom screen showed half-drawn frames mixed with the previous screen during tracing: stroke drawing used dozens of
   1-px lines per segment (thousands of draw calls/frame). Fixed: strokes are triangles (SDL_RenderGeometry), and the main
   loop only redraws on input/touch or every 500 ms. Log also shows "ERROR: Could not restore CRTC" x2 (SDL KMSDRM) - unknown.
-- F+START did nothing; F+SELECT quits (almost certainly BananaOS's own system hotkey -> SIGTERM -> we save). Chips now say
-  F+SELECT Quit and SELECT Pause. No button presses were logged at all and SDL_GetError said "Unexpected controller element
-  crc" -> now logs joysticks, controller mapping and raw SDL_JOYBUTTONDOWN indices to identify F. Verify on next log.
+- "F+START doesn't quit" was user error (it works). F+SELECT also quits (BananaOS system hotkey -> SIGTERM -> we save).
+  Chips: F+START Quit, F Pause. Log now includes joysticks, controller mapping and raw SDL_JOYBUTTONDOWN indices
+  (SDL_GetError had said "Unexpected controller element crc"; buttons work, so probably harmless).
 
 ## Banana Player lessons applied (pre-emptive, 2026-11-14)
 - Quit anywhere: F + START (confirmed working on device; SELECT + START also quits).
