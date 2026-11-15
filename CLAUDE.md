@@ -225,6 +225,8 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   press, A does nothing before that (timed too). (4) Settings text looked squashed: drawText now shrinks evenly when
   even F_MICRO is too wide (KT_TEXTLOG=1 lists such text); group summaries shortened. (5) Stylus swipe on the Home strip:
   homeTouch/homeDrag in pointer(), strip follows the stylus (140 px per tile), settles on the nearest, a flick > 40 px moves one.
+  (6) Home lost its "F+START Quit" hint in the redesign (chips() silently dropped what didn't fit): restored; chips()
+  now tightens spacing when a row is too wide and KT_TEXTLOG=1 logs any dropped chip.
 - Old v1 look (kept for history): BananaOS palette (banana yellow #FFD23F on warm neutrals), button-hint chips, cartridge tiles.
   Fonts: kana in Zen Maru Gothic Bold (or Klee One SemiBold, setting), English/UI/keyboard in Zen Maru Gothic Medium (all OFL). Pixelify Sans (Banana
   Player's pixel font) was tried and DROPPED 2026-11-15: user found it hard to read. Don't reintroduce pixel fonts.

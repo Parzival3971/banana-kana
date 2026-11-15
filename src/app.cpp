@@ -919,23 +919,27 @@ void App::header(const std::string& title, const std::string& right, bool colour
 }
 
 void App::chips(const std::vector<std::pair<std::string, std::string>>& items) {
-  int x = 16;
+  // a tighter layout when the row would overflow (hints used to be dropped silently: the Home quit hint went missing)
+  int full = 16; for (auto& [k, label] : items) full += 4 + std::max(28, textWidth(bot, F_MICRO, k) + 14) + 8 + textWidth(bot, F_MICRO, label) + 14 + 8;
+  const bool tight = full > LW - 8;
+  const int pad = tight ? 8 : 14, gap = tight ? 5 : 8;
+  int x = tight ? 10 : 16;
   for (auto& [k, label] : items) {
-    int kw = std::max(28, textWidth(bot, F_MICRO, k) + 14), lw = textWidth(bot, F_MICRO, label);
-    int w = 4 + kw + 8 + lw + 14;
-    if (x + w > LW - 8) break;
+    int kw = std::max(28, textWidth(bot, F_MICRO, k) + (tight ? 10 : 14)), lw = textWidth(bot, F_MICRO, label);
+    int w = 4 + kw + (tight ? 6 : 8) + lw + pad;
+    if (x + w > LW - 4) { if (getenv("KT_TEXTLOG")) fprintf(stderr, "chip dropped: %s %s\n", k.c_str(), label.c_str()); break; }
     fillRound(bot, SDL_Rect{x, 438, w, 34}, 17, PANEL);
     fillRound(bot, SDL_Rect{x + 3, 441, kw, 28}, 14, FG);
     if (k == "+") {  // the d-pad, drawn as a cross
       int cx = x + 3 + kw / 2, cy = 455;
       fillRound(bot, SDL_Rect{cx - 9, cy - 3, 18, 6}, 2, BG); fillRound(bot, SDL_Rect{cx - 3, cy - 9, 6, 18}, 2, BG);
     } else drawText(bot, k, SDL_Rect{x + 3, 441, kw, 28}, BG, F_MICRO);
-    drawText(bot, label, SDL_Rect{x + 4 + kw + 8, 438, lw + 4, 34}, FG, F_MICRO, A_LEFT);
+    drawText(bot, label, SDL_Rect{x + 4 + kw + (tight ? 6 : 8), 438, lw + 4, 34}, FG, F_MICRO, A_LEFT);
     if (label == "Awards" && screen == Screen::Stats) { addBtn(SDL_Rect{x - 4, 432, w + 8, 46}, B_AWARDS, ""); lastBtn().hidden = true; }
     if (label == "Pause" && screen == Screen::Drill && !paused) {  // tap the hint to pause, too (in case F never reaches us)
       addBtn(SDL_Rect{x - 4, 432, w + 8, 46}, B_PAUSE, ""); lastBtn().hidden = true;
     }
-    x += w + 8;
+    x += w + gap;
   }
 }
 
@@ -1292,7 +1296,7 @@ void App::drawHome() {
   bool kOpen = prog.scriptUnlocked(Script::Katakana);
   addBtn(SDL_Rect{458, 302, 160, 70}, sc == Script::Hiragana ? B_SCRIPT_K : B_SCRIPT_H, sc == Script::Hiragana ? "あ → ア" : "ア → あ", F_SMALL, kOpen || sc == Script::Katakana);
   lastBtn().radius = 35; if (!kOpen) lastBtn().icon = 1;
-  chips({{"A", "Open"}, {"+", "Scroll"}, {"START", lesson ? "Lesson" : "Practise"}, {"Y", "Script"}});
+  chips({{"A", "Open"}, {"+", "Scroll"}, {"START", lesson ? "Lesson" : "Practise"}, {"Y", "Script"}, {"F+START", "Quit"}});
 }
 
 void App::drawStages() {
