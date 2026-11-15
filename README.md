@@ -56,7 +56,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
   none), ink thickness, and how strictly strokes are checked (relaxed, normal or strict).
 
 ### 📈 Keep going
-- 🔥 **Daily goal and streak**, from 5 to 30 answers a day.
+- 🔥 **Daily goal and streak**, from 5 to 30 answers a day. The flame grows (and changes colour) the longer you keep it lit.
 - 🏅 **Achievements.** 17 badges for learning kana and words, streaks, timed scores and perfect sessions, with your
   progress towards each one (Stats, then X).
 - 📊 **Stats.** Your last 14 days and an accuracy heatmap of every kana. Tap one to see it in the chart.
@@ -70,7 +70,8 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 ### 🍌 Made for the RG DS Plus
 - 🖥️ Prompts on the top screen; answers, keyboards and the tracing canvas on the touch screen.
 - 🕹️ Everything works with the d-pad and buttons too, including the on-screen keyboards.
-- 🌗 Dark and light themes, with text rendered at the panels' real resolution.
+- 🌗 A clean handheld look: glossy buttons, a colour for each mode, line icons and bilingual headings, in light or
+  dark, with text rendered at the panels' real resolution.
 - 🔆 Volume and F + volume (brightness) work as usual, with a level bar across the top screen.
 - 💾 Progress is saved after every answer, so closing the lid or powering off loses nothing.
 - 🛟 A backup copy of your progress sits next to the app on the SD card (`roms/ports/BananaKana/progress-backup.txt`)
@@ -86,7 +87,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 | <img src="docs/img/write-combo.png" width="250"><br>Writing a combination | <img src="docs/img/type-kana.png" width="250"><br>Kana keyboard | <img src="docs/img/review.png" width="250"><br>Spaced review |
 | <img src="docs/img/timed.png" width="250"><br>Timed challenge | <img src="docs/img/result.png" width="250"><br>Results | <img src="docs/img/unlocked.png" width="250"><br>Stage unlocked |
 | <img src="docs/img/stages.png" width="250"><br>Stage map | <img src="docs/img/chart.png" width="250"><br>Kana chart | <img src="docs/img/stats.png" width="250"><br>Stats |
-| <img src="docs/img/settings.png" width="250"><br>Settings | <img src="docs/img/light-home.png" width="250"><br>Light theme | <img src="docs/img/light-stats.png" width="250"><br>Light theme stats |
+| <img src="docs/img/settings.png" width="250"><br>Settings | <img src="docs/img/dark-home.png" width="250"><br>Dark theme | <img src="docs/img/dark-stats.png" width="250"><br>Dark theme stats |
 | <img src="docs/img/welcome.png" width="250"><br>First launch | <img src="docs/img/practice-set.png" width="250"><br>Practice set | <img src="docs/img/free-write.png" width="250"><br>Free writing |
 | <img src="docs/img/skip.png" width="250"><br>Skipping ahead | <img src="docs/img/guided.png" width="250"><br>Guided writing | <img src="docs/img/credits.png" width="250"><br>Credits |
 | <img src="docs/img/draw-any.png" width="250"><br>Draw any kana | <img src="docs/img/extras.png" width="250"><br>Extras stage | <img src="docs/img/handwriting.png" width="250"><br>Handwriting font and grid |
@@ -118,12 +119,12 @@ A backup copy is also kept in `roms/ports/BananaKana/progress-backup.txt`: copy 
 | | |
 |---|---|
 | ✏️ **Stylus / touch** (bottom screen) | Tap answers, keys and buttons. Buttons act when you lift, so slide off to cancel. Trace on the canvas. |
-| ✛ **D-pad** or the analogue **stick** (shown as a cross in the hint chips) | Move between tiles, cartridges, stages, chart cells, settings and keyboard keys |
+| ✛ **D-pad** or the analogue **stick** (shown as a cross in the hint chips) | Scroll the Home mode strip; move between tiles, stages, chart cells, settings and keyboard keys |
 | **A** | Choose / confirm (press again on a chosen answer to check it) |
 | **B** | Back. In drills: undo a stroke or delete a letter |
 | **X** | Check the answer. On Stats: achievements |
 | **Y** | Hint while writing, guide in free writing. On Home and stats: switch hiragana / katakana |
-| ▶️ **START** | Show me (stroke-order animation) when writing; in the chart, write the practice set freely |
+| ▶️ **START** | On Home: start your lesson or practice. Show me (stroke-order animation) when writing; in the chart, write the practice set freely |
 | **L / R** | Switch tabs, scripts or settings groups |
 | ⏸️ **F** (or **SELECT**) | Pause during practice, lessons and free writing: resume, back to menu or quit. Tapping the Pause hint works too |
 | ↩️ **Back** (right of F) | Same as B |
@@ -151,14 +152,14 @@ A backup copy is also kept in `roms/ports/BananaKana/progress-backup.txt`: copy 
 
 ## ⚙️ Settings
 
-Six groups, laid out like BananaOS's own Settings app:
+Six groups. Most settings are a row of options you can tap directly:
 
 | Group | Settings |
 |---|---|
 | 🧩 **Practice** | How often each drill appears, and whether typing uses a romaji or kana keyboard |
 | ⏳ **Sessions** | Session length, how much older stages come back, the daily goal and how strict the writing check is |
 | あ **Script** | Which script you practise, and skipping ahead to a later stage (or unlocking katakana early) |
-| 🎨 **Display** | Dark or light theme, kana font (rounded or handwriting), canvas lines, ink, sound effects and rumble |
+| 🎨 **Display** | Light or dark theme, kana font (rounded or handwriting), canvas lines, ink, sound effects and rumble |
 | 📊 **Progress** | Your stats, resetting progress (press twice; settings are kept) and where the backup lives |
 | ℹ️ **About** | Version and credits |
 

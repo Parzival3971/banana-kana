@@ -833,6 +833,7 @@ def fetch(url, name):
 def build_fonts(rows):
     """kana.ttf  : Zen Maru Gothic Bold, subset to kana + Japanese punctuation (OFL)
        ui.ttf    : Zen Maru Gothic Medium, Latin (OFL) - same family as the kana, readable at small sizes
+       ui_bold.ttf: Zen Maru Gothic Bold, Latin (OFL) - headings, buttons and big text
        fallback.ttf: Noto Sans CJK JP subset, for any glyph the other two lack (OFL)"""
     lic = os.path.join(DATA, "licenses"); os.makedirs(lic, exist_ok=True)
     kana = sorted({c for _, g, _, _ in rows for c in g} | {c for w in WORDS for c in w.split("|")[0]} | {c for p in PACKS for l in p[4].strip().splitlines() for c in l.split("|")[0]}
@@ -845,11 +846,13 @@ def build_fonts(rows):
     latin = "".join(chr(c) for c in range(0x20, 0x7f)) + "".join(chr(c) for c in range(0xa0, 0x180)) + "‹›–—‘’“”…•·×←→↑↓"
     subprocess.run([sys.executable, "-m", "fontTools.subset", zenm, f"--text={latin}", "--layout-features=*",
                     f"--output-file={os.path.join(DATA, 'ui.ttf')}"], check=True)
+    subprocess.run([sys.executable, "-m", "fontTools.subset", zen, f"--text={latin}", "--layout-features=*",
+                    f"--output-file={os.path.join(DATA, 'ui_bold.ttf')}"], check=True)  # headings, buttons, big numbers
     klee = fetch(GF + "ofl/kleeone/KleeOne-SemiBold.ttf", "KleeOne-SemiBold.ttf")
     subprocess.run([sys.executable, "-m", "fontTools.subset", klee, f"--text={''.join(kana)}{jp_extra}",
                     "--layout-features=*", f"--output-file={os.path.join(DATA, 'kana_hand.ttf')}"], check=True)
     noto = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
-    fb = "".join(kana) + jp_extra + latin + "✓✗▲▼◀▶✛"
+    fb = "".join(kana) + jp_extra + latin + "✓✗▲▼◀▶✛→⇄○" + "月火水木金土日"  # weekday kanji on the Home streak strip
     subprocess.run([sys.executable, "-m", "fontTools.subset", noto, "--font-number=0", f"--text={fb}",
                     "--layout-features=*", f"--output-file={os.path.join(DATA, 'fallback.ttf')}"], check=True)
     old = os.path.join(DATA, "font.ttf")
@@ -864,7 +867,7 @@ def build_fonts(rows):
     stale = os.path.join(lic, "NotoSansCJK.txt")
     if os.path.exists(stale): os.remove(stale)
     open(os.path.join(lic, "KanjiVG-CC-BY-SA-3.0.txt"), "w").write(KANJIVG_NOTICE)
-    print("fonts: kana.ttf kana_hand.ttf ui.ttf fallback.ttf")
+    print("fonts: kana.ttf kana_hand.ttf ui.ttf ui_bold.ttf fallback.ttf")
 
 KANJIVG_NOTICE = """strokes.txt - kana stroke data from KanjiVG
 

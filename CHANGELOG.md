@@ -3,6 +3,35 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
+## 0.5.0 - unreleased
+
+A whole new look: the "Handheld" design.
+
+- Light (the new default) and dark versions of one clean design: a pale striped top screen and a dotted bottom screen,
+  white cards with soft shadows, glossy pill buttons and smooth line icons (no more pixel art).
+- Every mode has its own colour: lessons and practice orange, Review blue, Words green, Mix-ups purple, Timed red,
+  Stats and Settings teal. Headers are bilingual (れんしゅう · Stage 3, ふくしゅう · Review).
+- New Home: a scrolling strip of mode tiles (tap one, or scroll with the d-pad and press A), a big Lesson / Practise
+  button (or START), a daily goal ring and a streak strip for the week (月 火 水 …).
+- Answers are marked ○ or ×, like a Japanese test (せいかい! / ざんねん). Writing happens on a notepad page.
+- Settings rows are segmented pills: every option is one tap away.
+- Achievements get gold medals; Pause is a ひとやすみ card; results cheer in Japanese.
+- New app icon: an orange あ tile with a little ア (`tools/make_icon.py` renders it).
+- Bold text for headings and buttons (Zen Maru Gothic Bold, OFL). Stronger rumble for right answers.
+- The streak flame grows with your streak: orange, then bigger and red at 7 days, blue at 30, purple at 100. It stays a
+  pale outline until you meet today's goal ("today's goal keeps it lit"), then lights up and flickers.
+- Gentle motion: screens fade in, the Home strip glides between tiles, the right answer pops and a wrong one shakes,
+  and the results score counts up (a medal for a perfect session). `KT_MOTION=0` turns it off.
+- Settings > Display shows a live preview (theme, kana font, canvas lines, ink). New **Reset settings** in Settings >
+  Progress (press twice; your progress stays).
+- Swipe the Home strip with the stylus: it follows your pen and settles on the nearest tile.
+- Choice questions start with nothing highlighted: the d-pad cursor appears on your first d-pad or stick press, so a
+  highlighted tile can't give the answer away.
+- Fixes: the F+START Quit hint is back on Home; the top screen background could show black or stale patches on the device; small text is never squashed
+  (Settings tiles); the Home strip glides in a fixed time even when frames are slow; tapping a side tile on Home now slides it to the centre, so every tile can be reached by touch; long mix-up
+  hints no longer spill out of the answer banner; stage chips on Home fit their card; Extras is called Extras, not
+  Stage 15; empty days on the Stats chart look empty; the Guide/Hint button is a proper on/off switch.
+
 ## 0.4.0 - 2026-11-15
 
 - New words are taught before they're tested: a pack session shows up to 5 new words on cards (kana, rōmaji, meaning

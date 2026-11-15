@@ -194,6 +194,7 @@ int main(int argc, char** argv) {
   App app; app.dataDir = dataDir; std::string err; applyTheme(false);
   if (!app.data.load(dataDir, &err)) { fprintf(stderr, "cannot load data from '%s': %s\n", dataDir.c_str(), err.c_str()); return 2; }
   mkdirs(stateDir); app.statePath = stateDir + "/progress.txt";
+  if (getenv("KT_MOTION") && !strcmp(getenv("KT_MOTION"), "0")) app.motion = false;  // no fades/glides (slow device?)
   // SD-card backup next to the app (packaged layout only: BananaKana/VERSION beside data/). KT_BACKUP=0 turns it off.
   { struct stat vs; if (stat((dataDir + "/../VERSION").c_str(), &vs) == 0 && !(getenv("KT_BACKUP") && !strcmp(getenv("KT_BACKUP"), "0")))
       app.backupPath = dataDir + "/../progress-backup.txt";
@@ -255,6 +256,7 @@ int main(int argc, char** argv) {
         if (!p.empty()) blPower = (p[0] == '/' ? p : "/sys/class/backlight/" + p) + "/bl_power"; } fclose(f); } }
   Uint32 lastBlCheck = 0; int blFixes = 0;
   int frames = 0; bool dirty = true; Uint32 lastRender = 0;
+  double perfSum = 0, perfMax = 0; int perfN = 0, perfReports = 0;
   while (app.running && !gStop) {
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
@@ -368,7 +370,17 @@ int main(int argc, char** argv) {
     }
     // Redraw only when something changed (plus a slow refresh): far less GPU work, and each frame finishes before it shows.
     if (app.tick(SDL_GetTicks())) dirty = true;
-    if (dirty || SDL_GetTicks() - lastRender > 500) { app.render(); dirty = false; lastRender = SDL_GetTicks(); }
+    if (dirty || SDL_GetTicks() - lastRender > 500) {
+      Uint64 r0 = SDL_GetPerformanceCounter();
+      app.render(); dirty = false; lastRender = SDL_GetTicks();
+      // frame-time report for launch.log: how long a full redraw of both screens takes on the device (motion smoothness)
+      double ms = (SDL_GetPerformanceCounter() - r0) * 1000.0 / SDL_GetPerformanceFrequency();
+      perfSum += ms; perfMax = std::max(perfMax, ms);
+      if (++perfN == 200 && perfReports < 5) {
+        fprintf(stderr, "  render: %.1f ms average, %.1f ms worst over 200 frames\n", perfSum / perfN, perfMax); fflush(stderr);
+        perfReports++; perfN = 0; perfSum = perfMax = 0;
+      }
+    }
     SDL_Delay(8);
     if (++frames == 90) {
       fprintf(stderr, "  after 90 frames: top flags=0x%x bottom flags=0x%x sdl_error='%s'\n",

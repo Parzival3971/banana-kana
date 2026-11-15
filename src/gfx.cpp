@@ -1,3 +1,5 @@
+#include <cstdint>
+#include <map>
 #include "gfx.h"
 
 #include <algorithm>
@@ -12,20 +14,48 @@ Col mix(Col a, Col b, float t) {
   return Col{m(a.r, b.r), m(a.g, b.g), m(a.b, b.b), 255};
 }
 
-const Theme DARK_THEME{hex(0x1D1B17), hex(0x2B2722), hex(0x383229), hex(0x4D463D), hex(0xF5F0E6), hex(0xBDB3A3),
-  hex(0xFFD23F), hex(0xFFD23F), hex(0x1D1B17), hex(0x7BD88F), hex(0x1F3526), hex(0xF07A4F), hex(0x3A221A),
-  hex(0x15130F), hex(0x5A5246), hex(0x3E5A45), hex(0x3A342C), hex(0x7A7064), hex(0x383229), hex(0x100F0D)};
-const Theme LIGHT_THEME{hex(0xF7F2E8), hex(0xEDE5D6), hex(0xE0D6C3), hex(0xC9BBA3), hex(0x241F18), hex(0x6B6152),
-  hex(0xFFD23F), hex(0x7A5A00), hex(0x241F18), hex(0x2E7D46), hex(0xD7EEDC), hex(0xB8432A), hex(0xF6DBD2),
-  hex(0xFFFDF8), hex(0xD6CCBB), hex(0xBFD9C4), hex(0xDDD3C2), hex(0x8F846F), hex(0xE0D6C3), hex(0xE8E0D0)};
+// fields: bg panel panel2 line fg dim accent accentTxt onAccent good goodFill bad badFill canvas ghost ghostOk disLine disTxt track frame
+const Theme LIGHT_THEME{hex(0xEEF1F4), hex(0xFFFFFF), hex(0xF1F3F6), hex(0xC3CAD2), hex(0x23262B), hex(0x5B6470),
+  hex(0xF28C28), hex(0xB8560B), hex(0x3A1F05), hex(0x1E8E4E), hex(0xE7F6EC), hex(0xC43A3F), hex(0xFDE8E8),
+  hex(0xFFFDF6), hex(0xE7E2D4), hex(0xCDEEDB), hex(0xC9CFD6), hex(0x8A929C), hex(0xE4E8ED), hex(0xDDE2E8)};
+const Theme DARK_THEME{hex(0x1A1E25), hex(0x262C36), hex(0x323843), hex(0x4A5260), hex(0xEEF1F5), hex(0xA8B1BE),
+  hex(0xF28C28), hex(0xFFA94D), hex(0x3A1F05), hex(0x4CD38A), hex(0x173524), hex(0xF07A7E), hex(0x3A1F22),
+  hex(0x23272E), hex(0x3A414D), hex(0x2C4A3A), hex(0x3D4450), hex(0x737C89), hex(0x3A414D), hex(0x323843)};
 Col BG, PANEL, PANEL2, LINE, FG, DIM, ACCENT, ACCENT_TXT, ON_ACCENT, GOOD, GOOD_FILL, BAD, BAD_FILL, CANVAS, GHOST, GHOST_OK,
     DIS_LINE, DIS_TXT, TRACK;
+Col BG2, CARD_SH, PILL_LINE, PILL_SH, PILL_HI, PILL_LO, ACC_LINE, ACC_SH, ACC_HI, ACC_LO, PAPER_LINE, PAPER_MARGIN;
+bool gLight = true;
+namespace {
+// per mode: fill, outline, shadow, gloss top, gloss bottom, text on light, text on dark, text on the fill
+struct Acc { unsigned fill, line, sh, hi, lo, txtL, txtD, on; };
+const Acc ACCS[MC_COUNT] = {
+  {0xF28C28, 0xD9741C, 0xC96A14, 0xFFB15E, 0xE98221, 0xB8560B, 0xFFA94D, 0x3A1F05},  // orange: lessons, practice, home
+  {0x2F80ED, 0x1F6FD6, 0x1B5FB8, 0x5AA2F5, 0x2A74D8, 0x1F6FD6, 0x7AB3FF, 0xFFFFFF},  // blue: review
+  {0x34C26F, 0x1E8E4E, 0x1A7A42, 0x6FDC9C, 0x2BB062, 0x1E8E4E, 0x6FDC9C, 0x0D3B21},  // green: words
+  {0x8B5CF6, 0x7A4BD1, 0x643BB3, 0xA985F0, 0x7F52E6, 0x6D3FD1, 0xB49CFF, 0xFFFFFF},  // purple: mix-ups
+  {0xEB5257, 0xD64045, 0xB3363A, 0xF37A7E, 0xDE474C, 0xC4373C, 0xFF8A8E, 0xFFFFFF},  // red: timed
+  {0x20B2AA, 0x0F8F8A, 0x127F79, 0x4FD1C5, 0x1AA39B, 0x0F7F7A, 0x4FD1C5, 0x062E2B},  // teal: stats, settings
+};
+}
+Col modeCol(ModeCol m) { return hex(ACCS[m].fill); }
+
+void setAccent(ModeCol m) {
+  const Acc& a = ACCS[m];
+  ACCENT = hex(a.fill); ACC_LINE = hex(a.line); ACC_SH = hex(a.sh); ACC_HI = hex(a.hi); ACC_LO = hex(a.lo);
+  ACCENT_TXT = hex(gLight ? a.txtL : a.txtD); ON_ACCENT = hex(a.on);
+}
 
 void applyTheme(bool light) {
   const Theme& t = light ? LIGHT_THEME : DARK_THEME;
   BG = t.bg; PANEL = t.panel; PANEL2 = t.panel2; LINE = t.line; FG = t.fg; DIM = t.dim; ACCENT = t.accent; ACCENT_TXT = t.accentTxt;
   ON_ACCENT = t.onAccent; GOOD = t.good; GOOD_FILL = t.goodFill; BAD = t.bad; BAD_FILL = t.badFill; CANVAS = t.canvas;
   GHOST = t.ghost; GHOST_OK = t.ghostOk; DIS_LINE = t.disLine; DIS_TXT = t.disTxt; TRACK = t.track;
+  gLight = light;
+  BG2 = light ? hex(0xE8ECF0) : hex(0x14181E); CARD_SH = light ? hex(0xD3D9E0) : hex(0x0D1015);
+  PILL_LINE = light ? hex(0xC3CAD2) : hex(0x4A5260); PILL_SH = light ? hex(0xB7BEC7) : hex(0x0D1015);
+  PILL_HI = light ? hex(0xFFFFFF) : hex(0x3D4451); PILL_LO = light ? hex(0xECEFF3) : hex(0x2E343F);
+  PAPER_LINE = light ? hex(0xCFE0F5) : hex(0x34404F); PAPER_MARGIN = light ? hex(0xF3B0B0) : hex(0x6A3B42);
+  setAccent(MC_ORANGE);
 }
 
 // ------------------------------------------------------------------ fonts
@@ -34,7 +64,9 @@ const int FONT_PX[F_COUNT] = {170, 100, 52, 30, 22, 17};
 TTF_Font* kanaF[F_COUNT];  // Zen Maru Gothic: kana
 TTF_Font* kanaHF[F_COUNT]; // Klee One: kana in a handwriting (textbook) style, optional
 bool gKanaHand = false;
+bool gBold = false;  // setBold(): Latin text in the bold UI font at any size
 TTF_Font* uiF[F_COUNT];    // Zen Maru Gothic Medium (Latin): English / UI
+TTF_Font* uiB[F_COUNT];    // Zen Maru Gothic Bold (Latin): headings, buttons, big text (F_HUGE..F_SMALL)
 TTF_Font* fbF[F_COUNT];    // Noto subset: anything the others lack
 float gFontScale = 1.f;
 
@@ -50,6 +82,7 @@ TTF_Font* pickFont(int size, uint32_t cp) {
   bool jp = (cp >= 0x3000 && cp <= 0x30FF) || (cp >= 0x4E00 && cp <= 0x9FFF) || (cp >= 0xFF00 && cp <= 0xFFEF);
   if (jp && gKanaHand && kanaHF[size] && TTF_GlyphIsProvided32(kanaHF[size], cp)) return kanaHF[size];
   if (jp && TTF_GlyphIsProvided32(kanaF[size], cp)) return kanaF[size];
+  if (!jp && (size <= F_SMALL || gBold) && uiB[size] && TTF_GlyphIsProvided32(uiB[size], cp)) return uiB[size];
   if (!jp && TTF_GlyphIsProvided32(uiF[size], cp)) return uiF[size];
   if (TTF_GlyphIsProvided32(kanaF[size], cp)) return kanaF[size];
   return fbF[size];
@@ -58,7 +91,7 @@ TTF_Font* pickFont(int size, uint32_t cp) {
 SDL_Surface* renderMixed(int size, const std::string& s, SDL_Color col) {
   std::vector<std::pair<TTF_Font*, std::string>> runs;
   for (uint32_t cp : utf8Codepoints(s)) {
-    TTF_Font* f = cp == ' ' ? uiF[size] : pickFont(size, cp);  // spaces always from the UI font (kana spaces are full-width)
+    TTF_Font* f = cp == ' ' ? ((size <= F_SMALL || gBold) && uiB[size] ? uiB[size] : uiF[size]) : pickFont(size, cp);  // spaces always from the UI font (kana spaces are full-width)
     if (runs.empty() || runs.back().first != f) runs.push_back({f, ""});
     runs.back().second += utf8Encode(cp);
   }
@@ -82,7 +115,7 @@ SDL_Surface* renderMixed(int size, const std::string& s, SDL_Color col) {
 }
 
 SDL_Texture* textTex(Win& w, int font, const std::string& s, Col c, int* tw, int* th) {
-  char key[48]; snprintf(key, sizeof key, "%d|%d|%02x%02x%02x|", font, int(gKanaHand), c.r, c.g, c.b);
+  char key[48]; snprintf(key, sizeof key, "%d|%d%d|%02x%02x%02x|", font, int(gKanaHand), int(gBold), c.r, c.g, c.b);
   std::string k = std::string(key) + s;
   auto it = w.cache.find(k);
   if (it == w.cache.end()) {
@@ -107,6 +140,8 @@ bool loadFonts(const std::string& dir, float scale, std::string* err) {
     fbF[i] = TTF_OpenFont((dir + "/fallback.ttf").c_str(), px);
     if (!kanaF[i] || !uiF[i] || !fbF[i]) { if (err) *err = TTF_GetError(); return false; }
     kanaHF[i] = TTF_OpenFont((dir + "/kana_hand.ttf").c_str(), px);  // optional
+    uiB[i] = TTF_OpenFont((dir + "/ui_bold.ttf").c_str(), px);       // optional: falls back to ui.ttf
+    if (uiB[i]) TTF_SetFontHinting(uiB[i], TTF_HINTING_LIGHT);
     if (kanaHF[i]) TTF_SetFontHinting(kanaHF[i], TTF_HINTING_LIGHT);
     for (TTF_Font* f : {kanaF[i], uiF[i], fbF[i]}) TTF_SetFontHinting(f, TTF_HINTING_LIGHT);  // keeps thin strokes (H crossbar) at small sizes
   }
@@ -114,6 +149,7 @@ bool loadFonts(const std::string& dir, float scale, std::string* err) {
 }
 
 void setKanaHand(bool on) { gKanaHand = on; }
+void setBold(bool on) { gBold = on; }
 
 void clearTextCache(Win& w) { for (auto& [_, t] : w.cache) SDL_DestroyTexture(t); w.cache.clear(); }
 
@@ -144,6 +180,135 @@ void boxRound(Win& w, SDL_Rect r, int rad, Col fill, Col line, int t) {
 
 void fillCircle(Win& w, int cx, int cy, int rad, Col c) { fillRound(w, SDL_Rect{cx - rad, cy - rad, 2 * rad, 2 * rad}, rad, c); }
 
+// Vertical gradient in a rounded rect: one quad per pixel row of the corners plus one for the middle, one call.
+void gradRound(Win& w, SDL_Rect r, int rad, Col top, Col bottom) {
+  if (r.w <= 0 || r.h <= 0) return;
+  rad = std::max(0, std::min({rad, r.w / 2, r.h / 2}));
+  std::vector<SDL_Vertex> v; v.reserve(size_t(rad * 2 + 1) * 6);
+  auto colAt = [&](float y) { Col c = mix(top, bottom, std::clamp((y - r.y) / float(r.h), 0.f, 1.f)); return SDL_Color{c.r, c.g, c.b, 255}; };
+  auto quad = [&](float x0, float x1, float y0, float y1) {
+    SDL_Color c0 = colAt(y0), c1 = colAt(y1);
+    SDL_Vertex a{{x0, y0}, c0, {0, 0}}, b{{x1, y0}, c0, {0, 0}}, c{{x1, y1}, c1, {0, 0}}, d{{x0, y1}, c1, {0, 0}};
+    v.push_back(a); v.push_back(b); v.push_back(c); v.push_back(a); v.push_back(c); v.push_back(d);
+  };
+  for (int y = 0; y < rad; y++) {
+    float dy = rad - y - 0.5f, ins = rad - std::sqrt(std::max(0.f, rad * float(rad) - dy * dy));
+    quad(r.x + ins, r.x + r.w - ins, float(r.y + y), float(r.y + y + 1) + 0.6f);            // rows overlap a little:
+    quad(r.x + ins, r.x + r.w - ins, float(r.y + r.h - y - 1) - 0.6f, float(r.y + r.h - y));  // no seams when scaled
+  }
+  quad(float(r.x), float(r.x + r.w), float(r.y + rad) - 0.6f, float(r.y + r.h - rad) + 0.6f);
+  SDL_RenderGeometry(w.r, nullptr, v.data(), int(v.size()), nullptr, 0);
+}
+
+void card(Win& w, SDL_Rect r, int rad, Col fill) {
+  if (fill.a == 0) fill = PANEL;
+  fillRound(w, SDL_Rect{r.x, r.y + 5, r.w, r.h}, rad, CARD_SH);
+  fillRound(w, r, rad, fill);
+}
+
+SDL_Rect pill(Win& w, SDL_Rect r, int rad, int kind, bool pressed) {
+  int drop = pressed ? 2 : 5, sink = pressed ? 3 : 0;
+  SDL_Rect f{r.x, r.y + sink, r.w, r.h};
+  if (kind == 2) {  // disabled: flat, no shadow
+    fillRound(w, f, rad, DIS_LINE); fillRound(w, SDL_Rect{f.x + 3, f.y + 3, f.w - 6, f.h - 6}, std::max(0, rad - 3), BG2);
+    return f;
+  }
+  Col line = kind == 1 ? ACC_LINE : PILL_LINE, sh = kind == 1 ? ACC_SH : PILL_SH;
+  Col hi = kind == 1 ? ACC_HI : PILL_HI, mid = kind == 1 ? ACCENT : mix(PILL_HI, PILL_LO, 0.55f), lo = kind == 1 ? ACC_LO : PILL_LO;
+  fillRound(w, SDL_Rect{f.x, f.y + drop, f.w, f.h}, rad, sh);
+  fillRound(w, f, rad, line);
+  SDL_Rect in{f.x + 3, f.y + 3, f.w - 6, f.h - 6}; int ir = std::max(0, rad - 3);
+  // gloss: the main colour from 60% down, lighter above, a touch darker at the bottom (one shape, three stops)
+  int split = in.h * 6 / 10;
+  gradRound(w, in, ir, mid, lo);
+  SDL_Rect topPart{in.x, in.y, in.w, split + ir};
+  gradRound(w, topPart, ir, hi, mid);
+  if (split + ir < in.h) fillRect(w, SDL_Rect{in.x + ir, in.y + split, in.w - 2 * ir, 1}, mid);
+  return f;
+}
+
+// Backdrops: faint diagonal stripes (top screen) or a dot grid (bottom), drawn once per window/theme into a texture.
+void drawBackdrop(Win& w, bool topScreen) {
+  // Drawn straight to the screen as one triangle batch (no render-target texture: on the device's KMSDRM/GLES
+  // renderer the cached texture came back half-filled with stale pixels). The geometry is built once per
+  // window/theme and reused every frame.
+  Col base = topScreen ? BG : BG2, mark = mix(base, FG, gLight ? 0.045f : 0.05f);
+  SDL_SetRenderDrawColor(w.r, base.r, base.g, base.b, 255);
+  SDL_Rect all{0, 0, LW, LH}; SDL_RenderFillRect(w.r, &all);
+  static std::map<std::string, std::vector<SDL_Vertex>> cache;
+  std::string key = std::to_string(reinterpret_cast<uintptr_t>(w.r)) + (topScreen ? "T" : "B") + (gLight ? "L" : "D");
+  std::vector<SDL_Vertex>& v = cache[key];
+  if (v.empty()) {
+    SDL_Color c{mark.r, mark.g, mark.b, 255};
+    auto quad = [&](SDL_FPoint p0, SDL_FPoint p1, SDL_FPoint p2, SDL_FPoint p3) {
+      v.push_back({p0, c, {0, 0}}); v.push_back({p1, c, {0, 0}}); v.push_back({p2, c, {0, 0}});
+      v.push_back({p0, c, {0, 0}}); v.push_back({p2, c, {0, 0}}); v.push_back({p3, c, {0, 0}});
+    };
+    const float H = float(LH);
+    if (topScreen) {  // 135-degree stripes, about 1.3 px wide every 12 px
+      for (float k = -H; k < LW + H; k += 12.f) quad({k, 0}, {k + 1.3f, 0}, {k + 1.3f - H, H}, {k - H, H});
+    } else {          // dots every 16 px
+      for (float y = 8; y < LH; y += 16) for (float x = 8; x < LW; x += 16) quad({x - 1.2f, y - 1.2f}, {x + 1.2f, y - 1.2f}, {x + 1.2f, y + 1.2f}, {x - 1.2f, y + 1.2f});
+    }
+  }
+  SDL_RenderGeometry(w.r, nullptr, v.data(), int(v.size()), nullptr, 0);
+}
+
+// ------------------------------------------------------------------ line icons
+namespace {
+using Poly = std::vector<Pt>;
+Poly arc(float cx, float cy, float r, float a0, float a1, int n = 20) {  // degrees, 0 = right, clockwise (y down)
+  Poly p; for (int i = 0; i <= n; i++) { float a = (a0 + (a1 - a0) * i / n) * 3.14159265f / 180.f; p.push_back({cx + r * std::cos(a), cy + r * std::sin(a)}); }
+  return p;
+}
+Poly L(std::initializer_list<float> xy) { Poly p; auto it = xy.begin(); while (it != xy.end()) { float x = *it++; float y = *it++; p.push_back({x, y}); } return p; }
+const std::map<std::string, std::vector<Poly>>& icons() {
+  static const std::map<std::string, std::vector<Poly>> I = {
+    {"review", {arc(12, 12, 8, -40, 290), L({20, 4, 20, 8, 16, 8})}},
+    {"mixups", {L({3, 6, 7, 6, 11, 11, 13, 13, 17, 18, 21, 18}), L({18, 15, 21, 18, 18, 21}), L({3, 18, 7, 18, 9.5f, 15.5f}), L({14.5f, 8.5f, 17, 6, 21, 6}), L({18, 3, 21, 6, 18, 9})}},
+    {"words", {L({6, 5, 18, 5}), arc(18, 8, 3, -90, 0, 6), L({21, 8, 21, 16}), arc(18, 16, 3, 0, 90, 6), L({18, 19, 6, 19}), arc(6, 16, 3, 90, 180, 6), L({3, 16, 3, 8}), arc(6, 8, 3, 180, 270, 6),
+               L({10, 5, 10, 19}), L({10, 12, 21, 12}), L({6.5f, 9, 6.6f, 9}), L({6.5f, 15, 6.6f, 15}), L({15.5f, 8.5f, 15.6f, 8.5f}), L({15.5f, 15.5f, 15.6f, 15.5f})}},
+    {"timed", {arc(12, 13.5f, 7.5f, 0, 360, 28), L({12, 13.5f, 12, 10}), L({10, 2.5f, 14, 2.5f}), L({18.5f, 6.5f, 20, 5})}},
+    {"stats", {L({5, 20, 5, 14}), L({10, 20, 10, 9}), L({15, 20, 15, 12}), L({20, 20, 20, 4})}},
+    {"chart", {L({5, 20, 5, 14}), L({10, 20, 10, 9}), L({15, 20, 15, 12}), L({20, 20, 20, 4})}},
+    {"pencil", {L({4, 20, 8, 19, 19, 8, 16, 5, 5, 16, 4, 20}), L({14, 7, 17, 10})}},
+    {"clock", {arc(12, 13, 8, 0, 360, 28), L({12, 9, 12, 13, 15, 15}), L({9, 2, 15, 2})}},
+    {"display", {L({5.5f, 4, 18.5f, 4}), arc(18.5f, 6.5f, 2.5f, -90, 0, 5), L({21, 6.5f, 21, 13.5f}), arc(18.5f, 13.5f, 2.5f, 0, 90, 5), L({18.5f, 16, 5.5f, 16}),
+                 arc(5.5f, 13.5f, 2.5f, 90, 180, 5), L({3, 13.5f, 3, 6.5f}), arc(5.5f, 6.5f, 2.5f, 180, 270, 5), L({8, 20, 16, 20}), L({12, 16, 12, 20})}},
+    {"info", {arc(12, 12, 9, 0, 360, 30), L({12, 11, 12, 17}), L({12, 7.5f, 12, 8})}},
+    {"flame", {L({12, 3, 13, 6.5f, 17, 9, 17, 13}), arc(12, 13, 5, 0, 180, 12), L({7, 13, 7.5f, 11, 9.4f, 8.4f, 10.5f, 10.5f, 11.5f, 11.4f, 11.6f, 7, 12, 3})}},
+    {"medal", {L({8, 3, 10, 8}), L({16, 3, 14, 8}), arc(12, 14, 6, 0, 360, 24)}},
+    {"lock", {L({7.5f, 11, 16.5f, 11}), arc(16.5f, 13.5f, 2.5f, -90, 0, 4), L({19, 13.5f, 19, 18.5f}), arc(16.5f, 18.5f, 2.5f, 0, 90, 4), L({16.5f, 21, 7.5f, 21}),
+              arc(7.5f, 18.5f, 2.5f, 90, 180, 4), L({5, 18.5f, 5, 13.5f}), arc(7.5f, 13.5f, 2.5f, 180, 270, 4), L({8, 11, 8, 8}), arc(12, 8, 4, 180, 360, 10), L({16, 8, 16, 11})}},
+    {"check", {L({5, 12.5f, 10, 17.5f, 19, 7})}},
+    {"cross", {L({6, 6, 18, 18}), L({18, 6, 6, 18})}},
+    {"play", {L({8, 5, 8, 19, 19, 12, 8, 5})}},
+    {"pause", {L({9.5f, 6, 9.5f, 18}), L({14.5f, 6, 14.5f, 18})}},
+    {"gear", {arc(12, 12, 3, 0, 360, 14), L({12, 2.5f, 12, 5.5f}), L({12, 18.5f, 12, 21.5f}), L({2.5f, 12, 5.5f, 12}), L({18.5f, 12, 21.5f, 12}),
+              L({5.3f, 5.3f, 7.4f, 7.4f}), L({16.6f, 16.6f, 18.7f, 18.7f}), L({5.3f, 18.7f, 7.4f, 16.6f}), L({16.6f, 7.4f, 18.7f, 5.3f})}},
+    {"arrow", {L({5, 12, 19, 12}), L({13, 6, 19, 12, 13, 18})}},
+    {"back", {L({19, 12, 5, 12}), L({11, 6, 5, 12, 11, 18})}},
+    {"star", {L({12, 3, 14.6f, 8.6f, 20.6f, 9.2f, 16, 13.3f, 17.3f, 19.3f, 12, 16.2f, 6.7f, 19.3f, 8, 13.3f, 3.4f, 9.2f, 9.4f, 8.6f, 12, 3})}},
+    {"book", {L({12, 6, 12, 20}), L({12, 6, 9, 4.5f, 3, 4.5f, 3, 18.5f, 9, 18.5f, 12, 20}), L({12, 6, 15, 4.5f, 21, 4.5f, 21, 18.5f, 15, 18.5f, 12, 20})}},
+    {"map", {L({3, 6, 9, 4, 15, 6, 21, 4, 21, 18, 15, 20, 9, 18, 3, 20, 3, 6}), L({9, 4, 9, 18}), L({15, 6, 15, 20})}},
+    {"grid", {L({4, 4, 10, 4, 10, 10, 4, 10, 4, 4}), L({14, 4, 20, 4, 20, 10, 14, 10, 14, 4}), L({4, 14, 10, 14, 10, 20, 4, 20, 4, 14}), L({14, 14, 20, 14, 20, 20, 14, 20, 14, 14})}},
+    {"eraser", {L({4, 15, 13, 6, 19, 12, 10, 21, 7, 21, 4, 18, 4, 15}), L({9, 10, 15, 16}), L({10, 21, 20, 21})}},
+    {"undo", {L({9, 6, 4, 11, 9, 16}), L({4, 11, 14, 11}), arc(14, 15, 4, -90, 90, 10), L({14, 19, 10, 19})}},
+    {"eye", {arc(12, 18, 11, 220, 320, 14), arc(12, 6, 11, 40, 140, 14), arc(12, 12, 3, 0, 360, 14)}},
+  };
+  return I;
+}
+}
+void lineIcon(Win& w, const std::string& name, SDL_Rect box, Col c, float thick) {
+  auto it = icons().find(name); if (it == icons().end()) return;
+  const float k = 109.f / 24.f;  // drawStrokeIn works in the 109-unit glyph space
+  for (const Poly& p : it->second) {
+    Stroke s; for (const Pt& q : p) s.push_back({q.x * k, q.y * k});
+    if (s.size() == 1) s.push_back(s[0]);
+    drawStrokeIn(w, s, box, c, thick * box.w / 24.f);
+  }
+}
+
 // ------------------------------------------------------------------ text
 int textWidth(Win& w, int font, const std::string& s) {
   if (s.empty()) return 0;
@@ -157,22 +322,34 @@ void drawText(Win& w, const std::string& s, SDL_Rect box, Col c, int maxFont, Al
     if ((tw <= box.w && th <= box.h + th / 4) || f == F_COUNT - 1) {
       int x = al == A_LEFT ? box.x : al == A_RIGHT ? box.x + box.w - tw : box.x + (box.w - tw) / 2;
       SDL_Rect d{x, box.y + (box.h - th) / 2, tw, th};
-      if (tw > box.w) { d.w = box.w; d.x = box.x; }
+      if (tw > box.w && getenv("KT_TEXTLOG")) fprintf(stderr, "text too wide (%d > %d): %s\n", tw, box.w, s.c_str());
+      if (tw > box.w) { d.w = box.w; d.h = th * box.w / tw; d.x = box.x; d.y = box.y + (box.h - d.h) / 2; }  // too wide even at the smallest size: shrink evenly, never squash
       SDL_RenderCopy(w.r, t, nullptr, &d); return;
     }
   }
 }
 
-int drawWrapped(Win& w, const std::string& s, SDL_Rect box, Col c, int font, Align al) {
+static std::vector<std::string> wrapLines(Win& w, const std::string& s, int width, int font);
+int wrappedHeight(Win& w, const std::string& s, int width, int font) {
+  int tw, th; textTex(w, font, "Ag", FG, &tw, &th);
+  return int(wrapLines(w, s, width, font).size()) * th;
+}
+
+static std::vector<std::string> wrapLines(Win& w, const std::string& s, int width, int font) {
   std::vector<std::string> words; std::string cur;
   for (char ch : s) { if (ch == ' ') { if (!cur.empty()) words.push_back(cur); cur.clear(); } else cur += ch; }
   if (!cur.empty()) words.push_back(cur);
   std::vector<std::string> lines; std::string line;
   for (auto& wd : words) {
     std::string cand = line.empty() ? wd : line + " " + wd;
-    if (!line.empty() && textWidth(w, font, cand) > box.w) { lines.push_back(line); line = wd; } else line = cand;
+    if (!line.empty() && textWidth(w, font, cand) > width) { lines.push_back(line); line = wd; } else line = cand;
   }
   if (!line.empty()) lines.push_back(line);
+  return lines;
+}
+
+int drawWrapped(Win& w, const std::string& s, SDL_Rect box, Col c, int font, Align al) {
+  std::vector<std::string> lines = wrapLines(w, s, box.w, font);
   int lh = 0; { int tw, th; textTex(w, font, "Ag", FG, &tw, &th); lh = th; }
   int y = box.y;
   for (auto& l : lines) {
@@ -257,6 +434,28 @@ void drawStrokeIn(Win& w, const Stroke& s, SDL_Rect box, Col c, float thick) {
     put(a1); put(a2); put(b2); put(a1); put(b2); put(b1);
     disc(b);
   }
+  SDL_RenderGeometry(w.r, nullptr, v.data(), int(v.size()), nullptr, 0);
+}
+
+void drawFlame(Win& w, SDL_Rect box, Col outer, Col inner, float flick) {
+  const float sx = box.w / 24.f, sy = box.h / 24.f;
+  std::vector<SDL_Vertex> v;
+  auto fan = [&](std::vector<SDL_FPoint> pts, SDL_FPoint c, Col edge, Col mid, float grow) {
+    auto P = [&](SDL_FPoint q) {  // grow around the base so the flame breathes upwards
+      return SDL_FPoint{box.x + (c.x + (q.x - c.x) * grow) * sx, box.y + (21.5f + (q.y - 21.5f) * grow) * sy}; };
+    SDL_Color ce{edge.r, edge.g, edge.b, 255}, cm{mid.r, mid.g, mid.b, 255};
+    SDL_FPoint pc = P(c);
+    for (size_t i = 0; i < pts.size(); i++) {
+      SDL_FPoint a = P(pts[i]), b = P(pts[(i + 1) % pts.size()]);
+      v.push_back({pc, cm, {0, 0}}); v.push_back({a, ce, {0, 0}}); v.push_back({b, ce, {0, 0}});
+    }
+  };
+  const float f = flick;
+  fan({{12 + 1.4f * f, 1.2f}, {14.2f, 4.8f}, {16.6f, 7.8f}, {18.1f, 11}, {18.5f, 14.2f}, {17.6f, 17.6f}, {15.5f, 20.2f},
+       {12, 21.5f}, {8.5f, 20.2f}, {6.4f, 17.6f}, {5.5f, 14.2f}, {6, 10.8f}, {7.5f, 7.6f}, {9.3f, 10.2f}, {10.2f, 6.2f}},
+      {12, 15}, outer, mix(outer, inner, 0.35f), 1.f + 0.03f * f);
+  fan({{12 - 1.2f * f, 8.6f}, {14.1f, 12.4f}, {15.3f, 15.6f}, {14.5f, 18.6f}, {12, 19.9f}, {9.5f, 18.6f}, {8.7f, 15.6f}, {9.9f, 12.4f}},
+      {12, 16.2f}, inner, mix(inner, Col{255, 255, 255, 255}, 0.45f), 1.f + 0.07f * f);
   SDL_RenderGeometry(w.r, nullptr, v.data(), int(v.size()), nullptr, 0);
 }
 
