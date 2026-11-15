@@ -74,9 +74,12 @@ bool isKataText(const std::string& s) { auto c = utf8Codepoints(s); return !c.em
 
 // ================================================================== flow
 void App::go(Screen s) {
+  if (motion && s != screen) transStart = SDL_GetTicks() | 1;  // soft fade-in of the new screen
+  if (s == Screen::Home && screen != Screen::Home) homePos = float(homeSel);  // arrive centred, no glide
   screen = s; pressedId = -1; drawing = false; cur.clear(); paused = false; animStart = 0;
   if (s == Screen::Unlocked) { snd::play(snd::Sfx::Unlock); celebrate(3200, true); }
   if (s == Screen::Result || s == Screen::Unlocked) backup(true);
+  if (s == Screen::Result) countStart = motion ? (SDL_GetTicks() | 1) : 0;  // the score counts up
   if (s == Screen::Result && mode == Mode::Timed && timedNewBest) celebrate(2400, true);
   if (s == Screen::Stages) { mapScript = prog.settings.script; mapSel = prog.currentStage(mapScript); }
   if (s == Screen::Chart) {
@@ -85,7 +88,7 @@ void App::go(Screen s) {
     if (!cells.empty()) chartSel = cells[0].kana;
   }
   if (s == Screen::Home) { homeSel = std::clamp(homeSel, 0, int(homeItems().size()) - 1); earned(prog.checkAchievements(data)); }  // e.g. after skipping ahead
-  if (s == Screen::SettingsGroup) { skipPending[0] = skipCurrent(Script::Hiragana); skipPending[1] = skipCurrent(Script::Katakana); resetArmed = false; setRow = std::clamp(setRow, 0, std::max(0, int(settingRows(setGroup).size()) - 1)); }
+  if (s == Screen::SettingsGroup) { skipPending[0] = skipCurrent(Script::Hiragana); skipPending[1] = skipCurrent(Script::Katakana); resetArmed = resetSetArmed = false; setRow = std::clamp(setRow, 0, std::max(0, int(settingRows(setGroup).size()) - 1)); }
 }
 
 void App::setScript(Script s) {
@@ -194,6 +197,17 @@ bool App::tick(Uint32 now) {  // every timer runs every time; true if anything n
   }
   if (confStart && now - confLast >= 33) { confLast = now; redraw = true; }  // confetti at ~30 fps
   if (animStart && !paused && now - animLast >= 33) { animLast = now; redraw = true; }  // stroke-order animation
+  if (transStart) { if (now - transStart >= TRANS_MS) transStart = 0; redraw = true; }
+  if (countStart) { if (now - countStart >= 900) countStart = 0; redraw = true; }
+  if (answerAnim) { if (now - answerAnim >= ANSWER_MS) answerAnim = 0; redraw = true; }
+  if (screen == Screen::Home && std::fabs(homePos - float(homeSel)) > 0.002f) {  // the mode strip glides to its new centre
+    float dt = homeAnimLast ? std::min(0.05f, (now - homeAnimLast) / 1000.f) : 0.016f;
+    homePos += (float(homeSel) - homePos) * std::min(1.f, dt * 14.f);
+    if (!motion || std::fabs(homePos - float(homeSel)) < 0.01f) homePos = float(homeSel);
+    homeAnimLast = now; redraw = true;
+  } else homeAnimLast = 0;
+  if (screen == Screen::Home && !paused && now - flameLast >= 100 && prog.currentStreak() > 0 &&
+      prog.lastGoalDay == dayNumber(prog.now())) { flameLast = now; redraw = true; }  // lit flame flickers
   if (screen == Screen::Credits && !paused && now - creditsLast >= 80) { creditsLast = now; redraw = true; }
   if (screen == Screen::Drill && mode == Mode::Timed) {
     Uint32 dt = now - timedLast; timedLast = now;
@@ -325,7 +339,7 @@ void App::check() {
     default: if (sel < 0) return; ok = (sel == q.correct); said = q.options[sel]; break;
   }
   int before = prog.step(q.key);
-  checked = true; correct = ok; results.push_back(ok ? 1 : 0);
+  checked = true; correct = ok; results.push_back(ok ? 1 : 0); if (motion) answerAnim = SDL_GetTicks() | 1;  // pop / shake
   int wlvBefore = prog.writeLevel(q.key);
   if (q.type == QType::Write) prog.recordWrite(q.key, ok, q.writeLevel); else prog.record(q.key, ok);
   int after = prog.step(q.key);
@@ -414,6 +428,7 @@ void App::press(int id) {
   }
   switch (screen) {
     case Screen::Home:
+      if (int idx = homeItemIndex(id); idx >= 0 && idx != homeSel) { homeSel = idx; break; }  // tap a side tile: slide it to the centre
       if (id == B_CART0 || id == B_HOME_GO) { if (prog.lessonPending(sc)) openLesson(sc, prog.lessons[si(sc)], false); else startSession(); }
       else if (id == B_CART0 + 1) go(Screen::Stages);
       else if (id == B_CART0 + 2) go(Screen::Chart);
@@ -469,7 +484,7 @@ void App::press(int id) {
       else if (id == B_UNDO && !checked && !strokes.empty()) strokes.pop_back();
       else if (id == B_UNDO && !checked && part > 0) { part--; strokes = partStrokes.back(); partStrokes.pop_back(); }
       else if (id == B_CLEAR && !checked) strokes.clear();
-      else if (id == B_HINT && !checked) showHint = !showHint;
+      else if (id == B_HINT && !checked && q.writeLevel > 0) showHint = !showHint;  // guided writes: the guide stays on
       else if (id == B_SHOWME && !checked && q.type == QType::Write) { showHint = true; playStrokes(); }
       break;
     case Screen::Result:
@@ -524,7 +539,7 @@ void App::press(int id) {
       int n = int(settingRows(setGroup).size());
       if (id >= B_SROW0 && id < B_SROW0 + n) {
         int r = id - B_SROW0;
-        if (r == setRow) confirmSetting(setGroup, r); else { setRow = r; resetArmed = false; go(Screen::SettingsGroup); }
+        if (r == setRow) confirmSetting(setGroup, r); else { setRow = r; resetArmed = resetSetArmed = false; go(Screen::SettingsGroup); }
       } else if (id >= B_SSEG0 && id < B_SSEG0 + n * 8) {
         int r = (id - B_SSEG0) / 8, opt = (id - B_SSEG0) % 8; setRow = r;
         auto rows = settingRows(setGroup);
@@ -802,7 +817,13 @@ void App::drawButtons() {
     }
     b.r = face;
     SDL_Rect in{b.r.x + 6, b.r.y + 3, b.r.w - 12, b.r.h - 6};
-    if (b.sub.empty()) drawText(bot, b.label, in, txt, b.font);
+    if (b.icon == 3 || b.icon == 4) {  // toggle: label over a little on/off switch
+      bool on = b.icon == 4;
+      drawText(bot, b.label, SDL_Rect{in.x, in.y + 2, in.w, in.h - 26}, txt, b.font);
+      SDL_Rect sw{b.r.x + b.r.w / 2 - 20, b.r.y + b.r.h - 30, 40, 20};
+      fillRound(bot, sw, 10, on ? ACCENT : mix(PANEL, FG, 0.25f));
+      fillCircle(bot, on ? sw.x + sw.w - 10 : sw.x + 10, sw.y + 10, 7, PANEL);
+    } else if (b.sub.empty()) drawText(bot, b.label, in, txt, b.font);
     else {
       int sh = std::max(16, in.h / 3);
       drawText(bot, b.label, SDL_Rect{in.x, in.y + 2, in.w, in.h - sh - 2}, txt, b.font);
@@ -845,15 +866,29 @@ void App::medal(Win& w, SDL_Rect box, bool earned) {
   lineIcon(w, "star", SDL_Rect{cx - int(5 * s), cy - int(5 * s), int(10 * s), int(10 * s)}, ink, 2.f);
 }
 
+// streak flame tiers: it grows up with the streak (Home, Stats)
+struct FlameTier { int from; Col outer, inner; int size; const char* name; };
+static const FlameTier* flameTier(int streak) {
+  static const FlameTier TIERS[] = {{100, hex(0x7C4DDB), hex(0xF1C6FF), 58, "legendary"}, {30, hex(0x2F7BEA), hex(0xBFE6FF), 56, "blue flame"},
+                                    {7, hex(0xE0451B), hex(0xFFC23D), 54, "on fire"}, {1, hex(0xF07A1A), hex(0xFFD45C), 48, "warming up"}};
+  for (const FlameTier& t : TIERS) if (streak >= t.from) return &t;
+  return nullptr;
+}
+static void streakFlame(Win& w, SDL_Rect box, int streak, bool lit) {  // ghost until today's goal is met, then lit and flickering
+  const FlameTier* t = flameTier(streak);
+  if (!t) drawFlame(w, box, mix(PANEL, DIS_TXT, 0.35f), mix(PANEL, DIS_TXT, 0.15f));
+  else if (!lit) drawFlame(w, box, mix(PANEL, t->outer, 0.3f), mix(PANEL, t->outer, 0.12f));
+  else { float tt = SDL_GetTicks() / 1000.f; drawFlame(w, box, t->outer, t->inner, 0.6f * std::sin(tt * 9.f) + 0.4f * std::sin(tt * 23.f)); }
+}
+
+static std::string stageLabel(int st) { return st == STAGE_COUNT - 1 ? "Extras" : "Stage " + std::to_string(st + 1); }
+
 void App::header(const std::string& title, const std::string& right, bool coloured, int indent) {
   Col bar = coloured ? ACCENT : PANEL, ink = coloured ? ON_ACCENT : FG, soft = coloured ? ON_ACCENT : DIM;
   fillRect(top, SDL_Rect{0, 0, LW, 50}, bar);
   if (!coloured) fillRect(top, SDL_Rect{0, 50, LW, 2}, mix(BG, FG, 0.1f));
   int rw = 0;
-  if (right.empty()) {  // the wordmark
-    rw = textWidth(top, F_MICRO, "BANANA KANA") + 4;
-    setBold(true); drawText(top, "BANANA KANA", SDL_Rect{LW - 20 - rw, 0, rw, 50}, coloured ? ON_ACCENT : ACCENT_TXT, F_MICRO, A_RIGHT); setBold(false);
-  } else {
+  if (!right.empty()) {  // context on the right (script, count, stage...); nothing when there's nothing useful to say
     rw = std::min(300, textWidth(top, F_MICRO, right) + 4);
     setBold(true); drawText(top, right, SDL_Rect{LW - 20 - rw, 0, rw, 50}, soft, F_MICRO, A_RIGHT); setBold(false);
   }
@@ -895,7 +930,8 @@ void App::segBar(Win& w, SDL_Rect r, int total, int done, const std::vector<int>
 void App::statBox(Win& w, SDL_Rect r, const std::string& label, const std::string& value, int font) {
   card(w, SDL_Rect{r.x, r.y, r.w, r.h - 5}, 18);
   drawText(w, label, SDL_Rect{r.x + 14, r.y + 8, r.w - 28, 20}, DIM, F_MICRO, A_LEFT);
-  drawText(w, value, SDL_Rect{r.x + 14, r.y + 30, r.w - 28, r.h - 36}, FG, font, A_LEFT);
+  if (textWidth(w, font, value) > r.w - 28) drawWrapped(w, value, SDL_Rect{r.x + 14, r.y + 36, r.w - 28, r.h - 46}, FG, font);  // long values wrap
+  else drawText(w, value, SDL_Rect{r.x + 14, r.y + 30, r.w - 28, r.h - 36}, FG, font, A_LEFT);
 }
 
 void App::bar(Win& w, SDL_Rect r, float frac) {
@@ -1009,6 +1045,14 @@ void App::render() {
     case Screen::Awards: drawAwards(); break;
   }
   drawButtons();
+  if (transStart) {  // new screen fades in from the backdrop colour
+    float t = std::clamp((SDL_GetTicks() - transStart) / float(TRANS_MS), 0.f, 1.f), a = (1.f - t) * (1.f - t);
+    for (Win* w : {&top, &bot}) {
+      SDL_SetRenderDrawBlendMode(w->r, SDL_BLENDMODE_BLEND);
+      fillRect(*w, SDL_Rect{0, 0, LW, LH}, Col{BG.r, BG.g, BG.b, Uint8(220 * a)});
+      SDL_SetRenderDrawBlendMode(w->r, SDL_BLENDMODE_NONE);
+    }
+  }
   drawConfetti();
   drawToast();
   drawOsd();
@@ -1063,7 +1107,7 @@ std::vector<App::HomeItem> App::homeItems() const {
   bool lesson = prog.lessonPending(sc);
   int curSt = prog.currentStage(sc);
   return {
-    {B_CART0, lesson ? "Lesson" : "Practise", "pencil", "Stage " + std::to_string(curSt + 1), MC_ORANGE, true},
+    {B_CART0, lesson ? "Lesson" : "Practise", "pencil", stageLabel(curSt), MC_ORANGE, true},
     {B_MODE0, "Review", "review", due ? std::to_string(due) + " due" : "none due", MC_BLUE, modeAvailable(Mode::Review)},
     {B_MODE0 + 1, "Mix-ups", "mixups", mixN ? std::to_string(mixN) + (mixN == 1 ? " set" : " sets") : "none yet", MC_PURPLE, modeAvailable(Mode::Mixup)},
     {B_MODE0 + 4, "Words", "words", packsReady ? std::to_string(packsReady) + (packsReady == 1 ? " pack ready" : " packs ready") : "soon", MC_GREEN, !data.packs.empty()},
@@ -1102,7 +1146,8 @@ void App::drawHome() {
   drawText(top, "れんしゅう · STAGE " + std::to_string(curSt + 1) + " OF " + std::to_string(STAGE_COUNT), SDL_Rect{42, 76, 260, 22}, ACCENT_TXT, F_MICRO, A_LEFT);
   drawText(top, std::to_string(known) + " / " + std::to_string(n) + " known", SDL_Rect{294, 76, 104, 22}, DIM, F_MICRO, A_RIGHT);
   drawText(top, st.name, SDL_Rect{42, 100, 352, 40}, FG, F_SMALL, A_LEFT);
-  int show = std::min(n, 6), cs = 50;
+  const int cs = 50, maxChips = 6;  // 6 chips fill the card; with more kana, 5 chips + a "+N" chip
+  int show = n > maxChips ? maxChips - 1 : n;
   for (int i = 0; i < show; i++) {
     int ki = st.kana[i]; KanaState ks = prog.state(data, ki);
     SDL_Rect r{42 + i * (cs + 8), 146, cs, cs};
@@ -1110,7 +1155,11 @@ void App::drawHome() {
     else if (ks == KanaState::Learning || ks == KanaState::Weak) { boxRound(top, r, 14, mix(PANEL, ACCENT, 0.12f), ACCENT, 2); drawText(top, data.kana[ki].glyph, r, FG, F_SMALL); }
     else { fillRound(top, r, 14, PANEL2); drawText(top, data.kana[ki].glyph, r, ks == KanaState::Locked ? DIS_TXT : FG, F_SMALL); }
   }
-  if (n > show) drawText(top, "+" + std::to_string(n - show), SDL_Rect{42 + show * (cs + 8), 146, 40, cs}, DIM, F_TINY);
+  if (n > show) {
+    SDL_Rect r{42 + show * (cs + 8), 146, cs, cs};
+    boxRound(top, r, 14, PANEL, mix(PANEL, FG, 0.25f), 2);
+    drawText(top, "+" + std::to_string(n - show), r, DIM, F_TINY);
+  }
   std::string msg;
   if (prog.lessonPending(sc)) msg = "New lesson ready: " + stages[std::min(prog.lessons[scI], STAGE_COUNT - 1)].name + ". Press START.";
   else if (known == n && curSt == STAGE_COUNT - 1) msg = "Every stage is unlocked and known. Keep reviewing!";
@@ -1134,9 +1183,15 @@ void App::drawHome() {
   // ---- streak strip: this week, Monday to Sunday
   { SDL_Rect r{22, 310, 596, 100}; card(top, r, 20);
     int streak = prog.currentStreak();
-    lineIcon(top, "flame", SDL_Rect{r.x + 16, r.y + 22, 50, 50}, streak ? hex(0xE8590C) : DIS_TXT, 2.4f);
-    setBold(true); drawText(top, std::to_string(streak) + (streak == 1 ? "-day streak" : "-day streak"), SDL_Rect{r.x + 74, r.y + 18, 220, 36}, FG, F_TINY, A_LEFT); setBold(false);
-    drawText(top, "best " + std::to_string(std::max(streak, prog.bestStreak)), SDL_Rect{r.x + 74, r.y + 54, 200, 24}, DIM, F_MICRO, A_LEFT);
+    // the flame grows up with the streak; it stays an outline until today's goal is met (a nudge to keep it alive)
+    const FlameTier* tier = flameTier(streak);
+    const bool lit = streak > 0 && prog.lastGoalDay == dayNumber(prog.now());
+    const int fs = tier ? tier->size : 48;
+    streakFlame(top, SDL_Rect{r.x + 42 - fs / 2, r.y + 76 - fs, fs, fs}, streak, lit);
+    setBold(true); drawText(top, std::to_string(streak) + "-day streak", SDL_Rect{r.x + 74, r.y + 18, 220, 36}, FG, F_TINY, A_LEFT); setBold(false);
+    std::string sub = "best " + std::to_string(std::max(streak, prog.bestStreak));
+    if (tier && !lit) sub = "today's goal keeps it lit"; else if (tier) sub += " · " + std::string(tier->name);
+    drawText(top, sub, SDL_Rect{r.x + 74, r.y + 54, 210, 24}, tier && !lit ? ACCENT_TXT : DIM, F_MICRO, A_LEFT);
     static const char* KJ[7] = {"月", "火", "水", "木", "金", "土", "日"};
     static const char* EN[7] = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
     int todayIdx = (lt.tm_wday + 6) % 7;
@@ -1144,8 +1199,9 @@ void App::drawHome() {
       int dayOff = i - todayIdx; int d = dayNumber(prog.now() + Time(dayOff) * 86400);
       auto it = prog.days.find(d); bool met = it != prog.days.end() && it->second.answers >= goal && dayOff <= 0;
       int cx = r.x + 300 + i * 42, cy = r.y + 40;
-      if (met) { drawRing(top, cx, cy, 17, 17, 1.f, hex(0xE8590C), hex(0xE8590C)); drawText(top, KJ[i], SDL_Rect{cx - 17, cy - 17, 34, 34}, hex(0xFFFFFF), F_MICRO); }
-      else if (dayOff == 0) { drawRing(top, cx, cy, 17, 3, 1.f, hex(0xE8590C), hex(0xE8590C)); drawText(top, KJ[i], SDL_Rect{cx - 17, cy - 17, 34, 34}, FG, F_MICRO); }
+      const Col dayCol = tier ? tier->outer : hex(0xF07A1A);  // week dots follow the flame's colour
+      if (met) { drawRing(top, cx, cy, 17, 17, 1.f, dayCol, dayCol); drawText(top, KJ[i], SDL_Rect{cx - 17, cy - 17, 34, 34}, hex(0xFFFFFF), F_MICRO); }
+      else if (dayOff == 0) { drawRing(top, cx, cy, 17, 3, 1.f, dayCol, dayCol); drawText(top, KJ[i], SDL_Rect{cx - 17, cy - 17, 34, 34}, FG, F_MICRO); }
       else { drawRing(top, cx, cy, 17, 17, 1.f, PANEL2, PANEL2); drawText(top, KJ[i], SDL_Rect{cx - 17, cy - 17, 34, 34}, DIM, F_MICRO); }
       drawText(top, EN[i], SDL_Rect{cx - 20, cy + 20, 40, 20}, DIM, F_MICRO);
     }
@@ -1177,18 +1233,28 @@ void App::drawHome() {
     for (int k = 0; k < 10; k++) fillRect(bot, SDL_Rect{LW / 2 - 10 + k, 58 + k, 20 - 2 * k, 1}, PANEL);
   }
   const int cy = 166;
-  for (int off = -2; off <= 2; off++) {
-    int i = homeSel + off; if (i < 0 || i >= ni) continue;
+  if (!motion) homePos = float(homeSel);
+  homePos = std::clamp(homePos, 0.f, float(ni - 1));
+  // tiles sit at a smooth position (homePos glides towards homeSel): centre 150 px, neighbours 112 px, 150/130 px apart.
+  // Far tiles are drawn first so the centred one sits on top.
+  auto place = [](float off, int& cx, int& size) {
+    float a = std::fabs(off), sg = off < 0 ? -1.f : 1.f;
+    cx = LW / 2 + int(sg * (a <= 1.f ? 150.f * a : 150.f + 130.f * (a - 1.f)));
+    size = int(150.f - 38.f * std::min(1.f, a));
+  };
+  std::vector<int> order;
+  for (int i = 0; i < ni; i++) if (std::fabs(i - homePos) < 2.7f) order.push_back(i);
+  std::sort(order.begin(), order.end(), [&](int a, int b) { return std::fabs(a - homePos) > std::fabs(b - homePos); });
+  for (int i : order) {
     const HomeItem& it = items[i];
-    int size = off == 0 ? 150 : 112, cx = LW / 2 + (off == 0 ? 0 : (off > 0 ? 1 : -1) * (93 + (std::abs(off) - 1) * 130) + (off > 0 ? 38 : -38));
-    if (off != 0) cx = LW / 2 + off * 130 + (off > 0 ? 20 : -20);
+    float off = i - homePos; int cx, size; place(off, cx, size);
     SDL_Rect r{cx - size / 2, cy - size / 2, size, size};
     setAccent(it.col);
-    bool pressed = pressedId == it.id;
-    if (off == 0) fillRound(bot, SDL_Rect{r.x - 7, r.y - 7, r.w + 14, r.h + 17}, size / 4 + 7, PANEL);  // white halo round the centred tile
+    bool pressed = pressedId == it.id, centre = std::fabs(off) < 0.5f;
+    if (centre) { int h = int(7 * (1.f - 2.f * std::fabs(off))); fillRound(bot, SDL_Rect{r.x - h, r.y - h, r.w + 2 * h, r.h + 2 * h + 3}, size / 4 + h, PANEL); }  // white halo round the centred tile
     SDL_Rect f = pill(bot, r, size / 4, it.enabled ? 1 : 2, pressed);
-    int is = off == 0 ? 76 : 54;
-    lineIcon(bot, it.icon, SDL_Rect{f.x + (f.w - is) / 2, f.y + (f.h - is) / 2 - (off == 0 ? 0 : 0), is, is}, it.enabled ? ON_ACCENT : DIS_TXT, 2.2f);
+    int is = int(size * 0.5f);
+    lineIcon(bot, it.icon, SDL_Rect{f.x + (f.w - is) / 2, f.y + (f.h - is) / 2, is, is}, it.enabled ? ON_ACCENT : DIS_TXT, 2.2f);
     addBtn(r, it.id, it.name, F_TINY, it.enabled); lastBtn().hidden = true; lastBtn().sub = it.sub;
   }
   setAccent(MC_ORANGE);
@@ -1257,7 +1323,7 @@ void App::drawStages() {
     if (i < curSt) { accent(b); b.icon = 2; }
     else if (i == curSt) { b.fill = PANEL2; b.line = ACCENT; }
     else { b.fill = BG; b.line = DIS_LINE; b.text = DIS_TXT; b.subText = DIS_TXT; b.icon = 1; }
-    if (i == mapSel) { b.line = FG; b.lineW = 4; }
+    if (i == mapSel) { b.line = ACC_LINE; b.lineW = 4; }
   }
   std::string action; bool en = true;
   if (mapSel == curSt) action = prog.lessonPending(mapScript) ? "Start lesson" : "Continue stage " + std::to_string(curSt + 1);
@@ -1272,7 +1338,7 @@ void App::drawLesson() {
   const Stage& st = data.stages[si(lessonScript)][lessonStage];
   int n = int(st.kana.size()), ki = currentLessonKana(); const Kana& k = data.kana[ki];
   const Glyph* g = activeGlyph();
-  header("あたらしい · New kana", "Stage " + std::to_string(lessonStage + 1) + (lessonReplay ? " · replay" : ""));
+  header("あたらしい · New kana", stageLabel(lessonStage) + (lessonReplay ? " · replay" : ""));
   drawText(top, "NEW KANA " + std::to_string(lessonIdx + 1) + " OF " + std::to_string(n), SDL_Rect{24, 54, 300, 22}, ACCENT_TXT, F_MICRO, A_LEFT);
   int pw = std::min(26, 280 / n);
   for (int i = 0; i < n; i++) fillRound(top, SDL_Rect{616 - n * (pw + 4) + 4 + i * (pw + 4), 61, pw, 8}, 3, i <= lessonIdx ? ACCENT : TRACK);
@@ -1376,7 +1442,7 @@ void App::drawDrill() {
   if (focusSet.size() > 3) fs += " +" + std::to_string(focusSet.size() - 3);
   std::string where = mode == Mode::Focus ? "れんしゅう · " + fs : mode == Mode::Review ? "ふくしゅう · Review"
                     : mode == Mode::Mixup ? "にている · Mix-ups" : mode == Mode::Pack && packIdx >= 0 ? "ことば · " + data.packs[packIdx].name
-                    : "れんしゅう · Stage " + std::to_string(prog.currentStage(prog.settings.script) + 1);
+                    : "れんしゅう · " + stageLabel(prog.currentStage(prog.settings.script));
   if (timed) {
     header("タイム · Timed challenge", "score " + std::to_string(score), true);
     bar(top, SDL_Rect{24, 56, 592, 12}, float(timedLeft) / TIMED_MS);
@@ -1467,12 +1533,16 @@ void App::drawDrill() {
     drawText(top, (flash == 1 ? "Right · " : "Missed · ") + flashText, SDL_Rect{84, 392, 516, 64}, FG, F_TINY, A_LEFT);
   }
   if (checked) {
-    SDL_Rect f{24, 376, 592, 88}; boxRound(top, f, 24, correct ? GOOD_FILL : BAD_FILL, correct ? GOOD : BAD, 2);
-    if (correct) drawRing(top, 58, 420, 26, 7, 1.f, hex(0xE03131), hex(0xE03131)); else lineIcon(top, "cross", SDL_Rect{32, 394, 52, 52}, DIM, 3.f);  // ○ / × like a Japanese test
+    // the banner grows upwards to fit its note (long mix-up hints used to spill out of the bottom)
+    int noteH = feedbackNote.empty() ? 0 : std::min(wrappedHeight(top, feedbackNote, 500, F_MICRO), 92);
+    SDL_Rect f{24, std::min(376, 468 - 52 - noteH), 592, std::max(88, 52 + noteH)};
+    boxRound(top, f, 24, correct ? GOOD_FILL : BAD_FILL, correct ? GOOD : BAD, 2);
+    const int my = f.y + f.h / 2;
+    if (correct) drawRing(top, 58, my, 26, 7, 1.f, hex(0xE03131), hex(0xE03131)); else lineIcon(top, "cross", SDL_Rect{32, my - 26, 52, 52}, DIM, 3.f);  // ○ / × like a Japanese test
     std::string ans = q.answer;
     if (k && (q.type == QType::Write || q.type == QType::RecallKana)) ans = k->glyph + " (" + k->romaji + ")";
-    drawText(top, correct ? "せいかい! Correct!" : "ざんねん · it's " + ans, SDL_Rect{96, 384, 504, 36}, FG, F_SMALL, A_LEFT);
-    if (!feedbackNote.empty()) drawWrapped(top, feedbackNote, SDL_Rect{90, 420, 510, 42}, DIM, F_MICRO);
+    drawText(top, correct ? "せいかい! Correct!" : "ざんねん · it's " + ans, SDL_Rect{96, f.y + 8, 504, 36}, FG, F_SMALL, A_LEFT);
+    if (!feedbackNote.empty()) drawWrapped(top, feedbackNote, SDL_Rect{96, f.y + 44, 500, noteH}, DIM, F_MICRO);
   }
 
   // bottom
@@ -1483,10 +1553,13 @@ void App::drawDrill() {
       SDL_Rect r{16 + (i % cols) * (w + 10), 16 + (i / cols) * (h + 10), w, h};
       addBtn(r, B_TILE0 + i, q.options[i], F_MID); Button& b = lastBtn();
       if (checked) {
-        if (i == q.correct) { b.fill = GOOD_FILL; b.line = GOOD; b.icon = 2; b.text = FG; }
-        else if (i == sel) { b.fill = BAD_FILL; b.line = BAD; }
+        float at = answerAnim ? std::clamp((SDL_GetTicks() - answerAnim) / float(ANSWER_MS), 0.f, 1.f) : 1.f;
+        if (i == q.correct) { b.fill = GOOD_FILL; b.line = GOOD; b.icon = 2; b.text = FG;
+          int g = int(8 * std::sin(3.14159f * at)); b.r = SDL_Rect{r.x - g, r.y - g, r.w + 2 * g, r.h + 2 * g}; }  // pop
+        else if (i == sel) { b.fill = BAD_FILL; b.line = BAD;
+          b.r.x += int(10 * std::sin(at * 38.f) * (1.f - at)); }  // shake
       } else if (i == sel) accent(b);
-      else if (i == cursor) { b.line = DIM; }
+      else if (i == cursor) { b.line = ACC_LINE; b.lineW = 4; }  // d-pad cursor: the mode colour, like every other selection
       if (q.mixup && q.optionsAreKana) b.font = F_BIG;
     }
     if (timed) { chips({{"A", "Answer"}, {"+", "Choose"}, {"F", "Pause"}}); return; }
@@ -1508,13 +1581,14 @@ void App::drawDrill() {
     addBtn(SDL_Rect{16, 236, 180, 68}, B_BKSP, "Delete", F_TINY, !checked && !typed.empty());
     if (checked) { addBtn(SDL_Rect{212, 236, 412, 68}, B_CONTINUE, "Continue", F_SMALL); accent(lastBtn()); }
     else { addBtn(SDL_Rect{212, 236, 412, 68}, B_CHECK, "Check answer", F_SMALL, !typed.empty()); if (!typed.empty()) accent(lastBtn()); }
-    if (!checked) { int cid = kbItemId(keyRow, keyCol); for (auto& b : buttons) if (b.id == cid) { b.line = FG; b.lineW = 4; } }
+    if (!checked) { int cid = kbItemId(keyRow, keyCol); for (auto& b : buttons) if (b.id == cid) { b.line = ACC_LINE; b.lineW = 4; } }
     chips({{"A", "Type"}, {"X", "Check"}, {"B", "Delete"}, {"F", "Pause"}, {"+", "Move"}});
   } else {
     addBtn(SDL_Rect{16, 16, 120, 74}, B_UNDO, part > 0 && strokes.empty() ? "Back" : "Undo", F_TINY, !checked && (!strokes.empty() || part > 0));
     addBtn(SDL_Rect{16, 98, 120, 74}, B_CLEAR, "Clear", F_TINY, !checked && !strokes.empty());
-    addBtn(SDL_Rect{16, 180, 120, 74}, B_HINT, q.writeLevel == 0 ? "Guide on" : showHint ? "Hint on" : "Hint", F_TINY, !checked && q.writeLevel > 0);
-    if (showHint) { lastBtn().line = ACCENT; lastBtn().text = ACCENT_TXT; }
+    // a switch, not a greyed-out button: guided writes always show the guide (on, can't be turned off); later levels toggle a hint
+    addBtn(SDL_Rect{16, 180, 120, 74}, B_HINT, q.writeLevel == 0 ? "Guide" : "Hint", F_TINY, !checked);
+    lastBtn().icon = q.writeLevel == 0 || showHint ? 4 : 3;
     addBtn(SDL_Rect{16, 262, 120, 74}, B_SHOWME, "Show me", F_TINY, !checked);
     if (checked) { addBtn(SDL_Rect{16, 344, 120, 74}, B_CONTINUE, "Next", F_TINY); accent(lastBtn()); }
     else { addBtn(SDL_Rect{16, 344, 120, 74}, B_CHECK, "Check", F_TINY, !strokes.empty()); if (!strokes.empty()) accent(lastBtn()); }
@@ -1541,7 +1615,7 @@ void App::drawWelcome() {
 
 void App::drawFreeWrite() {
   if (fwList.empty()) {  // draw any kana: it guesses what you drew
-    header("かく · Draw any kana");
+    header("かく · Draw any kana", "any kana · no progress");
     const Glyph* g = activeGlyph();
     if (!checked) {
       drawText(top, "Write any kana from memory", SDL_Rect{24, 70, 592, 50}, FG, F_SMALL, A_LEFT);
@@ -1655,7 +1729,7 @@ void App::drawKanaKeyboard() {
   addBtn(SDL_Rect{448, 286, 176, 62}, B_BKSP, "Delete", F_TINY, !checked && !typed.empty());
   if (checked) { addBtn(SDL_Rect{16, 356, 608, 72}, B_CONTINUE, "Continue", F_SMALL); accent(lastBtn()); }
   else { addBtn(SDL_Rect{16, 356, 608, 72}, B_CHECK, "Check answer", F_SMALL, !typed.empty()); if (!typed.empty()) accent(lastBtn()); }
-  if (!checked) { int cid = kbItemId(keyRow, keyCol); for (auto& b : buttons) if (b.id == cid) { b.line = FG; b.lineW = 4; } }
+  if (!checked) { int cid = kbItemId(keyRow, keyCol); for (auto& b : buttons) if (b.id == cid) { b.line = ACC_LINE; b.lineW = 4; } }
   chips({{"A", "Type"}, {"X", "Check"}, {"B", "Delete"}, {"F", "Pause"}, {"+", "Move"}});
 }
 
@@ -1666,9 +1740,14 @@ void App::drawStats() {
   int streak = prog.currentStreak(), goal = prog.settings.dailyGoal;
   statBox(top, SDL_Rect{24, 58, 140, 96}, "ANSWERS", std::to_string(tot));
   statBox(top, SDL_Rect{174, 58, 140, 96}, "ACCURACY", tot ? std::to_string(cor * 100 / tot) + "%" : "-");
-  statBox(top, SDL_Rect{324, 58, 140, 96}, "STREAK", std::to_string(streak) + " · best " + std::to_string(std::max(streak, prog.bestStreak)), F_TINY);
+  statBox(top, SDL_Rect{324, 58, 140, 96}, "STREAK", "", F_TINY);
+  { bool lit = streak > 0 && prog.lastGoalDay == dayNumber(prog.now());
+    streakFlame(top, SDL_Rect{336, 96, 40, 40}, streak, lit);
+    setBold(true); drawText(top, std::to_string(streak), SDL_Rect{380, 92, 76, 28}, FG, F_SMALL, A_LEFT); setBold(false);
+    drawText(top, "best " + std::to_string(std::max(streak, prog.bestStreak)), SDL_Rect{380, 120, 80, 20}, DIM, F_MICRO, A_LEFT); }
   statBox(top, SDL_Rect{474, 58, 140, 96}, "TIMED BEST", std::to_string(prog.timedBest[scI]));
   // last 14 days: right answers (yellow) under misses (red), goal line dashed
+  card(top, SDL_Rect{14, 162, 612, 300}, 18);
   drawText(top, "LAST 14 DAYS", SDL_Rect{24, 168, 200, 22}, DIM, F_MICRO, A_LEFT);
   int lx = 300;
   for (auto [c, l] : std::vector<std::pair<Col, std::string>>{{ACCENT, "right"}, {BAD, "missed"}, {DIM, "goal " + std::to_string(goal)}}) {
@@ -1683,7 +1762,8 @@ void App::drawStats() {
   }
   for (int i = 0; i < 14; i++) {
     int slot = 592 / 14, bw = 30, x = 24 + i * slot + (slot - bw) / 2;
-    fillRound(top, SDL_Rect{x, y0 - H, bw, H}, 6, PANEL);
+    fillRound(top, SDL_Rect{x, y0 - H, bw, H}, 6, mix(PANEL, FG, 0.035f));  // a quiet track: empty days read as empty
+    if (ds[i].answers >= goal) fillCircle(top, x + bw / 2, y0 - H - 8, 4, hex(0xF07A1A));  // goal met that day
     int hc = H * ds[i].correct / mx, hw = H * (ds[i].answers - ds[i].correct) / mx;
     if (hc > 0) fillRound(top, SDL_Rect{x, y0 - hc, bw, hc}, std::min(6, hc / 2), ACCENT);
     if (hw > 0) fillRound(top, SDL_Rect{x, y0 - hc - hw, bw, hw}, std::min(6, hw / 2), BAD);
@@ -1722,10 +1802,12 @@ void App::drawStats() {
 }
 
 void App::drawResult() {
+  int shown = score;  // counts up from 0 over ~0.7 s (after the fade), easing out
+  if (countStart) { float t = std::clamp((SDL_GetTicks() - countStart - 150.f) / 700.f, 0.f, 1.f); shown = int(std::lround(score * (1.f - (1.f - t) * (1.f - t) * (1.f - t)))); }
   if (mode == Mode::Timed) {
-    header("けっか · Timed challenge");
+    header("けっか · Timed challenge", scriptName(prog.settings.script));
     int answered = int(results.size()), best = prog.timedBest[si(prog.settings.script)];
-    drawText(top, std::to_string(score), SDL_Rect{24, 60, 150, 190}, ACCENT_TXT, F_HUGE, A_RIGHT);
+    drawText(top, std::to_string(shown), SDL_Rect{24, 60, 150, 190}, ACCENT_TXT, F_HUGE, A_RIGHT);
     drawText(top, "right", SDL_Rect{184, 150, 130, 70}, DIM, F_MID, A_LEFT);
     drawText(top, timedNewBest ? "New best!" : score == best ? "Equal best!" : "Best: " + std::to_string(best), SDL_Rect{330, 96, 286, 44}, FG, F_SMALL, A_LEFT);
     drawWrapped(top, "In 60 seconds, out of " + std::to_string(answered) + " answered." + (goalMet ? " Daily goal reached!" : ""),
@@ -1735,9 +1817,11 @@ void App::drawResult() {
     statBox(top, SDL_Rect{226, 300, 188, 140}, "ACCURACY", answered ? std::to_string(score * 100 / answered) + "%" : "-");
     statBox(top, SDL_Rect{428, 300, 188, 140}, "BEST", std::to_string(best));
   } else {
-  header("けっか · Session complete");
+  header("けっか · Session complete", mode == Mode::Review ? "Review" : mode == Mode::Mixup ? "Mix-ups" : mode == Mode::Focus ? "Practice set"
+                                     : mode == Mode::Pack && packIdx >= 0 && packIdx < int(data.packs.size()) ? data.packs[packIdx].name : scriptName(prog.settings.script));
   Script sc = prog.settings.script; int curSt = prog.currentStage(sc); const Stage& st = data.stages[si(sc)][curSt];
-  drawText(top, std::to_string(score), SDL_Rect{24, 60, 150, 190}, ACCENT_TXT, F_HUGE, A_RIGHT);
+  drawText(top, std::to_string(shown), SDL_Rect{24, 60, 150, 190}, ACCENT_TXT, F_HUGE, A_RIGHT);
+  if (score == sessionLen && shown == score) medal(top, SDL_Rect{232, 66, 64, 64}, true);  // perfect session: a medal
   drawText(top, "/ " + std::to_string(sessionLen), SDL_Rect{184, 150, 130, 70}, DIM, F_MID, A_LEFT);
   std::string head = score == sessionLen ? "かんぺき! Perfect!" : score * 10 >= sessionLen * 7 ? "よくできました! Nice!" : "がんばって! Keep going!";
   drawText(top, head, SDL_Rect{330, 96, 286, 44}, FG, F_SMALL, A_LEFT);
@@ -1754,7 +1838,8 @@ void App::drawResult() {
   } else {
   std::vector<std::string> left;
   for (int ki : st.kana) if (prog.step(Progress::keyKana(data.kana[ki])) < KNOWN_STEP && left.size() < 4) left.push_back(data.kana[ki].glyph);
-  statBox(top, SDL_Rect{24, 300, 188, 140}, "NEWLY KNOWN", newlyKnown.empty() ? "-" : join(newlyKnown, " "));
+  if (newlyKnown.empty()) statBox(top, SDL_Rect{24, 300, 188, 140}, "NEWLY KNOWN", "Not this time: steps still count", F_MICRO);
+  else statBox(top, SDL_Rect{24, 300, 188, 140}, "NEWLY KNOWN", join(newlyKnown, " "));
   statBox(top, SDL_Rect{226, 300, 188, 140}, "STAGE " + std::to_string(curSt + 1),
           std::to_string(prog.stageKnown(data, sc, curSt)) + " / " + std::to_string(st.kana.size()) + " known", F_TINY);
   statBox(top, SDL_Rect{428, 300, 188, 140}, "STILL TO LEARN", left.empty() ? "all done" : join(left, " "));
@@ -1762,7 +1847,12 @@ void App::drawResult() {
   }
 
   drawText(bot, "TO REVIEW", SDL_Rect{16, 10, 300, 24}, DIM, F_MICRO, A_LEFT);
-  if (missed.empty()) drawText(bot, "Nothing to review", SDL_Rect{16, 40, 608, 150}, DIM, F_SMALL);
+  if (missed.empty()) {  // a clean sheet gets a little moment instead of an empty box
+    card(bot, SDL_Rect{16, 40, 608, 170}, 20);
+    lineIcon(bot, "check", SDL_Rect{48, 82, 80, 80}, GOOD, 4.f);
+    setBold(true); drawText(bot, "Clean sheet!", SDL_Rect{150, 70, 440, 50}, FG, F_SMALL, A_LEFT); setBold(false);
+    drawText(bot, "Nothing to review from this session.", SDL_Rect{150, 120, 440, 40}, DIM, F_TINY, A_LEFT);
+  }
   for (size_t i = 0; i < missed.size() && i < 3; i++) {
     SDL_Rect r{16 + int(i) * 206, 40, 196, 170}; boxRound(bot, r, 12, BAD_FILL, BAD, 2);
     drawText(bot, missed[i].prompt, SDL_Rect{r.x + 6, r.y + 8, r.w - 12, 70}, FG, F_MID);
@@ -1779,7 +1869,8 @@ void App::drawResult() {
 }
 
 void App::drawPacks() {
-  header("ことば · Word packs");
+  { int known = 0, total = 0; for (int i = 0; i < int(data.packs.size()); i++) { PackInfo pi = packInfo(data, prog, i); known += pi.known; total += pi.total; }
+    header("ことば · Word packs", std::to_string(known) + " / " + std::to_string(total) + " words known"); }
   int n = int(data.packs.size());
   if (!n) { drawText(top, "No word packs installed", SDL_Rect{24, 100, 592, 60}, DIM, F_SMALL); return; }
   packSel = std::clamp(packSel, 0, n - 1);
@@ -1811,7 +1902,7 @@ void App::drawPacks() {
     b.sub = ok ? std::to_string(p.known) + " / " + std::to_string(p.total) + " known" : "locked";
     if (!ok) { b.fill = BG; b.line = DIS_LINE; b.text = DIS_TXT; b.subText = DIS_TXT; b.icon = 1; }
     else if (p.known == p.total) { accent(b); b.icon = 2; }
-    if (i == packSel) { b.line = ok ? ACCENT : FG; b.lineW = 4; }
+    if (i == packSel) { b.line = ACC_LINE; b.lineW = 4; }
   }
   addBtn(SDL_Rect{16, 350, 150, 64}, B_BACK, "Back", F_SMALL);
   addBtn(SDL_Rect{176, 350, 150, 64}, B_PACK_BROWSE, "Words", F_SMALL);
@@ -1863,13 +1954,13 @@ void App::drawPackWords() {
     if (!rd) { b.fill = BG; b.line = DIS_LINE; b.text = DIS_TXT; b.subText = DIS_TXT; b.icon = 1; }
     else if (kn) { b.icon = 2; b.fill = PANEL2; }
     else if (!prog.introduced(k)) b.subText = ACCENT_TXT;  // new to you
-    if (page * 15 + i == wordSel) { b.line = ACCENT; b.lineW = 4; }
+    if (page * 15 + i == wordSel) { b.line = ACC_LINE; b.lineW = 4; }
   }
   addBtn(SDL_Rect{16, 350, 180, 64}, B_BACK, "Back", F_SMALL);
-  addBtn(SDL_Rect{212, 350, 90, 64}, B_WPREV, "◀", F_SMALL, page > 0);
-  drawText(bot, std::to_string(page + 1) + " / " + std::to_string(pages), SDL_Rect{302, 350, 132, 64}, DIM, F_TINY);
-  addBtn(SDL_Rect{434, 350, 90, 64}, B_WNEXT, "▶", F_SMALL, page + 1 < pages);
-  drawText(bot, std::to_string(packInfo(data, prog, packSel).known) + " / " + std::to_string(n) + " known", SDL_Rect{524, 350, 100, 64}, DIM, F_MICRO, A_RIGHT);
+  // pager across the rest of the row (the known count lives in the header)
+  addBtn(SDL_Rect{212, 350, 110, 64}, B_WPREV, "◀", F_SMALL, page > 0);
+  drawText(bot, "Page " + std::to_string(page + 1) + " of " + std::to_string(pages), SDL_Rect{322, 350, 176, 64}, DIM, F_TINY);
+  addBtn(SDL_Rect{498, 350, 126, 64}, B_WNEXT, "▶", F_SMALL, page + 1 < pages);
   chips({{"+", "Move"}, {"L/R", "Page"}, {"B", "Back"}});
 }
 
@@ -1993,7 +2084,7 @@ void App::drawChart() {
     SDL_Rect card{24, 58, 220, 240}; fillRound(top, card, 16, PANEL);
     drawText(top, k.glyph, card, ks == KanaState::Locked ? DIM : FG, F_HUGE);
     drawText(top, k.romaji, SDL_Rect{264, 58, 352, 84}, ACCENT_TXT, F_BIG, A_LEFT);
-    drawText(top, (g ? std::to_string(g->strokes.size()) + (g->strokes.size() == 1 ? " stroke" : " strokes") : std::string("Combination")) + " · Stage " + std::to_string(stI + 1),
+    drawText(top, (g ? std::to_string(g->strokes.size()) + (g->strokes.size() == 1 ? " stroke" : " strokes") : std::string("Combination")) + " · " + stageLabel(stI),
              SDL_Rect{264, 144, 352, 30}, DIM, F_TINY, A_LEFT);
     const char* badge = ks == KanaState::Weak ? "WEAK SPOT" : ks == KanaState::Known ? "KNOWN" : ks == KanaState::Learning ? "LEARNING"
                       : ks == KanaState::New ? "NEW" : "LOCKED";
@@ -2031,7 +2122,7 @@ void App::drawChart() {
     b.line = ks == KanaState::Weak ? BAD : ks == KanaState::Locked ? DIS_LINE : b.fill;
     if (ks == KanaState::Locked) { b.subText = DIS_TXT; b.line = DIS_LINE; }
     if (std::count(chartPick.begin(), chartPick.end(), c.kana)) { b.icon = 2; b.line = ACCENT_TXT; b.lineW = 3; }
-    if (c.kana == chartSel) { b.line = FG; b.lineW = 4; }
+    if (c.kana == chartSel) { b.line = ACC_LINE; b.lineW = 4; }
   }
   addBtn(SDL_Rect{572, 66, 52, 130}, B_SCROLL_UP, "▲", F_TINY, chartScroll > 0);
   addBtn(SDL_Rect{572, 204, 52, 130}, B_SCROLL_DOWN, "▼", F_TINY, chartScroll + VIS <= maxRow);
@@ -2130,6 +2221,8 @@ std::vector<App::SRow> App::settingRows(int g) const {
            "Best 60-second challenge score for each script.");
       action("Reset progress", resetArmed ? "Press A again to confirm" : "Reset",
              "Forget every answer, streak and best, and lock all stages again. Your settings stay. This can't be undone.");
+      action("Reset settings", resetSetArmed ? "Press A again to confirm" : "Reset",
+             "Put every setting back to how it started: drills, sessions, theme, fonts, sound and rumble. Your progress stays.");
       info("Backup", backupPath.empty() ? "Off" : "On the SD card",
            backupPath.empty() ? "No backup copy is kept (only in the installed app)."
                               : "A copy of your progress is kept in roms/ports/BananaKana/progress-backup.txt. It's restored automatically after a reinstall or reflash.");
@@ -2186,6 +2279,13 @@ void App::changeSetting(int g, int r, int dir) {
         if (!resetArmed) { resetArmed = true; return; }
         Settings keep = prog.settings; prog = Progress{}; prog.settings = keep; prog.settings.script = Script::Hiragana;
         pendingUnlocks.clear(); resetArmed = false;
+      } else if (r == 5) {
+        if (!resetSetArmed) { resetSetArmed = true; return; }
+        Script keep = prog.settings.script;  // the script you're on isn't a preference: stay on it
+        prog.settings = Settings{}; prog.settings.script = keep;
+        applyTheme(prog.settings.light); setKanaHand(prog.settings.kanaHand);
+        snd::setVolume(prog.settings.sound); snd::setRumble(prog.settings.rumble);
+        resetSetArmed = false;
       }
       break;
     case 5: if (r == 1) { go(Screen::Credits); return; } break;
@@ -2227,6 +2327,46 @@ void App::settingsPanel(int g, const std::string& label, const std::string& titl
   drawWrapped(top, body, SDL_Rect{56, 204, 528, 230}, DIM, F_TINY);
 }
 
+// Display settings: a live preview of the highlighted row under its help text (top screen)
+void App::settingPreview(int row) {
+  const Settings& st = prog.settings;
+  SDL_Rect area{56, 318, 528, 118};
+  fillRound(top, area, 18, PANEL2);
+  drawText(top, "PREVIEW", SDL_Rect{area.x + 16, area.y + 8, 200, 20}, DIM, F_MICRO, A_LEFT);
+  if (row == 0) {  // theme: the two looks side by side, the current one ringed
+    for (int k = 0; k < 2; k++) {
+      bool light = k == 1; SDL_Rect m{area.x + 150 + k * 200, area.y + 14, 160, 92};
+      if (light == st.light) fillRound(top, SDL_Rect{m.x - 5, m.y - 5, m.w + 10, m.h + 10}, 20, ACCENT);
+      fillRound(top, m, 16, light ? hex(0xEEF1F4) : hex(0x1A1E25));
+      fillRound(top, SDL_Rect{m.x + 12, m.y + 10, m.w - 24, 42}, 10, light ? hex(0xFFFFFF) : hex(0x262C36));
+      fillRound(top, SDL_Rect{m.x + 22, m.y + 22, 80, 8}, 4, light ? hex(0x2B2F36) : hex(0xE8EAEE));
+      fillRound(top, SDL_Rect{m.x + 22, m.y + 38, 110, 6}, 3, light ? hex(0xA0A7B0) : hex(0x6B7380));
+      fillRound(top, SDL_Rect{m.x + 12, m.y + 60, m.w - 24, 22}, 11, hex(0xF28C28));
+      drawText(top, light ? "Light" : "Dark", SDL_Rect{m.x, m.y + 58, m.w, 26}, hex(0xFFFFFF), F_MICRO);
+    }
+  } else if (row == 1) {  // kana font: a sample in the font that's on now
+    drawText(top, "あいう アイウ", SDL_Rect{area.x + 100, area.y + 4, area.w - 120, area.h - 8}, FG, F_BIG);
+  } else if (row == 2 || row == 3) {  // canvas lines / ink: a little writing pad with あ
+    SDL_Rect pad{area.x + area.w / 2 - 50, area.y + 9, 100, 100};
+    fillRound(top, pad, 12, CANVAS);
+    Col ln = mix(CANVAS, FG, 0.25f);
+    if (st.guideLines == 1) for (int q4 : {1, 3}) {
+      fillRect(top, SDL_Rect{pad.x + pad.w * q4 / 4, pad.y + 6, 1, pad.h - 12}, mix(CANVAS, ln, 0.5f));
+      fillRect(top, SDL_Rect{pad.x + 6, pad.y + pad.h * q4 / 4, pad.w - 12, 1}, mix(CANVAS, ln, 0.5f));
+    }
+    if (st.guideLines < 2) { fillRect(top, SDL_Rect{pad.x + pad.w / 2, pad.y + 6, 1, pad.h - 12}, ln); fillRect(top, SDL_Rect{pad.x + 6, pad.y + pad.h / 2, pad.w - 12, 1}, ln); }
+    const float INK[3] = {0.011f, 0.016f, 0.022f};
+    // the drill pad is about 400 px wide: scale its ink so the sample looks the same weight
+    if (const Glyph* g = data.glyphFor("あ")) for (auto& stroke : g->strokes)
+      drawStrokeIn(top, stroke, SDL_Rect{pad.x + 8, pad.y + 8, pad.w - 16, pad.h - 16}, FG, 400 * INK[std::clamp(st.ink, 0, 2)] * 0.42f);
+  } else {  // sound / rumble: what you get when it plays
+    lineIcon(top, row == 4 ? "play" : "timed", SDL_Rect{area.x + 110, area.y + 32, 56, 56}, ACCENT_TXT, 2.6f);
+    drawWrapped(top, row == 4 ? (st.sound ? "Changing it plays a sample at the new volume." : "Sound effects are off.")
+                              : (st.rumble ? "Changing it buzzes once at the new strength." : "Rumble is off."),
+                SDL_Rect{area.x + 180, area.y + 34, area.w - 196, 60}, FG, F_TINY);
+  }
+}
+
 void App::drawSettings() {
   auto rows = settingRows(setGroup);
   std::vector<std::string> names; for (auto& r : rows) names.push_back(r.label);
@@ -2254,6 +2394,7 @@ void App::drawSettingsGroup() {
   const SRow& cur = rows[setRow];
   std::string upper = groupName(setGroup); for (auto& c : upper) c = char(std::toupper(c));
   settingsPanel(setGroup, upper, cur.label, cur.value, cur.help);
+  if (setGroup == 3) settingPreview(setRow);
   card(bot, SDL_Rect{16, 8, 608, 46}, 16);
   setBold(true); drawText(bot, groupName(setGroup), SDL_Rect{34, 8, 300, 46}, FG, F_TINY, A_LEFT); setBold(false);
   drawText(bot, "L / R: other groups", SDL_Rect{300, 8, 306, 46}, DIM, F_MICRO, A_RIGHT);
@@ -2283,14 +2424,14 @@ void App::drawSettingsGroup() {
       addBtn(SDL_Rect{r.x + r.w - 310, r.y, 70, r.h}, B_SDEC0 + i, ""); lastBtn().hidden = true;
       addBtn(SDL_Rect{r.x + r.w - 70, r.y, 70, r.h}, B_SINC0 + i, ""); lastBtn().hidden = true;
     } else if (row.kind == 1) {
-      drawText(bot, row.value, SDL_Rect{r.x + r.w - 330, r.y, 280, r.h}, row.label == "Reset progress" && resetArmed ? BAD : v, F_TINY, A_RIGHT);
+      drawText(bot, row.value, SDL_Rect{r.x + r.w - 330, r.y, 280, r.h}, (row.label == "Reset progress" && resetArmed) || (row.label == "Reset settings" && resetSetArmed) ? BAD : v, F_TINY, A_RIGHT);
       drawText(bot, "▶", SDL_Rect{r.x + r.w - 44, r.y, 36, r.h}, t, F_MICRO);
     } else {
       drawText(bot, row.value, SDL_Rect{r.x + r.w - 350, r.y, 332, r.h}, v, F_TINY, A_RIGHT);
     }
     addBtn(r, B_SROW0 + i, ""); lastBtn().hidden = true;
   }
-  std::string act = cur.kind == 0 ? "Change" : cur.kind == 1 ? (cur.label == "Reset progress" ? "Reset" : "Open")
+  std::string act = cur.kind == 0 ? "Change" : cur.kind == 1 ? (cur.label.rfind("Reset", 0) == 0 ? "Reset" : "Open")
                   : cur.kind == 3 ? (cur.canDec ? "Confirm" : "") : "";
   footer("B", "Back", "A", act);
 }

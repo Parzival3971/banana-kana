@@ -18,6 +18,15 @@ A whole new look: the "Handheld" design.
 - Achievements get gold medals; Pause is a ひとやすみ card; results cheer in Japanese.
 - New app icon: an orange あ tile with a little ア (`tools/make_icon.py` renders it).
 - Bold text for headings and buttons (Zen Maru Gothic Bold, OFL). Stronger rumble for right answers.
+- The streak flame grows with your streak: orange, then bigger and red at 7 days, blue at 30, purple at 100. It stays a
+  pale outline until you meet today's goal ("today's goal keeps it lit"), then lights up and flickers.
+- Gentle motion: screens fade in, the Home strip glides between tiles, the right answer pops and a wrong one shakes,
+  and the results score counts up (a medal for a perfect session). `KT_MOTION=0` turns it off.
+- Settings > Display shows a live preview (theme, kana font, canvas lines, ink). New **Reset settings** in Settings >
+  Progress (press twice; your progress stays).
+- Fixes: tapping a side tile on Home now slides it to the centre, so every tile can be reached by touch; long mix-up
+  hints no longer spill out of the answer banner; stage chips on Home fit their card; Extras is called Extras, not
+  Stage 15; empty days on the Stats chart look empty; the Guide/Hint button is a proper on/off switch.
 
 ## 0.4.0 - 2026-11-15
 

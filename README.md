@@ -56,7 +56,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
   none), ink thickness, and how strictly strokes are checked (relaxed, normal or strict).
 
 ### 📈 Keep going
-- 🔥 **Daily goal and streak**, from 5 to 30 answers a day.
+- 🔥 **Daily goal and streak**, from 5 to 30 answers a day. The flame grows (and changes colour) the longer you keep it lit.
 - 🏅 **Achievements.** 17 badges for learning kana and words, streaks, timed scores and perfect sessions, with your
   progress towards each one (Stats, then X).
 - 📊 **Stats.** Your last 14 days and an accuracy heatmap of every kana. Tap one to see it in the chart.

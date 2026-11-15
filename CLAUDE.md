@@ -204,10 +204,19 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   shadow; kind 0 plain/1 accent/2 disabled), drawBackdrop (stripes top, dots bottom, cached texture), lineIcon (24-grid
   polylines drawn with drawStrokeIn; NO pixel icons: user said they clash), drawRing. ui_bold.ttf (Zen Maru Gothic Bold)
   for F_HUGE..F_SMALL and setBold(). drawButtons draws PANEL/ACCENT buttons as pills, custom fills stay flat.
-  header(title, right, coloured, indent): bar with bilingual title. Home = homeItems() strip (9 tiles, homeSel = centred,
+  header(title, right, coloured, indent): bar with bilingual title. Home = homeItems() strip (9 tiles, homeSel = centred; tapping a side tile
+  recentres it, tapping the centred tile opens it - Codex PR #1 caught touch couldn't reach far tiles;
   B_HOME_GO big pill), goal ring card, week streak strip (weekday kanji added to fallback.ttf), script bars.
   Settings rows: SRow.opts -> segmented pills (B_SSEG0 + row*8 + opt). Medals: App::medal; app tile: App::appTile.
   Icon: tools/make_icon.py (option A "kana tile") -> launcher/media/box/Banana Kana.png.
+- Review polish (user said "do all", 2026-11-15): streak flame = gfx drawFlame + app flameTier/streakFlame (1/7/30/100
+  tiers; pale ghost until today's goal is met; flickers on Home via tick flameLast; week dots use the tier colour).
+  Motion (App::motion; KT_MOTION=0 / self-test off): go() fade-in (transStart, TRANS_MS), Home glide (homePos eases to
+  homeSel in tick), answer pop/shake (answerAnim), result count-up (countStart) + medal on a perfect session.
+  Feedback banner grows with wrappedHeight(). Selection rings = ACC_LINE (no black outlines). Header right side is
+  context only (no wordmark). stageLabel(): Extras. Guide/Hint = switch (Button.icon 3 off / 4 on).
+  settingPreview() for Display rows. Settings > Progress > Reset settings (resetSetArmed, two presses, keeps script +
+  progress). Self-test shots hide toasts/confetti except celebration shots.
 - Old v1 look (kept for history): BananaOS palette (banana yellow #FFD23F on warm neutrals), button-hint chips, cartridge tiles.
   Fonts: kana in Zen Maru Gothic Bold (or Klee One SemiBold, setting), English/UI/keyboard in Zen Maru Gothic Medium (all OFL). Pixelify Sans (Banana
   Player's pixel font) was tried and DROPPED 2026-11-15: user found it hard to read. Don't reintroduce pixel fonts.

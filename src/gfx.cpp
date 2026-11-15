@@ -325,16 +325,27 @@ void drawText(Win& w, const std::string& s, SDL_Rect box, Col c, int maxFont, Al
   }
 }
 
-int drawWrapped(Win& w, const std::string& s, SDL_Rect box, Col c, int font, Align al) {
+static std::vector<std::string> wrapLines(Win& w, const std::string& s, int width, int font);
+int wrappedHeight(Win& w, const std::string& s, int width, int font) {
+  int tw, th; textTex(w, font, "Ag", FG, &tw, &th);
+  return int(wrapLines(w, s, width, font).size()) * th;
+}
+
+static std::vector<std::string> wrapLines(Win& w, const std::string& s, int width, int font) {
   std::vector<std::string> words; std::string cur;
   for (char ch : s) { if (ch == ' ') { if (!cur.empty()) words.push_back(cur); cur.clear(); } else cur += ch; }
   if (!cur.empty()) words.push_back(cur);
   std::vector<std::string> lines; std::string line;
   for (auto& wd : words) {
     std::string cand = line.empty() ? wd : line + " " + wd;
-    if (!line.empty() && textWidth(w, font, cand) > box.w) { lines.push_back(line); line = wd; } else line = cand;
+    if (!line.empty() && textWidth(w, font, cand) > width) { lines.push_back(line); line = wd; } else line = cand;
   }
   if (!line.empty()) lines.push_back(line);
+  return lines;
+}
+
+int drawWrapped(Win& w, const std::string& s, SDL_Rect box, Col c, int font, Align al) {
+  std::vector<std::string> lines = wrapLines(w, s, box.w, font);
   int lh = 0; { int tw, th; textTex(w, font, "Ag", FG, &tw, &th); lh = th; }
   int y = box.y;
   for (auto& l : lines) {
@@ -419,6 +430,28 @@ void drawStrokeIn(Win& w, const Stroke& s, SDL_Rect box, Col c, float thick) {
     put(a1); put(a2); put(b2); put(a1); put(b2); put(b1);
     disc(b);
   }
+  SDL_RenderGeometry(w.r, nullptr, v.data(), int(v.size()), nullptr, 0);
+}
+
+void drawFlame(Win& w, SDL_Rect box, Col outer, Col inner, float flick) {
+  const float sx = box.w / 24.f, sy = box.h / 24.f;
+  std::vector<SDL_Vertex> v;
+  auto fan = [&](std::vector<SDL_FPoint> pts, SDL_FPoint c, Col edge, Col mid, float grow) {
+    auto P = [&](SDL_FPoint q) {  // grow around the base so the flame breathes upwards
+      return SDL_FPoint{box.x + (c.x + (q.x - c.x) * grow) * sx, box.y + (21.5f + (q.y - 21.5f) * grow) * sy}; };
+    SDL_Color ce{edge.r, edge.g, edge.b, 255}, cm{mid.r, mid.g, mid.b, 255};
+    SDL_FPoint pc = P(c);
+    for (size_t i = 0; i < pts.size(); i++) {
+      SDL_FPoint a = P(pts[i]), b = P(pts[(i + 1) % pts.size()]);
+      v.push_back({pc, cm, {0, 0}}); v.push_back({a, ce, {0, 0}}); v.push_back({b, ce, {0, 0}});
+    }
+  };
+  const float f = flick;
+  fan({{12 + 1.4f * f, 1.2f}, {14.2f, 4.8f}, {16.6f, 7.8f}, {18.1f, 11}, {18.5f, 14.2f}, {17.6f, 17.6f}, {15.5f, 20.2f},
+       {12, 21.5f}, {8.5f, 20.2f}, {6.4f, 17.6f}, {5.5f, 14.2f}, {6, 10.8f}, {7.5f, 7.6f}, {9.3f, 10.2f}, {10.2f, 6.2f}},
+      {12, 15}, outer, mix(outer, inner, 0.35f), 1.f + 0.03f * f);
+  fan({{12 - 1.2f * f, 8.6f}, {14.1f, 12.4f}, {15.3f, 15.6f}, {14.5f, 18.6f}, {12, 19.9f}, {9.5f, 18.6f}, {8.7f, 15.6f}, {9.9f, 12.4f}},
+      {12, 16.2f}, inner, mix(inner, Col{255, 255, 255, 255}, 0.45f), 1.f + 0.07f * f);
   SDL_RenderGeometry(w.r, nullptr, v.data(), int(v.size()), nullptr, 0);
 }
 

@@ -71,7 +71,7 @@ struct App {
   int packSel = 0, packIdx = -1; PackSession packSession; int wordSel = 0;  // wordSel: highlighted word in the pack word list  // word packs: highlighted tile, pack being practised
   void startPack(int pack);
   int homeSel = 0, mapSel = -1, chartTab = 0, chartSel = -1, chartScroll = 0;
-  int setGroup = 0, setRow = 0; bool resetArmed = false; std::string version = "dev";
+  int setGroup = 0, setRow = 0; bool resetArmed = false, resetSetArmed = false; std::string version = "dev";
   Script mapScript = Script::Hiragana;
   // lesson
   Script lessonScript = Script::Hiragana; int lessonStage = 0, lessonIdx = 0; bool lessonReplay = false;
@@ -88,6 +88,10 @@ struct App {
   std::vector<int> fwList; int fwIdx = 0, fwGuide = 0;  // fwGuide 0 full, 1 outline, 2 none; empty list = draw any kana
   std::vector<Guess> guesses;  // draw-any: what it looks like, best first
   // first launch, settings skip-ahead
+  Uint32 flameLast = 0;  // Home streak flame flicker
+  // motion (0.5.0 polish): screen fade-in, Home strip glide, answer pop/shake. KT_MOTION=0 or the self-test turn it off.
+  bool motion = true; Uint32 countStart = 0; Uint32 transStart = 0, answerAnim = 0, homeAnimLast = 0; float homePos = 0.f;
+  static constexpr Uint32 TRANS_MS = 180, ANSWER_MS = 420;
   Uint32 creditsLast = 0, animStart = 0, animLast = 0;  // stroke-order animation (0 = not playing)
   void playStrokes() { animStart = SDL_GetTicks(); if (!animStart) animStart = 1; }
   std::string osdWhat; int osdPct = 0; Uint32 osdUntil = 0;  // volume / brightness level card (from BananaOS)
@@ -147,6 +151,7 @@ struct App {
   void header(const std::string& title, const std::string& right = "", bool coloured = false, int indent = 0);
   void chips(const std::vector<std::pair<std::string, std::string>>& items);
   void segBar(Win& w, SDL_Rect r, int total, int done, const std::vector<int>& res);
+  void settingPreview(int row);
   void statBox(Win& w, SDL_Rect r, const std::string& label, const std::string& value, int font = F_SMALL);
   void bar(Win& w, SDL_Rect r, float frac);
   void stepPips(Win& w, int x, int y, int step, int size = 12);

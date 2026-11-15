@@ -194,6 +194,7 @@ int main(int argc, char** argv) {
   App app; app.dataDir = dataDir; std::string err; applyTheme(false);
   if (!app.data.load(dataDir, &err)) { fprintf(stderr, "cannot load data from '%s': %s\n", dataDir.c_str(), err.c_str()); return 2; }
   mkdirs(stateDir); app.statePath = stateDir + "/progress.txt";
+  if (getenv("KT_MOTION") && !strcmp(getenv("KT_MOTION"), "0")) app.motion = false;  // no fades/glides (slow device?)
   // SD-card backup next to the app (packaged layout only: BananaKana/VERSION beside data/). KT_BACKUP=0 turns it off.
   { struct stat vs; if (stat((dataDir + "/../VERSION").c_str(), &vs) == 0 && !(getenv("KT_BACKUP") && !strcmp(getenv("KT_BACKUP"), "0")))
       app.backupPath = dataDir + "/../progress-backup.txt";

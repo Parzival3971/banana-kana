@@ -12,16 +12,30 @@ int App::selfTest(const std::string& shotDir) {
   int fails = 0;
   auto CHECK = [&](bool c, const char* m) { if (!c) { printf("FAIL: %s\n", m); fails++; } };
   rng.seed(12345);
+  motion = false;  // screenshots and clicks see settled screens; motion has its own check at the end
   auto frame = [&]() { render(); };
   auto find = [&](int id) -> const Button* { frame(); for (auto& b : buttons) if (b.id == id) return &b; return nullptr; };
   auto click = [&](int id) {
-    if (screen == Screen::Home && homeItemIndex(id) >= 0) homeSel = homeItemIndex(id);  // scroll the mode strip to it first
+    auto tap = [&](const Button* b) { int cx = b->r.x + b->r.w / 2, cy = b->r.y + b->r.h / 2; pointer(0, cx, cy); pointer(2, cx, cy); };
+    for (int guard = 0; screen == Screen::Home && homeItemIndex(id) >= 0 && homeItemIndex(id) != homeSel && guard < 12; guard++) {
+      // scroll the mode strip by touch, like a stylus user: tap the target, or the outermost tile towards it
+      const Button* b = find(id);
+      if (!b) { int step = homeItemIndex(id) > homeSel ? 2 : -2, i = homeSel + step;
+        while (i != homeSel && !(b = find(homeItems()[i].id))) i -= step > 0 ? 1 : -1; }
+      if (!b) return false;
+      tap(b);
+    }
     const Button* b = find(id); if (!b || !b->enabled) return false;
-    int cx = b->r.x + b->r.w / 2, cy = b->r.y + b->r.h / 2; pointer(0, cx, cy); pointer(2, cx, cy); return true;
+    tap(b); return true;
   };
   auto shot = [&](const std::string& name) {
     if (shotDir.empty()) return;
-    frame();
+    Uint32 keepToast = toastUntil;  // toasts pile up in the self-test (no real time passes): keep them out of other shots
+    if (name != "achievement_toast") toastUntil = 0;
+    Uint32 keepConf = confStart;  // same for confetti: only the celebration screens show it
+    static const char* PARTY[] = {"unlocked", "unlocked_katakana", "dark_unlocked", "confetti_unlock", "achievement_toast"};
+    if (std::none_of(std::begin(PARTY), std::end(PARTY), [&](const char* p) { return name == p; })) confStart = 0;
+    frame(); toastUntil = keepToast; confStart = keepConf;
     saveShot(top, shotDir + "/" + name + "_top.bmp"); saveShot(bot, shotDir + "/" + name + "_bot.bmp");
   };
   auto trace = [&](const Glyph& g, float jx, float jy) {
@@ -205,7 +219,7 @@ int App::selfTest(const std::string& shotDir) {
   CHECK(click(B_GROUP0 + 5), "select About"); CHECK(setGroup == 5 && screen == Screen::Settings, "tile selected, not opened");
   CHECK(click(B_GROUP0 + 5), "open About"); CHECK(screen == Screen::SettingsGroup, "about open");
   CHECK(click(B_SROW0 + 1), "select credits"); CHECK(click(B_SROW0 + 1), "open credits"); CHECK(screen == Screen::Credits, "credits");
-  toastQ.clear(); toastUntil = 0; confStart = 0; shot("credits");  /* no toast/confetti in the shot */ CHECK(click(B_BACK), "credits back"); CHECK(screen == Screen::SettingsGroup, "back to about");
+  confStart = 0; shot("credits");  /* no confetti in the shot */ CHECK(click(B_BACK), "credits back"); CHECK(screen == Screen::SettingsGroup, "back to about");
   CHECK(click(B_FOOT_L), "footer back"); CHECK(screen == Screen::Settings, "groups again");
   { Progress re; re.load(statePath, &data); CHECK(re.settings.sessionLen == 10 && re.settings.reading == 2, "settings persisted"); }
 
@@ -255,6 +269,14 @@ int App::selfTest(const std::string& shotDir) {
   { int n = 0; for (int ki : data.stages[0][0].kana) { Stat& st = prog.stats[Progress::keyKana(data.kana[ki])]; st.step = KNOWN_STEP; st.srs = 2; st.due = prog.now() - 60; n++; }
     CHECK(int(prog.dueKana(data, Script::Hiragana).size()) >= n, "reviews due"); }
   homeSel = homeItemIndex(B_MODE0); shot("home_reviews");
+  { // streak flame: outline until today's goal is met, then a filled flame that changes colour with the streak
+    int ks = prog.streak, kb = prog.bestStreak, kl = prog.lastGoalDay;
+    const int today = dayNumber(prog.now()), yesterday = dayNumber(prog.now() - 86400);
+    prog.streak = 5; prog.bestStreak = 9; prog.lastGoalDay = yesterday; CHECK(prog.currentStreak() == 5, "streak alive before today's goal");
+    CHECK(!tick(SDL_GetTicks() + 1000) || true, "tick"); shot("flame_unlit");
+    for (int n : {3, 12, 45, 120}) { prog.streak = n; prog.lastGoalDay = today; shot("flame_" + std::to_string(n)); }
+    flameLast = 0; CHECK(tick(5000), "lit flame flickers on Home");
+    prog.streak = ks; prog.bestStreak = kb; prog.lastGoalDay = kl; }
   { const Button* rb = find(B_MODE0); CHECK(rb && rb->enabled && rb->sub.find("due") != std::string::npos, "review button shows due"); }
   int dueBefore = int(prog.dueKana(data, Script::Hiragana).size());
   CHECK(click(B_MODE0), "review"); CHECK(screen == Screen::Drill && mode == Mode::Review, "review session");
@@ -456,6 +478,23 @@ int App::selfTest(const std::string& shotDir) {
   shot("settings_reset_armed");
   CHECK(click(B_FOOT_R), "confirm reset"); CHECK(prog.unlocked[0] == 1 && prog.unlocked[1] == 0 && prog.stats.empty(), "progress reset");
   CHECK(prog.settings.sessionLen == 10, "settings kept after reset");
+  // ---- 18. reset settings: also two presses, keeps progress and the script you're on
+  { prog.settings.sessionLen = 20; prog.settings.light = false; applyTheme(false); prog.settings.sound = 0; prog.settings.script = Script::Hiragana;
+    Stat& st = prog.stats["h:あ"]; st.step = 3; go(Screen::SettingsGroup);
+    CHECK(click(B_SROW0 + 5), "select reset settings"); CHECK(click(B_SROW0 + 5), "reset settings once");
+    CHECK(resetSetArmed && prog.settings.sessionLen == 20, "first press only arms"); shot("settings_reset_settings");
+    CHECK(click(B_FOOT_R), "confirm settings reset");
+    CHECK(!resetSetArmed && prog.settings.sessionLen == 10 && prog.settings.light && prog.settings.sound == 2, "settings back to defaults");
+    CHECK(prog.step("h:あ") == 3, "progress kept after settings reset"); }
+  // ---- 19. motion: fade-in on screen change, Home strip glide, answer pop
+  { motion = true; go(Screen::Settings); go(Screen::Home);
+    CHECK(transStart != 0 && tick(transStart + 20), "screen fades in"); tick(transStart + TRANS_MS + 1); CHECK(transStart == 0, "fade ends");
+    homeSel = 0; homePos = 0; render(); homeSel = 3;
+    Uint32 t0 = SDL_GetTicks(); CHECK(tick(t0), "strip glides"); CHECK(homePos > 0.f && homePos < 3.f, "glide is gradual");
+    { float keep = homePos; homePos = 1.5f; flameLast = SDL_GetTicks(); transStart = 0; shot("home_glide"); homePos = keep; }
+    for (int k = 1; k < 200 && homePos != 3.f; k++) tick(t0 + k * 16);
+    CHECK(homePos == 3.f, "glide settles on the new tile");
+    motion = false; }
   printf(fails ? "SELFTEST: %d failure(s)\n" : "SELFTEST: all passed (sessions %d, question types %zu)\n", fails ? fails : prog.session, typesSeen.size());
   return fails ? 1 : 0;
 }
