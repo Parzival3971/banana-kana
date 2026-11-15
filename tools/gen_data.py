@@ -49,6 +49,59 @@ def kana_rows():
 
 # ---------------------------------------------------------------- words
 WORDS = """
+あい|ai|love
+いえ|ie|house
+うえ|ue|above
+あお|ao|blue
+あう|au|to meet
+いいえ|iie|no
+あか|aka|red
+いけ|ike|pond
+こい|koi|carp
+こえ|koe|voice
+きく|kiku|to listen
+かく|kaku|to write
+いく|iku|to go
+ここ|koko|here
+いか|ika|squid
+くうき|kuuki|air
+おおきい|ookii|big
+えいご|eigo|English
+かさ|kasa|umbrella
+いす|isu|chair
+うし|ushi|cow
+あし|ashi|leg
+すき|suki|to like
+そこ|soko|there
+せき|seki|seat
+おかし|okashi|sweets
+しお|shio|salt
+いち|ichi|one
+くち|kuchi|mouth
+て|te|hand
+たこ|tako|octopus
+した|shita|below
+そと|soto|outside
+つくえ|tsukue|desk
+きた|kita|north
+たかい|takai|tall / expensive
+ちかてつ|chikatetsu|subway
+あつい|atsui|hot
+なつ|natsu|summer
+なに|nani|what
+いぬ|inu|dog
+にし|nishi|west
+ひと|hito|person
+ふね|fune|ship
+ほし|hoshi|star
+はな|hana|flower
+へた|heta|bad at
+アイス|aisu|ice cream
+ココア|kokoa|cocoa
+テスト|tesuto|test
+タクシー|takushii|taxi
+スイス|suisu|Switzerland
+テニス|tenisu|tennis
 あめ|ame|rain
 いえ|ie|house
 うみ|umi|sea
@@ -185,7 +238,11 @@ def main():
     with open(os.path.join(DATA, "kana.tsv"), "w", encoding="utf-8") as f:
         for script, g, r, grp in rows: f.write(f"{script}\t{g}\t{r}\t{grp}\n")
     with open(os.path.join(DATA, "words.tsv"), "w", encoding="utf-8") as f:
-        for w in WORDS: f.write(w.replace("|", "\t") + "\n")
+        seen = set()
+        for w in WORDS:
+            k = w.split("|")[0]
+            if k in seen: continue
+            seen.add(k); f.write(w.replace("|", "\t") + "\n")
 
     cps = sorted({ord(c) for _, g, _, _ in rows for c in g})
     def work(cp):
@@ -205,7 +262,132 @@ def main():
             for s in strokes: f.write(" ".join(f"{px:.1f},{py:.1f}" for px, py in s) + "\n")
     print("strokes: ok", len(res) - len(miss), "missing", miss)
 
+    hr = hint_rows(rows)
+    with open(os.path.join(DATA, "hints.tsv"), "w", encoding="utf-8") as f:
+        f.write("# Lesson hints, written for Banana Kana.\n")
+        for g, h in hr: f.write(f"{g}\t{h}\n")
+    print("hints:", len(hr))
     build_fonts(rows)
+
+
+HINTS_H = {
+ "あ":"A cross with a big loop swinging round it, like someone flailing: \"ahh!\"",
+ "い":"Two short strokes side by side, like a pair of eels: \"ee\".",
+ "う":"A dash over a hook, like a face pulling an \"oo\" pout.",
+ "え":"A dash over a zigzag that ends in a kick: an energetic \"eh!\"",
+ "お":"Like あ, but the loop opens out to the right with a dot: \"oh!\" with a raised hand.",
+ "か":"A strong stroke with a tick beside it, like a karate chop: \"ka!\"",
+ "き":"Two bars over a hook: a key with its teeth sticking out.",
+ "く":"One bend, like a beak opening to say \"ku\".",
+ "け":"A tall line next to a crossed hook, like a keg on its stand.",
+ "こ":"Two short strokes, like a pair of coins stacked: \"ko\".",
+ "さ":"One bar and a curve: like き with one bar missing. Say \"sa\".",
+ "し":"A single hook, like a fishing line: \"shi\" (she) caught a fish.",
+ "す":"A bar with a loop dropping through it, like a swing: \"su\".",
+ "せ":"A bar crossed by two posts, one bending down: like a seat seen side-on.",
+ "そ":"A zigzag that runs into a curve, like a sewing thread: \"so\".",
+ "た":"A t on the left with こ beside it: \"ta\".",
+ "ち":"A bar with a curve under it, like a 5 drawn backwards: \"chi\" (cheek).",
+ "つ":"One wave, like a tsunami rolling in: \"tsu\".",
+ "て":"A bar that drops into a curve, like an arm and hand: \"te\" means hand.",
+ "と":"A short tick above a curve, like a toe with a splinter: \"to\".",
+ "な":"A cross, a dot and a loop: a knot tied at the end: \"na\".",
+ "に":"A tall line next to こ, like a knee beside two steps: \"ni\".",
+ "ぬ":"Like め, but with a little loop at the end: noodles twirled on chopsticks: \"nu\".",
+ "ね":"A post with a curl ending in a loop, like a cat's tail: \"ne\" (neko).",
+ "の":"One swirl, like a \"no\" sign drawn in one go.",
+ "は":"Like け, with a loop at the bottom: \"ha\" - a laugh with a curl.",
+ "ひ":"A wide smile: \"hee hee\".",
+ "ふ":"Several small marks spread out, like Mt Fuji with clouds: \"fu\".",
+ "へ":"A single peak, like a roof or a hill: \"he\".",
+ "ほ":"Like は with an extra bar on top: a hoe leaning on a post.",
+ "ま":"Two bars crossed by a post that ends in a loop: \"ma\" carrying a bag.",
+ "み":"A curl with a stroke through its tail, like the number 21: \"mi\".",
+ "む":"A bar, a loop and a dot: a cow going \"moo\".",
+ "め":"Two crossing strokes curling round, like an eye: \"me\".",
+ "も":"A fish hook with two bars across it: catch \"more\" fish.",
+ "や":"A curve, a dot and a long stroke, like a yacht's sail: \"ya\".",
+ "ゆ":"A loop with a line straight through it, like a fish: \"yu\".",
+ "よ":"A short bar on a post with a loop at the foot: a yo-yo hanging down.",
+ "ら":"A dot over a curl, like a rabbit's ear and body: \"ra\".",
+ "り":"Two strokes, the right one longer, like reeds by a river: \"ri\".",
+ "る":"Like ろ, but ending in a loop: a route that goes round again: \"ru\".",
+ "れ":"A post with a curling stroke that kicks out at the end: \"re\".",
+ "ろ":"A zigzag with an open curve, like a road bending: \"ro\".",
+ "わ":"A post and a big open curve, like a wave: \"wa\".",
+ "を":"A bar, a zigzag and a hook: someone shouting \"whoa!\" Read as \"o\" in sentences.",
+ "ん":"A single stroke like a lower-case n with a tail: \"n\".",
+}
+HINTS_K = {
+ "ア":"Like an axe head on a handle: \"a\".",
+ "イ":"A slash and a post, like an easel: \"i\".",
+ "ウ":"A small tick over a box shape: like う, a pouting \"oo\".",
+ "エ":"Like a capital I lying on its girders: an \"e\"-beam.",
+ "オ":"A cross with a slash, like a person in a big coat: \"o\".",
+ "カ":"Like か without its tick: \"ka\".",
+ "キ":"Two bars and a post, like a key: \"ki\".",
+ "ク":"Two strokes like the edge of a cookie with a bite out: \"ku\".",
+ "ケ":"Like the letter K leaning: \"ke\".",
+ "コ":"Two corners of a box: \"ko\".",
+ "サ":"A bar with two posts, one hooked: \"sa\".",
+ "シ":"Two dots and an upward stroke, like a smiling face looking right: \"shi\". Compare ツ.",
+ "ス":"A bar with a leg kicking out, like someone skiing: \"su\".",
+ "セ":"Like せ with straighter lines: \"se\".",
+ "ソ":"One dot and one long stroke falling down: \"so\". Compare ン.",
+ "タ":"Like ク with an extra line inside: \"ta\".",
+ "チ":"A short tick, a bar and a long stroke: \"chi\".",
+ "ツ":"Three strokes falling downwards, like a wave coming in: \"tsu\". Compare シ.",
+ "テ":"Two bars and a hanging stroke, like a telegraph pole: \"te\".",
+ "ト":"A post with a tick, like a toe: \"to\".",
+ "ナ":"A cross with a slanted leg: \"na\".",
+ "ニ":"Two bars, like に without its post: \"ni\".",
+ "ヌ":"A hooked stroke crossed by a short slash: \"nu\".",
+ "ネ":"A dot on a post with arms, like a necktie: \"ne\".",
+ "ノ":"One stroke: like a \"no\" slash.",
+ "ハ":"Two strokes spreading apart, like a laugh: \"ha\".",
+ "ヒ":"A bar and a hooked stroke, like a heel: \"hi\".",
+ "フ":"A bar that bends down, like ふ simplified: \"fu\".",
+ "ヘ":"The same peak as へ: \"he\".",
+ "ホ":"A cross with two little legs, like a holy cross: \"ho\".",
+ "マ":"A bar that folds back with a tick, like a mask: \"ma\".",
+ "ミ":"Three short strokes stacked: \"mi\".",
+ "ム":"A triangle with an arm out, like a cow's head: \"mu\".",
+ "メ":"Two crossing strokes, like an X marked on a map: \"me\".",
+ "モ":"Two bars with a hooked post, like も straightened: \"mo\".",
+ "ヤ":"Like や straightened out: \"ya\".",
+ "ユ":"A bar with a hooked corner, like a U-bend: \"yu\".",
+ "ヨ":"Three bars joined on the right, like a backwards E: \"yo\".",
+ "ラ":"A short bar over a hooked stroke: \"ra\".",
+ "リ":"Two strokes, the right one longer: \"ri\", like り.",
+ "ル":"Two strokes, the right one with a tail: like roots: \"ru\".",
+ "レ":"One stroke that kicks up, like a tick: \"re\".",
+ "ロ":"A square box: \"ro\". Like ろ squared off.",
+ "ワ":"A box with an open bottom, like a wide mouth: \"wa\".",
+ "ヲ":"Like フ with an extra bar: \"wo\". Rare in modern Japanese.",
+ "ン":"One dot and one stroke rising up: \"n\". Compare ソ.",
+}
+def hint_rows(rows):
+    def base_of(g, script):  # voiced -> plain base
+        voiced = "がぎぐげござじずぜぞだぢづでどばびぶべぼ"; plain = "かきくけこさしすせそたちつてとはひふへほ"
+        semi = "ぱぴぷぺぽ"
+        h = g if script == "hiragana" else "".join(chr(ord(c)-0x60) if "ァ" <= c <= "ヶ" else c for c in g)
+        conv = (lambda x: x) if script == "hiragana" else (lambda x: "".join(chr(ord(c)+0x60) if "ぁ" <= c <= "ゖ" else c for c in x))
+        if h in voiced: return conv(plain[voiced.index(h)]), "dakuten"
+        if h in semi: return conv("はひふへほ"[semi.index(h)]), "handakuten"
+        return None, None
+    out = []
+    for script, g, r, grp in rows:
+        table = HINTS_H if script == "hiragana" else HINTS_K
+        if g in table: out.append((g, table[g])); continue
+        if grp == "yoon":
+            out.append((g, f'{g[0]} plus a small {g[1]}, said as one beat: "{r}".'))
+            continue
+        b, kind = base_of(g, script)
+        if kind == "dakuten":
+            out.append((g, f'{b} with two little marks (dakuten): the sound turns voiced, "{r}".'))
+        elif kind == "handakuten":
+            out.append((g, f'{b} with a little circle (handakuten): h turns into p, "{r}".'))
+    return out
 
 GF = "https://raw.githubusercontent.com/google/fonts/main/"
 def fetch(url, name):

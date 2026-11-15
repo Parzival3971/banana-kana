@@ -177,7 +177,7 @@ struct App {
   int pressedId = -1;  // touch buttons act on release (slide off to cancel), like Banana Player
 
   // ---------------------------------------------------------- session flow
-  void startSession() { index = 0; score = 0; missed.clear(); screen = Screen::Drill; nextQuestion(true); }
+  void startSession() { prog.session++; index = 0; score = 0; missed.clear(); screen = Screen::Drill; nextQuestion(true); }
   void nextQuestion(bool first = false) {
     if (!first) index++;
     if (index >= SESSION_LEN) { screen = Screen::Result; prog.save(statePath); return; }
@@ -208,6 +208,7 @@ struct App {
     }
     checked = true; correct = ok; if (ok) score++; else missed.push_back(q.key);
     prog.record(q.key, ok);
+    for (auto& [sc, st] : prog.checkUnlocks(data)) fprintf(stderr, "  unlocked %s stage %d\n", scriptName(sc), st + 1);
     prog.save(statePath);  // the handheld can be closed or powered off at any moment
   }
 
@@ -224,8 +225,8 @@ struct App {
       case B_THEME: prog.settings.light = !prog.settings.light; applyTheme(prog.settings.light); prog.save(statePath); break;
       case B_MENU: paused = false; screen = Screen::Home; prog.save(statePath); break;
       case B_RESET: prog.settings = Settings{.script = prog.settings.script}; break;
-      case B_RATIO_M: prog.settings.kanaPct = std::max(0, prog.settings.kanaPct - 10); break;
-      case B_RATIO_P: prog.settings.kanaPct = std::min(100, prog.settings.kanaPct + 10); break;
+      case B_RATIO_M: prog.settings.review = std::max(0, prog.settings.review - 1); break;
+      case B_RATIO_P: prog.settings.review = std::min(2, prog.settings.review + 1); break;
       case B_CHECK: check(); break;
       case B_CONTINUE: nextQuestion(); break;
       case B_UNDO: if (!checked && !strokes.empty()) strokes.pop_back(); break;
@@ -363,7 +364,7 @@ struct App {
     drawText(top, "kana drills for BananaOS", SDL_Rect{20, 100, 600, 40}, DIM, F_SMALL);
     int y = 190;
     for (Script s : {Script::Hiragana, Script::Katakana}) {
-      int n = prog.learned(data, s), total = 0; for (auto& k : data.kana) if (k.script == s) total++;
+      int n = prog.knownCount(data, s), total = 0; for (auto& k : data.kana) if (k.script == s) total++;
       std::string label = std::string(scriptName(s)) + (s == prog.settings.script ? "  (active)" : "");
       drawText(top, label, SDL_Rect{40, y, 400, 36}, s == prog.settings.script ? FG : DIM, F_SMALL, true);
       drawText(top, std::to_string(n) + "/" + std::to_string(total), SDL_Rect{460, y, 140, 36}, DIM, F_SMALL, false);
@@ -382,9 +383,9 @@ struct App {
     drawText(top, "Kana vs word questions, and how often each", SDL_Rect{20, 110, 600, 40}, DIM, F_SMALL);
     drawText(top, "drill type shows up (0 = never, 2 = often).", SDL_Rect{20, 150, 600, 40}, DIM, F_SMALL);
     const Settings& s = prog.settings;
-    drawText(top, "Kana " + std::to_string(s.kanaPct) + "%   Word " + std::to_string(100 - s.kanaPct) + "%", SDL_Rect{20, 230, 600, 60}, FG, F_MID);
-    progressBar(top, SDL_Rect{40, 320, 560, 18}, s.kanaPct / 100.f);
-    addBtn(SDL_Rect{20, 14, 90, 52}, B_RATIO_M, "Kana-", F_TINY); addBtn(SDL_Rect{120, 14, 90, 52}, B_RATIO_P, "Kana+", F_TINY);
+    const char* rv[3] = {"off", "some", "lots"};
+    drawText(top, std::string("Review older stages: ") + rv[s.review], SDL_Rect{20, 230, 600, 60}, FG, F_MID);
+    addBtn(SDL_Rect{20, 14, 90, 52}, B_RATIO_M, "Rev-", F_TINY); addBtn(SDL_Rect{120, 14, 90, 52}, B_RATIO_P, "Rev+", F_TINY);
     addBtn(SDL_Rect{430, 14, 190, 52}, B_BACK, "Back", F_SMALL);
     addBtn(SDL_Rect{220, 14, 200, 52}, B_THEME, prog.settings.light ? "Theme: Light" : "Theme: Dark", F_TINY);
     const char* names[4] = {"Reading", "Word meanings", "Writing", "Typing"};
@@ -651,7 +652,7 @@ static int selfTest(App& app, const std::string& shotDir) {
   // a wrong answer is recorded and scored as wrong
   CHECK(click(B_AGAIN), "again"); frame();
   while (app.q.options.empty()) { app.press(B_CHECK); app.checked = false; app.nextQuestion(); frame(); }
-  int wrong = (app.q.correct + 1) % 6; CHECK(click(B_TILE0 + wrong), "wrong tile"); CHECK(click(B_CHECK), "check wrong");
+  int wrong = (app.q.correct + 1) % int(app.q.options.size()); CHECK(click(B_TILE0 + wrong), "wrong tile"); CHECK(click(B_CHECK), "check wrong");
   CHECK(app.checked && !app.correct, "wrong answer must be marked wrong"); CHECK(app.prog.stats[app.q.key].wrong >= 1, "wrong recorded");
   shot("q_wrong");
   // theme: toggle to light from settings, screens still render, setting persists
@@ -686,7 +687,8 @@ int main(int argc, char** argv) {
   }
   App app; app.dataDir = dataDir; std::string err; applyTheme(false);
   if (!app.data.load(dataDir, &err)) { fprintf(stderr, "cannot load data from '%s': %s\n", dataDir.c_str(), err.c_str()); return 2; }
-  mkdirs(stateDir); app.statePath = stateDir + "/progress.txt"; app.prog.load(app.statePath); applyTheme(app.prog.settings.light);
+  mkdirs(stateDir); app.statePath = stateDir + "/progress.txt"; if (app.prog.load(app.statePath, &app.data) && app.prog.migrated) { fprintf(stderr, "  progress upgraded to v2\n"); app.prog.save(app.statePath); }
+  applyTheme(app.prog.settings.light);
 
   SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0) { fprintf(stderr, "SDL_Init: %s\n", SDL_GetError()); return 3; }
