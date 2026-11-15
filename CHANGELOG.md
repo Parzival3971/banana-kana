@@ -5,6 +5,7 @@ the release notes come from the matching section below.
 
 ## 0.1.1 - unreleased
 
+- Both analogue sticks move like the d-pad (hold to repeat).
 - Fix: the X and Y buttons were swapped on the device (X now checks, Y now shows hints).
 - Word questions (spelling a word in kana or romaji, reading っ/ー words) show the English meaning under the word.
 

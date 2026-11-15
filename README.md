@@ -105,7 +105,7 @@ You need an Anbernic RG DS Plus running BananaOS.
 | | |
 |---|---|
 | ✏️ **Stylus / touch** (bottom screen) | Tap answers, keys and buttons. Buttons act when you lift, so slide off to cancel. Trace on the canvas. |
-| ✛ **D-pad** (shown as a cross in the hint chips) | Move between tiles, cartridges, stages, chart cells, settings and keyboard keys |
+| ✛ **D-pad** or either **stick** (shown as a cross in the hint chips) | Move between tiles, cartridges, stages, chart cells, settings and keyboard keys |
 | **A** | Choose / confirm (press again on a chosen answer to check it) |
 | **B** | Back. In drills: undo a stroke or delete a letter |
 | **X** | Check the answer |

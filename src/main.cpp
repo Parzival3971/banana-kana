@@ -166,6 +166,25 @@ struct OsdWatch {
   }
 };
 
+// Either analogue stick works like the d-pad: a direction fires when the stick passes ~half way, then repeats while held.
+struct StickPad {
+  int dir[2] = {-1, -1};          // per stick: held d-pad button, or -1
+  Uint32 next[2] = {0, 0};        // when it repeats
+  int x[2] = {0, 0}, y[2] = {0, 0};
+  template <class F> void axis(int stick, bool isX, int v, Uint32 now, F fire) {
+    (isX ? x : y)[stick] = v;
+    int ax = x[stick], ay = y[stick], d = -1;
+    const int ON = 16000, OFF = 9000;
+    int held = dir[stick], th = held >= 0 ? OFF : ON;
+    if (std::abs(ax) > std::abs(ay)) { if (ax > th) d = SDL_CONTROLLER_BUTTON_DPAD_RIGHT; else if (ax < -th) d = SDL_CONTROLLER_BUTTON_DPAD_LEFT; }
+    else { if (ay > th) d = SDL_CONTROLLER_BUTTON_DPAD_DOWN; else if (ay < -th) d = SDL_CONTROLLER_BUTTON_DPAD_UP; }
+    if (d != held) { dir[stick] = d; if (d >= 0) { fire(d); next[stick] = now + 380; } }
+  }
+  template <class F> void repeat(Uint32 now, F fire) {
+    for (int i = 0; i < 2; i++) if (dir[i] >= 0 && now >= next[i]) { fire(dir[i]); next[i] = now + 130; }
+  }
+};
+
 int main(int argc, char** argv) {
   bool self = false, forceDual = false; std::string shotDir, dataDir, stateDir;
   for (int i = 1; i < argc; i++) {
@@ -222,6 +241,7 @@ int main(int argc, char** argv) {
   fprintf(stderr, "  sdl touch devices: %d, joysticks: %d\n", SDL_GetNumTouchDevices(), SDL_NumJoysticks());
   for (int i = 0; i < SDL_NumJoysticks(); i++)
     fprintf(stderr, "  joystick %d: %s gamecontroller=%d\n", i, SDL_JoystickNameForIndex(i) ? SDL_JoystickNameForIndex(i) : "?", SDL_IsGameController(i));
+  StickPad sticks;
   EvBack backKey; backKey.open(); OsdWatch osdWatch; Uint32 osdChecked = 0;
   EvTouch touch; touch.open(); int sdlTouchLogged = 0, buttonsLogged = 0, rawLogged = 0; bool menuKeyDown = false, menuCombo = false;
   // The Back key is read from evdev (EvBack). KT_BACK_BUTTON=<raw SDL joystick index> also maps one, if ever needed.
@@ -291,6 +311,11 @@ int main(int argc, char** argv) {
             else if (b == SDL_CONTROLLER_BUTTON_Y) b = SDL_CONTROLLER_BUTTON_X;
           }
           app.padButton(b); break; }
+        case SDL_CONTROLLERAXISMOTION: {
+          int a = e.caxis.axis; if (a > SDL_CONTROLLER_AXIS_RIGHTY) break;  // triggers are not sticks
+          sticks.axis(a >= SDL_CONTROLLER_AXIS_RIGHTX ? 1 : 0, a == SDL_CONTROLLER_AXIS_LEFTX || a == SDL_CONTROLLER_AXIS_RIGHTX, e.caxis.value,
+                      SDL_GetTicks(), [&](int d) { if (menuKeyDown) menuCombo = true; app.padButton((SDL_GameControllerButton)d); dirty = true; });
+          break; }
         case SDL_CONTROLLERBUTTONUP: {
           auto b = (SDL_GameControllerButton)e.cbutton.button;
           if ((b == SDL_CONTROLLER_BUTTON_GUIDE || b == SDL_CONTROLLER_BUTTON_BACK) && menuKeyDown) {
@@ -319,6 +344,7 @@ int main(int argc, char** argv) {
       }
     }
     touch.poll([&](int t, int x, int y) { app.pointer(t, x, y); dirty = true; });
+    sticks.repeat(SDL_GetTicks(), [&](int d) { app.padButton((SDL_GameControllerButton)d); dirty = true; });
     backKey.poll([&]() { if (menuKeyDown) menuCombo = true; app.padButton(SDL_CONTROLLER_BUTTON_B); dirty = true; });
     if (SDL_GetTicks() - osdChecked > 100) {
       osdChecked = SDL_GetTicks(); std::string what; int pct;
