@@ -78,18 +78,25 @@ void setRumble(int level) { rumbleLevel = std::max(0, std::min(2, level)); }
 bool canRumble() { return pad && SDL_GameControllerHasRumble(pad); }
 void rumble(Sfx s) {
   if (!pad || rumbleLevel == 0) return;
-  // {low-frequency motor, high-frequency motor, ms}: a tick for right, a firm buzz for wrong, longer for big moments
-  struct B { int lo, hi, ms; };
-  B b{0, 0, 0};
+  // {strength, ms}. The RG DS Plus has one motor: its driver goes by the low-frequency ("strong") channel, and a buzz
+  // under ~0x5000 or shorter than ~80 ms never gets it spinning (0.2.0's 45 ms right-answer tick was never felt).
+  // So both channels get the same value, and nothing goes below the floor.
+  struct B { int v, ms; };
+  B b{0, 0};
   switch (s) {
-    case Sfx::Right:  b = {0x2000, 0x6000, 45}; break;
-    case Sfx::Wrong:  b = {0xA000, 0x8000, 160}; break;
-    case Sfx::Known:  b = {0x5000, 0x8000, 110}; break;
-    case Sfx::Unlock: case Sfx::Goal: b = {0x9000, 0xC000, 320}; break;
+    case Sfx::Right:  b = {0x7000, 90}; break;
+    case Sfx::Wrong:  b = {0xC000, 170}; break;
+    case Sfx::Known:  b = {0x9000, 140}; break;
+    case Sfx::Unlock: case Sfx::Goal: b = {0xD000, 320}; break;
     default: return;
   }
-  float k = rumbleLevel == 1 ? 0.55f : 1.f;
-  SDL_GameControllerRumble(pad, Uint16(std::min(0xFFFF, int(b.lo * k))), Uint16(std::min(0xFFFF, int(b.hi * k))), Uint32(b.ms));
+  const int FLOOR = 0x5800;
+  int v = std::max(FLOOR, int(b.v * (rumbleLevel == 1 ? 0.8f : 1.f)));
+  int ms = rumbleLevel == 1 ? b.ms : b.ms + b.ms / 3;
+  v = std::min(0xFFFF, v);
+  int rc = SDL_GameControllerRumble(pad, Uint16(v), Uint16(v), Uint32(ms));
+  static int logged = 0;  // launch.log: the first few buzzes, to check them on the device
+  if (logged < 6) { logged++; fprintf(stderr, "  rumble %d: 0x%04x for %d ms -> %s\n", int(s), v, ms, rc == 0 ? "ok" : SDL_GetError()); fflush(stderr); }
 }
 void quit() { if (dev) SDL_CloseAudioDevice(dev); dev = 0; }
 }  // namespace snd

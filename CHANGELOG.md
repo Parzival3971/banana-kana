@@ -3,6 +3,11 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
+## 0.3.1 - unreleased
+
+- Fix: rumble only happened on wrong answers. The right-answer buzz was too short and soft to start the RG DS Plus
+  motor; every buzz now uses the main motor channel with a minimum strength and length. Strong rumble also lasts longer.
+
 ## 0.3.0 - 2026-11-15
 
 - Word packs: 12 topic packs (greetings, food & drink, numbers, time & days, people & family, animals, body, home &
