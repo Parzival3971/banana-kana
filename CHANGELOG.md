@@ -3,7 +3,7 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
-## 0.3.0 - unreleased
+## 0.3.0 - 2026-11-15
 
 - Word packs: 12 topic packs (greetings, food & drink, numbers, time & days, people & family, animals, body, home &
   things, town & travel, nature & weather, actions, describing & colours), about 340 words written for Banana Kana.
