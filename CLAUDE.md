@@ -50,7 +50,7 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
 - No audio / Listening drill: removed on purpose (no clips available). Re-add only if real recordings exist.
 
 ## Known gaps / to verify on device
-- Dual-screen window placement (uses 2 displays if SDL reports them) and bottom touch routing (evdev `fe5e0000.i2c`) untested.
+- Device test 2026-11-15 passed: touch + tracing land correctly, A/B correct, F + START quits, bottom screen survives sleep.
 - Yoon kana (きゃ etc.) have no Write drill (two glyphs). Typing has no Japanese-keyboard mode (romaji only).
 - Kana count is 104 per script (Maru shows 105).
 
@@ -66,7 +66,8 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
 - Env switches: `KT_NOFS=1` (borderless instead of fullscreen), `KT_VSYNC=1` (vsync per window), `KT_SOFTWARE=1`.
 
 ## Banana Player lessons applied (pre-emptive, 2026-11-14)
-- Quit anywhere: F + START (F assumed = SDL GUIDE, unverified; SELECT + START also quits). App logs first 30 button presses to find F.
+- Quit anywhere: F + START (confirmed working on device; SELECT + START also quits).
+- Pause menu: F (or SELECT) pressed and released alone during practice -> Resume / Back to menu / Quit. Tab on PC.
 - Touch buttons activate on release, slide off to cancel (stylus misfires).
 - Progress saved after every answer; SIGTERM/SIGINT/SIGHUP exit cleanly with a save (lid/power-off safety).
 - App re-enables the bottom backlight every 2 s if bl_power != 0 (BananaOS panel-off can re-darken it after sleep).

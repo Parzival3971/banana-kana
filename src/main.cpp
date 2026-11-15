@@ -87,6 +87,7 @@ bool inRect(const SDL_Rect& r, int x, int y) { return x >= r.x && x < r.x + r.w 
 enum BtnId {
   B_START = 1, B_SCRIPT, B_SETTINGS, B_QUIT, B_BACK, B_RESET, B_AGAIN, B_HOME,
   B_TILE0 = 10, B_CHECK = 20, B_CONTINUE, B_UNDO, B_CLEAR, B_HINT, B_BKSP = 30, B_RATIO_M, B_RATIO_P,
+  B_RESUME = 40, B_MENU,
   B_KEY0 = 100, B_SEG0 = 200
 };
 
@@ -95,6 +96,7 @@ enum class Screen { Home, Settings, Drill, Result };
 struct App {
   Win top, bot; Data data; Progress prog; std::string statePath, dataDir; std::mt19937 rng{(unsigned)time(nullptr)};
   Screen screen = Screen::Home; bool running = true;
+  bool paused = false; int pauseSel = 0;  // F (or SELECT) during practice opens the pause menu
   // drill state
   Question q; int index = 0, score = 0, sel = -1, cursor = 0; bool checked = false, correct = false;
   std::string typed; std::vector<Stroke> strokes; Stroke cur; bool drawing = false, showHint = false; std::vector<int> strokeOk;
@@ -146,6 +148,8 @@ struct App {
       case B_SETTINGS: screen = Screen::Settings; break;
       case B_HOME: case B_BACK: screen = Screen::Home; prog.save(statePath); break;
       case B_QUIT: running = false; break;
+      case B_RESUME: paused = false; break;
+      case B_MENU: paused = false; screen = Screen::Home; prog.save(statePath); break;
       case B_RESET: prog.settings = Settings{.script = prog.settings.script}; break;
       case B_RATIO_M: prog.settings.kanaPct = std::max(0, prog.settings.kanaPct - 10); break;
       case B_RATIO_P: prog.settings.kanaPct = std::min(100, prog.settings.kanaPct + 10); break;
@@ -166,7 +170,7 @@ struct App {
   }
 
   void pointer(int type, int x, int y) {  // type 0 down, 1 move, 2 up; coordinates in bottom-logical space
-    if (screen == Screen::Drill && q.type == QType::Write && !checked) {
+    if (!paused && screen == Screen::Drill && q.type == QType::Write && !checked) {
       SDL_Rect c = canvas();
       if (type == 0 && inRect(c, x, y)) { drawing = true; cur.clear(); cur.push_back(toGlyph(x, y)); return; }
       if (type == 1 && drawing) { cur.push_back(toGlyph(x, y)); return; }
@@ -182,7 +186,20 @@ struct App {
     }
   }
 
+  void togglePause() {
+    if (screen != Screen::Drill) return;
+    paused = !paused; pauseSel = 0; pressedId = -1; drawing = false; cur.clear();
+  }
+
   void padButton(SDL_GameControllerButton b) {
+    if (paused) {
+      const int ids[3] = {B_RESUME, B_MENU, B_QUIT};
+      if (b == SDL_CONTROLLER_BUTTON_DPAD_UP) pauseSel = (pauseSel + 2) % 3;
+      else if (b == SDL_CONTROLLER_BUTTON_DPAD_DOWN) pauseSel = (pauseSel + 1) % 3;
+      else if (b == SDL_CONTROLLER_BUTTON_A) press(ids[pauseSel]);
+      else if (b == SDL_CONTROLLER_BUTTON_B) press(B_RESUME);
+      return;
+    }
     bool choice = screen == Screen::Drill && !q.options.empty();
     switch (b) {
       case SDL_CONTROLLER_BUTTON_DPAD_LEFT: if (choice && !checked) cursor = (cursor % 2) ? cursor - 1 : cursor + 1; break;
@@ -204,7 +221,8 @@ struct App {
 
   void key(SDL_Keycode k) {  // PC convenience
     switch (k) {
-      case SDLK_ESCAPE: press(B_HOME); if (screen == Screen::Home) {} break;
+      case SDLK_ESCAPE: if (paused) press(B_RESUME); else press(B_HOME); break;
+      case SDLK_TAB: togglePause(); break;  // PC stand-in for the F key
       case SDLK_RETURN: padButton(SDL_CONTROLLER_BUTTON_A); break;
       case SDLK_LEFT: padButton(SDL_CONTROLLER_BUTTON_DPAD_LEFT); break;
       case SDLK_RIGHT: padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); break;
@@ -235,6 +253,7 @@ struct App {
 
   void render() {
     clearWin(top, BG); clearWin(bot, BG); bottomButtons.clear();
+    if (paused) { drawPause(); drawButtons(); SDL_RenderPresent(top.r); SDL_RenderPresent(bot.r); return; }
     switch (screen) {
       case Screen::Home: drawHome(); break;
       case Screen::Settings: drawSettings(); break;
@@ -244,6 +263,19 @@ struct App {
     drawButtons();
     if (screen == Screen::Drill && q.type == QType::Write) drawWritingExtras();
     SDL_RenderPresent(top.r); SDL_RenderPresent(bot.r);
+  }
+
+  void drawPause() {
+    drawText(top, "Paused", SDL_Rect{20, 120, 600, 110}, FG, F_BIG);
+    drawText(top, "Question " + std::to_string(index + 1) + " of " + std::to_string(SESSION_LEN) + "  -  your answers are saved",
+             SDL_Rect{20, 250, 600, 40}, DIM, F_SMALL);
+    drawText(top, "Up/Down choose   A select   B resume", SDL_Rect{20, 400, 600, 36}, DIM, F_TINY);
+    const char* labels[3] = {"Resume", "Back to menu", "Quit Banana Kana"};
+    const int ids[3] = {B_RESUME, B_MENU, B_QUIT};
+    for (int i = 0; i < 3; i++) {
+      bool on = i == pauseSel;
+      addBtn(SDL_Rect{80, 40 + i * 130, 480, 110}, ids[i], labels[i], F_MID, true, on ? ACCENT : PANEL, on ? FG : DIM);
+    }
   }
 
   void drawHome() {
@@ -528,6 +560,13 @@ static int selfTest(App& app, const std::string& shotDir) {
     if (round == 0) shot("result");
   }
   for (int t = 0; t < 5; t++) if (!seen[t]) { printf("never saw question type %d\n", t); fails++; }
+  // pause menu: resume keeps the question, back to menu goes home
+  CHECK(click(B_AGAIN), "again for pause test"); frame();
+  std::string before = app.q.key; app.togglePause(); CHECK(app.paused, "paused"); shot("pause");
+  CHECK(click(B_RESUME), "resume"); CHECK(!app.paused && app.screen == Screen::Drill && app.q.key == before, "resume keeps question");
+  app.togglePause(); app.padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); app.padButton(SDL_CONTROLLER_BUTTON_A);
+  CHECK(!app.paused && app.screen == Screen::Home, "back to menu via pad");
+  app.screen = Screen::Result;
   // a wrong answer is recorded and scored as wrong
   CHECK(click(B_AGAIN), "again"); frame();
   while (app.q.options.empty()) { app.press(B_CHECK); app.checked = false; app.nextQuestion(); frame(); }
@@ -585,7 +624,7 @@ int main(int argc, char** argv) {
   if (self) { int rc = selfTest(app, shotDir); SDL_Quit(); return rc; }
 
   fprintf(stderr, "  sdl touch devices: %d\n", SDL_GetNumTouchDevices());
-  EvTouch touch; touch.open(); int sdlTouchLogged = 0, buttonsLogged = 0; fflush(stderr);
+  EvTouch touch; touch.open(); int sdlTouchLogged = 0, buttonsLogged = 0; bool menuKeyDown = false, menuCombo = false; fflush(stderr);
   std::signal(SIGTERM, onSignal); std::signal(SIGINT, onSignal); std::signal(SIGHUP, onSignal);
   // Keep the bottom backlight on: BananaOS can switch it off again after sleep (/run/banana/panel-off).
   std::string blPower;
@@ -611,6 +650,9 @@ int main(int argc, char** argv) {
           if (b == SDL_CONTROLLER_BUTTON_START && gc &&
               (SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_GUIDE) || SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_BACK))) {
             app.running = false; break; }
+          // F (or SELECT) pressed and released on its own toggles the pause menu; with another button it is a combo.
+          if (b == SDL_CONTROLLER_BUTTON_GUIDE || b == SDL_CONTROLLER_BUTTON_BACK) { menuKeyDown = true; menuCombo = false; break; }
+          if (menuKeyDown) menuCombo = true;
           if (!getenv("KT_POSITIONAL")) {
             if (b == SDL_CONTROLLER_BUTTON_A) b = SDL_CONTROLLER_BUTTON_B;
             else if (b == SDL_CONTROLLER_BUTTON_B) b = SDL_CONTROLLER_BUTTON_A;
@@ -618,6 +660,12 @@ int main(int argc, char** argv) {
             else if (b == SDL_CONTROLLER_BUTTON_Y) b = SDL_CONTROLLER_BUTTON_X;
           }
           app.padButton(b); break; }
+        case SDL_CONTROLLERBUTTONUP: {
+          auto b = (SDL_GameControllerButton)e.cbutton.button;
+          if ((b == SDL_CONTROLLER_BUTTON_GUIDE || b == SDL_CONTROLLER_BUTTON_BACK) && menuKeyDown) {
+            menuKeyDown = false; if (!menuCombo) app.togglePause();
+          }
+          break; }
         case SDL_KEYDOWN: app.key(e.key.keysym.sym); break;
         case SDL_MOUSEBUTTONDOWN: case SDL_MOUSEBUTTONUP: case SDL_MOUSEMOTION: {
           // Touch is synthesised into mouse events by SDL. Only the bottom window is interactive.
