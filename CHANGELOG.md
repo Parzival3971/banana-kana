@@ -3,7 +3,7 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
-## 0.5.0 - unreleased
+## 0.5.0 - 2026-11-15
 
 A whole new look: the "Handheld" design.
 
