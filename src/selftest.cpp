@@ -311,6 +311,7 @@ int App::selfTest(const std::string& shotDir) {
     for (int i = 0; i < 6; i++) padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN);
     CHECK(kbItemId(keyRow, keyCol) == B_CHECK, "down to Check"); shot("q_type_kana_cursor");
     padButton(SDL_CONTROLLER_BUTTON_B); CHECK(Data::partNames(typed).size() == 1, "B deletes");
+    padButton(SDL_CONTROLLER_BUTTON_X); CHECK(checked, "X checks a typed answer"); padButton(SDL_CONTROLLER_BUTTON_X); CHECK(!checked || index > 0, "X continues");
     typed = q.answer; click(B_CHECK); CHECK(checked && correct, "kana typed right"); shot("q_type_kana_checked");
     // ---- 15. writing a combination kana in two parts
     prog.settings.typing = 0; prog.settings.writing = 2; prog.settings.kanaKeys = false; prog.unlocked[0] = STAGE_COUNT;

@@ -262,8 +262,10 @@ int main(int argc, char** argv) {
           if (isBack) { if (menuKeyDown) menuCombo = true; app.padButton(SDL_CONTROLLER_BUTTON_B); dirty = true; }
           break; }
         case SDL_CONTROLLERBUTTONDOWN: {
-          // SDL names face buttons by position (A = south). The RG DS Plus is labelled Nintendo-style
-          // (A = east, B = south, X = north, Y = west), so translate to the printed labels. KT_POSITIONAL=1 disables.
+          // The RG DS Plus is labelled Nintendo-style (A = east, B = south, X = north, Y = west). SDL's mapping for its
+          // retrogame_joypad gives a:b0 (BTN_SOUTH) b:b1 (BTN_EAST) x:b2 (BTN_NORTH) y:b3 (BTN_WEST): A and B come out by
+          // position (swap them), but X and Y already match the labels (don't). Confirmed on device: swapping X/Y made
+          // the labelled X act as Y. KT_POSITIONAL=1 disables the A/B swap; KT_SWAP_XY=1 brings the X/Y swap back.
           auto b = (SDL_GameControllerButton)e.cbutton.button;
           SDL_GameController* gc = SDL_GameControllerFromInstanceID(e.cbutton.which);
           if (buttonsLogged < 30) { buttonsLogged++; const char* bn = SDL_GameControllerGetStringForButton(b);
@@ -283,7 +285,9 @@ int main(int argc, char** argv) {
           if (!getenv("KT_POSITIONAL")) {
             if (b == SDL_CONTROLLER_BUTTON_A) b = SDL_CONTROLLER_BUTTON_B;
             else if (b == SDL_CONTROLLER_BUTTON_B) b = SDL_CONTROLLER_BUTTON_A;
-            else if (b == SDL_CONTROLLER_BUTTON_X) b = SDL_CONTROLLER_BUTTON_Y;
+          }
+          if (getenv("KT_SWAP_XY")) {
+            if (b == SDL_CONTROLLER_BUTTON_X) b = SDL_CONTROLLER_BUTTON_Y;
             else if (b == SDL_CONTROLLER_BUTTON_Y) b = SDL_CONTROLLER_BUTTON_X;
           }
           app.padButton(b); break; }
