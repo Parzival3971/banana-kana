@@ -177,5 +177,5 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   Kana chart (locked/learning/known/weak), Practice mix/settings (incl. theme), Results.
 - Post-M4 features (2026-11-15, user asked "do 1-7"): spaced review, mix-ups, daily goal + streak, combo writing,
   timed challenge, kana keyboard, stats screen. Not yet seen on device.
-- Milestones: 1 fonts+theme DONE, 2 stages+progress migration DONE, 3 mockup screens/lessons/unlock DONE,
+- RELEASED 0.1.0 on 2026-11-15 (repo made public the same day). Milestones: 1 fonts+theme DONE, 2 stages+progress migration DONE, 3 mockup screens/lessons/unlock DONE,
   4 chart + settings DONE (2026-11-15), 5 device test (NEEDS USER), then first release 0.1.0 via VERSION bump.
