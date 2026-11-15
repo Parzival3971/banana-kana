@@ -708,8 +708,7 @@ void App::drawButtons() {
 }
 
 void App::header(const std::string& right) {
-  iconBanana(top, 24, 18, 3);
-  int x = 62;
+  int x = 24;
   drawText(top, "BANANA", SDL_Rect{x, 16, 120, 30}, ACCENT_TXT, F_TINY, A_LEFT);
   x += textWidth(top, F_TINY, "BANANA") + 8;
   drawText(top, "KANA", SDL_Rect{x, 16, 100, 30}, FG, F_TINY, A_LEFT);
