@@ -131,6 +131,11 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
 - Back key (right of F) = evdev BTN_Z (BananaLinux bananad names it "back"); the unmapped-SDL-button guess did NOT work.
   main.cpp EvBack reads BTN_Z from every /dev/input device that has it (non-grabbing) -> padButton B. KT_BACK_CODE=<evdev
   code> / KT_BACK_BUTTON=<raw SDL index> override; SDLK_AC_BACK = B. Log line "back key: code N on /dev/input/eventX".
+- Confirmed from launch.log (2026-11-15 15:05): input devices = event0 rk805 pwrkey, event1 Goodix touch, event2
+  adc-keys-back (ONLY key: BTN_Z 309 = the Back key; separate from the gamepad, so SDL never sees it), event3 headphone
+  jack switch, event4 gpio-keys-hall (lid), event5 gpio-keys-volume (SDL also sends VolumeUp/Down keys), event6
+  retrogame_joypad (js0; has no BTN_Z). /dev/input/* are root-only crw------- and we run as root (touch evdev works).
+  SDL mapping: a:b0 b:b1 x:b2 y:b3 back(SELECT):b8 start:b9 guide(F):b10 l/r:b4/b5 l2/r2:b6/b7 l3/r3:b11/b12 dpad:b13-16.
 - Volume / F+volume brightness are done by BananaOS's bananad even while apps run (it grabs nothing). It writes
   "volume 45" / "brightness 60" to /run/banana/osd (rename) for banana-ui's level card; main.cpp OsdWatch polls its mtime
   every 100 ms and App::showOsd draws our own card on the top screen (1.8 s).
