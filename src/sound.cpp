@@ -76,27 +76,20 @@ void play(Sfx s) {
 void setController(void* gc) { pad = static_cast<SDL_GameController*>(gc); }
 void setRumble(int level) { rumbleLevel = std::max(0, std::min(2, level)); }
 bool canRumble() { return pad && SDL_GameControllerHasRumble(pad); }
+static std::vector<Pulse> pending; static unsigned patternStart = 0;  // the pattern being played
+static int rumbleLogged = 0;
+static void buzz(const Pulse& p) {
+  int rc = SDL_GameControllerRumble(pad, Uint16(p.strength), Uint16(p.strength), Uint32(p.ms));
+  if (rumbleLogged < 8) { rumbleLogged++; fprintf(stderr, "  rumble +%d ms: 0x%04x for %d ms -> %s\n", p.at, p.strength, p.ms, rc == 0 ? "ok" : SDL_GetError()); fflush(stderr); }
+}
 void rumble(Sfx s) {
   if (!pad || rumbleLevel == 0) return;
-  // {strength, ms}. The RG DS Plus has one motor: its driver goes by the low-frequency ("strong") channel, and a buzz
-  // under ~0x5000 or shorter than ~80 ms never gets it spinning (0.2.0's 45 ms right-answer tick was never felt).
-  // So both channels get the same value, and nothing goes below the floor.
-  struct B { int v, ms; };
-  B b{0, 0};
-  switch (s) {
-    case Sfx::Right:  b = {0x7000, 90}; break;
-    case Sfx::Wrong:  b = {0xC000, 170}; break;
-    case Sfx::Known:  b = {0x9000, 140}; break;
-    case Sfx::Unlock: case Sfx::Goal: b = {0xD000, 320}; break;
-    default: return;
-  }
-  const int FLOOR = 0x5800;
-  int v = std::max(FLOOR, int(b.v * (rumbleLevel == 1 ? 0.8f : 1.f)));
-  int ms = rumbleLevel == 1 ? b.ms : b.ms + b.ms / 3;
-  v = std::min(0xFFFF, v);
-  int rc = SDL_GameControllerRumble(pad, Uint16(v), Uint16(v), Uint32(ms));
-  static int logged = 0;  // launch.log: the first few buzzes, to check them on the device
-  if (logged < 6) { logged++; fprintf(stderr, "  rumble %d: 0x%04x for %d ms -> %s\n", int(s), v, ms, rc == 0 ? "ok" : SDL_GetError()); fflush(stderr); }
+  auto p = rumblePattern(s, rumbleLevel); if (p.empty()) return;
+  patternStart = SDL_GetTicks(); buzz(p[0]);
+  pending.assign(p.begin() + 1, p.end());
+}
+void tick(unsigned now) {
+  while (!pending.empty() && now - patternStart >= unsigned(pending.front().at)) { buzz(pending.front()); pending.erase(pending.begin()); }
 }
 void quit() { if (dev) SDL_CloseAudioDevice(dev); dev = 0; }
 }  // namespace snd

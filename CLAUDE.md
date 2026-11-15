@@ -151,7 +151,9 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   prompt (twinKana: same romaji + same stage, both unlocked; not ー / foreign-sound extras), a third of normal recall
   questions once both scripts are open. Rumble in sound.cpp (snd::rumble per Sfx, Settings.rumble 0/1/2, joypad has
   FF_RUMBLE; log "rumble: yes/no"). 0.2.0 right-answer buzz (45 ms, 0x2000 strong/0x6000 weak) was never felt on device
-  (user: only wrong answers rumble) -> 0.3.1: same value on both channels, floor 0x5800, >= 90 ms; first 6 buzzes logged. Backup: App::backup -> BananaKana/progress-backup.txt (packaged layout only, i.e.
+  (user: only wrong answers rumble) -> 0.3.1: same value on both channels, floor 0x5800, >= 80 ms, and PATTERNS (user asked how to tell right from
+  wrong): snd::rumblePattern in sound.h (right 1 tick, wrong 2 buzzes, known 3 ticks, unlock/goal 1 long), later
+  pulses played by snd::tick() from the main loop; first 8 pulses logged. Gap lengths still to be judged on device. Backup: App::backup -> BananaKana/progress-backup.txt (packaged layout only, i.e.
   data/../VERSION exists; KT_BACKUP=0 off, KT_BACKUP_PATH override), restored in main.cpp when progress.txt is missing.
   Settings rows squeeze when a group has 6+ rows.
 - Word packs (user asked 2026-11-15; audio deferred, see below): tools/gen_data.py PACKS (12 packs, lists written by us,

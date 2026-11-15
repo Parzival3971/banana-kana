@@ -351,6 +351,7 @@ int main(int argc, char** argv) {
       }
     }
     touch.poll([&](int t, int x, int y) { app.pointer(t, x, y); dirty = true; });
+    snd::tick(SDL_GetTicks());
     sticks.repeat(SDL_GetTicks(), [&](int d) { app.padButton(STICK_BUTTON[d]); dirty = true; });
     backKey.poll([&]() { if (menuKeyDown) menuCombo = true; app.padButton(SDL_CONTROLLER_BUTTON_B); dirty = true; });
     if (SDL_GetTicks() - osdChecked > 100) {

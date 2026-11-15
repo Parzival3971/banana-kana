@@ -61,8 +61,8 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
   timed best.
 - 🔊 **Sound effects.** Little chimes for right answers, newly known kana, unlocks and your daily goal (made in code,
   no audio files). Off, quiet, normal or loud.
-- 📳 **Rumble.** A tiny buzz for a right answer, a firmer one for a wrong answer and a long one for unlocks. Off, light
-  or strong.
+- 📳 **Rumble you can feel the difference in.** One tick for a right answer, two buzzes for a wrong one, three quick
+  ticks when you learn a kana or word, and a long rumble for unlocks and your daily goal. Off, light or strong.
 
 ### 🍌 Made for the RG DS Plus
 - 🖥️ Prompts on the top screen; answers, keyboards and the tracing canvas on the touch screen.

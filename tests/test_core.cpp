@@ -5,6 +5,7 @@
 #include <vector>
 #include "../src/core.h"
 #include "../src/stickpad.h"
+#include "../src/sound.h"
 using namespace kt;
 #define CHECK(c) do { if (!(c)) { printf("FAIL %s:%d  %s\n", __FILE__, __LINE__, #c); fails++; } } while (0)
 
@@ -439,6 +440,25 @@ int main(int argc, char** argv) {
     for (int r = 0; r < 4; r++) { p.session++; p.record(q.key, true); p.record(q.key, true); }
     CHECK(packInfo(d, p, food).known == 1);
     printf("packs: %zu packs, %d words, food %d/%d ready\n", d.packs.size(), words, fi.ready, fi.total);
+  }
+  {  // rumble patterns: right, wrong, learned and unlock feel different on one motor
+    using snd::Sfx; using snd::rumblePattern;
+    for (int lv : {1, 2}) {
+      auto r = rumblePattern(Sfx::Right, lv), w = rumblePattern(Sfx::Wrong, lv), k = rumblePattern(Sfx::Known, lv), u = rumblePattern(Sfx::Unlock, lv);
+      CHECK(r.size() == 1 && w.size() == 2 && k.size() == 3 && u.size() == 1);
+      for (auto* pat : {&r, &w, &k, &u}) {
+        int end = -1;
+        for (auto& p : *pat) {
+          CHECK(p.strength >= snd::RUMBLE_FLOOR && p.strength <= 0xFFFF && p.ms >= snd::RUMBLE_MIN_MS);
+          CHECK(p.at >= end + 60 || end < 0);           // a clear gap between pulses
+          end = p.at + p.ms;
+        }
+      }
+      CHECK(u[0].ms > 2 * r[0].ms && w[0].strength > r[0].strength);
+    }
+    CHECK(rumblePattern(Sfx::Right, 0).empty() && rumblePattern(Sfx::Tap, 2).empty());
+    CHECK(rumblePattern(Sfx::Unlock, 2)[0].ms > rumblePattern(Sfx::Unlock, 1)[0].ms);
+    printf("rumble: patterns ok\n");
   }
   printf(fails ? "%d FAILURES\n" : "all core tests passed\n", fails); return fails != 0;
 }
