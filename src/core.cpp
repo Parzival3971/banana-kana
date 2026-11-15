@@ -247,7 +247,7 @@ std::string Progress::keyWord(const Word& w) { return "w:" + w.kana; }
 void Progress::record(const std::string& key, bool ok) {
   const Time t = now();
   Stat& s = stats[key]; s.seen++;
-  const bool kana = key.size() > 2 && (key[0] == 'h' || key[0] == 'k') && key[1] == ':';
+  const bool kana = key.size() > 2 && (key[0] == 'h' || key[0] == 'k' || key[0] == 'w') && key[1] == ':';  // kana and words: spaced review
   const bool wasKnown = s.step >= KNOWN_STEP;
   const bool wasDue = kana && wasKnown && s.srs > 0 && s.due <= t;
   if (ok) {
@@ -315,6 +315,12 @@ void Progress::skipTo(const Data& d, Script s, int stage) {
 bool Progress::isDue(const std::string& key) const {
   auto it = stats.find(key);
   return it != stats.end() && it->second.step >= KNOWN_STEP && it->second.srs > 0 && it->second.due <= now();
+}
+
+std::vector<int> Progress::dueWords(const Data& d) const {
+  std::vector<int> out;
+  for (size_t i = 0; i < d.words.size(); i++) if (isDue(keyWord(d.words[i]))) out.push_back(int(i));
+  return out;
 }
 
 std::vector<int> Progress::dueKana(const Data& d, Script s) const {
@@ -424,6 +430,8 @@ bool Progress::load(const std::string& path, const Data* d) {
       else if (k == "lessons_k") lessons[1] = std::clamp(v, 0, STAGE_COUNT);
     } else if (tag == "day") {
       int dd = 0; Day x; if (is >> dd >> x.answers >> x.correct) days[dd] = x;
+    } else if (tag == "ach") {
+      std::string id; int day = 0; if (is >> id >> day) achieved[id] = day;
     } else if (tag == "mix") {
       std::string a, b; int n = 0; if (is >> a >> b >> n && n > 0) confusions[a < b ? a + "|" + b : b + "|" + a] = n;
     } else if (tag == "stat") {
@@ -468,6 +476,7 @@ bool Progress::save(const std::string& path) const {
         << s.gainSession << ' ' << s.gain << ' ' << s.srs << ' ' << s.due << ' ' << s.wlv << ' ' << s.wlvSession << '\n';
     for (const auto& [dd, x] : days) f << "day " << dd << ' ' << x.answers << ' ' << x.correct << '\n';
     for (const auto& [k, n] : confusions) { auto bar = k.find('|'); f << "mix " << k.substr(0, bar) << ' ' << k.substr(bar + 1) << ' ' << n << '\n'; }
+    for (const auto& [id, day] : achieved) f << "ach " << id << ' ' << day << '\n';
     if (!f) return false; }
   return std::rename(tmp.c_str(), path.c_str()) == 0;
 }
@@ -639,9 +648,12 @@ Question makeKanaQuestion(const Data& d, const Progress& p, std::mt19937& rng, i
 }
 
 static Question makeWordQuestion(const Data&, const Progress& p, std::mt19937& rng, QType type, const std::vector<const Word*>& pool) {
-  std::vector<double> wts; for (auto* w : pool) wts.push_back(baseWeight(p, Progress::keyWord(*w)));
+  std::vector<const Word*> targets = pool;  // "what does it mean?" only for words you've met (reading shows the meaning)
+  if (type == QType::Meaning) { targets.clear(); for (auto* w : pool) if (p.introduced(Progress::keyWord(*w))) targets.push_back(w); }
+  if (targets.empty()) { targets = pool; type = QType::ReadKana; }
+  std::vector<double> wts; for (auto* w : targets) wts.push_back(baseWeight(p, Progress::keyWord(*w)));
   std::discrete_distribution<int> dist(wts.begin(), wts.end());
-  const Word& w = *pool[dist(rng)];
+  const Word& w = *targets[dist(rng)];
   Question q; q.type = type; q.key = Progress::keyWord(w); q.isWord = true;
   std::vector<std::string> romajiPool, engPool;
   for (auto* o : pool) if (o->kana != w.kana) { romajiPool.push_back(o->romaji); engPool.push_back(o->english); }
@@ -734,6 +746,74 @@ Question makeMatchQuestion(const Data& d, const Progress& p, std::mt19937& rng, 
 }
 
 // ---------------------------------------------------------------- reviews and mix-ups
+
+// ---------------------------------------------------------------- achievements
+const std::vector<Achievement>& achievementList() {
+  static const std::vector<Achievement> A = {
+    {"answers10", "First steps", "Answer 10 questions"},
+    {"first_kana", "Got one!", "Learn your first kana"},
+    {"hira_half", "Halfway there", "Know 50 hiragana"},
+    {"hira_all", "ひらがな master", "Know every hiragana"},
+    {"kata_open", "A whole new script", "Unlock katakana"},
+    {"kata_all", "カタカナ master", "Know every katakana"},
+    {"streak3", "On fire", "Reach a 3-day streak"},
+    {"streak7", "Week warrior", "Reach a 7-day streak"},
+    {"streak30", "Unstoppable", "Reach a 30-day streak"},
+    {"words10", "First words", "Know 10 words"},
+    {"words50", "Word collector", "Know 50 words"},
+    {"words150", "Wordsmith", "Know 150 words"},
+    {"pack_done", "Pack complete", "Know every word in a pack"},
+    {"timed20", "Speedy", "Score 20 in the timed challenge"},
+    {"timed40", "Lightning", "Score 40 in the timed challenge"},
+    {"perfect", "Perfect session", "Get every answer right in a session of 10 or more"},
+    {"answers1000", "Dedicated", "Answer 1,000 questions"},
+  };
+  return A;
+}
+
+AchProgress achievementProgress(const Data& d, const Progress& p, int idx) {
+  const std::string& id = achievementList()[idx].id;
+  int answers = 0; for (auto& [k, s] : p.stats) answers += s.seen;
+  int words = 0; for (auto& w : d.words) if (p.step(Progress::keyWord(w)) >= KNOWN_STEP) words++;
+  int streak = std::max(p.bestStreak, p.currentStreak()), timed = std::max(p.timedBest[0], p.timedBest[1]);
+  int hk = p.knownCount(d, Script::Hiragana), kk = p.knownCount(d, Script::Katakana);
+  if (id == "answers10") return {answers, 10};
+  if (id == "answers1000") return {answers, 1000};
+  if (id == "first_kana") return {hk + kk, 1};
+  if (id == "hira_half") return {hk, 50};
+  if (id == "hira_all") return {hk, d.scriptCount(Script::Hiragana)};
+  if (id == "kata_open") return {p.scriptUnlocked(Script::Katakana) ? 1 : 0, 1};
+  if (id == "kata_all") return {kk, d.scriptCount(Script::Katakana)};
+  if (id == "streak3") return {streak, 3};
+  if (id == "streak7") return {streak, 7};
+  if (id == "streak30") return {streak, 30};
+  if (id == "words10") return {words, 10};
+  if (id == "words50") return {words, 50};
+  if (id == "words150") return {words, 150};
+  if (id == "pack_done") { int best = 0, tot = 1;  // the pack you're furthest through
+    for (size_t i = 0; i < d.packs.size(); i++) { PackInfo pi = packInfo(d, p, int(i)); if (pi.total && pi.known * tot >= best * pi.total) { best = pi.known; tot = pi.total; } }
+    return {best, tot}; }
+  if (id == "timed20") return {timed, 20};
+  if (id == "timed40") return {timed, 40};
+  return {p.achieved.count(id) ? 1 : 0, 1};  // event achievements (perfect session)
+}
+
+std::vector<int> Progress::checkAchievements(const Data& d) {
+  std::vector<int> out;
+  const auto& A = achievementList();
+  for (int i = 0; i < int(A.size()); i++) {
+    if (achieved.count(A[i].id) || A[i].id == "perfect") continue;
+    AchProgress a = achievementProgress(d, *this, i);
+    if (a.cur >= a.target) { achieved[A[i].id] = dayNumber(now()); out.push_back(i); }
+  }
+  return out;
+}
+
+bool Progress::award(const std::string& id) {
+  if (achieved.count(id)) return false;
+  achieved[id] = dayNumber(now()); return true;
+}
+
 // ---------------------------------------------------------------- word packs
 static bool readyWith(const std::set<uint32_t>& ok, const Word& w) {
   for (uint32_t cp : utf8Codepoints(w.kana)) if (!ok.count(cp)) return false;
@@ -756,15 +836,10 @@ PackInfo packInfo(const Data& d, const Progress& p, int pack) {
   return pi;
 }
 
-// Pack questions: kana -> meaning, meaning -> kana, reading (romaji), typing. Wrong options come from the same pack first,
-// and never share the answer's meaning (ミルク / ぎゅうにゅう are both "milk").
-Question makePackQuestion(const Data& d, const Progress& p, std::mt19937& rng, int pack) {
-  std::vector<int> ready = readyWords(d, p, pack);
-  if (int(ready.size()) < PACK_MIN) return makeQuestion(d, p, rng);
-  std::vector<double> wts;
-  for (int wi : ready) { std::string k = Progress::keyWord(d.words[wi]); wts.push_back(baseWeight(p, k) * (p.step(k) >= KNOWN_STEP ? 0.4 : 1.0)); }
-  std::discrete_distribution<int> pick(wts.begin(), wts.end());
-  const Word& w = d.words[ready[pick(rng)]];
+// A question about one word (meaning, meaning -> kana, reading or typing). Wrong options come from `ready` (its pack)
+// first, and never share the answer's meaning (ミルク / ぎゅうにゅう are both "milk").
+static Question wordQuiz(const Data& d, const Progress& p, std::mt19937& rng, const Word& w, const std::vector<int>& ready,
+                         const std::string& title) {
   Script ws = w.katakana ? Script::Katakana : Script::Hiragana;
   bool typeOk = true;
   for (const std::string& c : Data::partNames(w.kana)) { int ki = d.findKana(ws, c); if (ki < 0 || !allowedType(d, p, ki, QType::Type)) typeOk = false; }
@@ -786,7 +861,6 @@ Question makePackQuestion(const Data& d, const Progress& p, std::mt19937& rng, i
     return v;
   };
   Question q; q.key = Progress::keyWord(w); q.isWord = true;
-  const std::string& title = d.packs[pack].jp;
   switch (kind) {
     case 0:
       q.type = QType::Meaning; q.prompt = w.kana; q.hint = title + " · What does it mean?";
@@ -806,13 +880,59 @@ Question makePackQuestion(const Data& d, const Progress& p, std::mt19937& rng, i
   return q;
 }
 
+// Pack questions: kana -> meaning, meaning -> kana, reading (romaji), typing. Wrong options come from the same pack first,
+// and never share the answer's meaning (ミルク / ぎゅうにゅう are both "milk").
+Question makePackQuestion(const Data& d, const Progress& p, std::mt19937& rng, int pack, PackSession& ps) {
+  std::vector<int> ready = readyWords(d, p, pack);
+  if (int(ready.size()) < PACK_MIN) return makeQuestion(d, p, rng);
+  std::vector<int> met, unmet;
+  for (int wi : ready) {
+    std::string k = Progress::keyWord(d.words[wi]);
+    bool fresh = std::count(ps.fresh.begin(), ps.fresh.end(), k) > 0;
+    (p.introduced(k) || fresh ? met : unmet).push_back(wi);
+  }
+  const Word* target = nullptr;
+  // 1. a word met on a card this session comes back after a couple of other questions
+  if (!ps.fresh.empty() && (ps.sinceIntro >= 2 || met.size() <= ps.fresh.size() || ps.left <= int(ps.fresh.size()))) {  // (or nothing else to ask / time's up)
+    for (int wi : ready) if (Progress::keyWord(d.words[wi]) == ps.fresh.front()) target = &d.words[wi];
+    ps.fresh.erase(ps.fresh.begin());
+  }
+  // 2. a new word on a card: always while fewer than 2 are met, otherwise now and then (up to the session limit)
+  if (!target && !unmet.empty() && ps.intros < PACK_NEW_PER_SESSION && ps.left > int(ps.fresh.size()) + 2 &&
+      (met.size() < 2 || std::uniform_int_distribution<int>(0, 99)(rng) < 40)) {
+    const Word& w = d.words[unmet[0]];  // pack order: simpler words first
+    ps.intros++; ps.sinceIntro = 0; ps.fresh.push_back(Progress::keyWord(w));
+    Question q; q.intro = true; q.isWord = true; q.key = Progress::keyWord(w); q.type = QType::ReadKana;
+    q.prompt = w.kana; q.answer = w.romaji; q.meaning = w.english; q.hint = d.packs[pack].jp + " · New word";
+    return q;
+  }
+  ps.sinceIntro++;
+  if (!target) {  // 3. any word you've met, weakest first
+    std::vector<double> wts;
+    for (int wi : met) { std::string k = Progress::keyWord(d.words[wi]); wts.push_back(baseWeight(p, k) * (p.step(k) >= KNOWN_STEP ? 0.4 : 1.0)); }
+    if (wts.empty()) return makeQuestion(d, p, rng);
+    std::discrete_distribution<int> pick(wts.begin(), wts.end());
+    target = &d.words[met[pick(rng)]];
+  }
+  return wordQuiz(d, p, rng, *target, ready, d.packs[pack].jp);
+}
+
 Question makeReviewQuestion(const Data& d, const Progress& p, std::mt19937& rng) {
   Script s = p.settings.script;
-  auto due = p.dueKana(d, s);
-  if (due.empty()) return makeQuestion(d, p, rng);
-  std::vector<double> w; for (int i : due) w.push_back(baseWeight(p, Progress::keyKana(d.kana[i])));
+  auto due = p.dueKana(d, s); auto dueW = p.dueWords(d);
+  if (due.empty() && dueW.empty()) return makeQuestion(d, p, rng);
+  std::vector<double> w;
+  for (int i : due) w.push_back(baseWeight(p, Progress::keyKana(d.kana[i])));
+  for (int i : dueW) w.push_back(baseWeight(p, Progress::keyWord(d.words[i])));
   std::discrete_distribution<int> pick(w.begin(), w.end());
-  int ki = due[pick(rng)];
+  int choice = pick(rng);
+  if (choice >= int(due.size())) {  // a word: quizzed like in its pack
+    const Word& wd = d.words[dueW[choice - due.size()]];
+    std::vector<int> mates;
+    for (size_t pi = 0; pi < d.packs.size(); pi++) if (d.packs[pi].id == wd.pack) mates = readyWords(d, p, int(pi));
+    return wordQuiz(d, p, rng, wd, mates, "Review");
+  }
+  int ki = due[choice];
   const Settings& st = p.settings;
   std::vector<std::pair<QType, int>> ts = {{QType::ReadKana, st.reading}, {QType::RecallKana, st.reading},
                                            {QType::Write, d.writeParts(d.kana[ki].glyph).empty() ? 0 : st.writing}, {QType::Type, st.typing}};

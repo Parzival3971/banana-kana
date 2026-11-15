@@ -34,14 +34,15 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
   - 💬 word meanings, using only words made of kana you've unlocked;
   - ✍️ writing, traced with the stylus and scored stroke by stroke (combination kana are traced in two parts);
   - ⌨️ typing, in romaji or on a kana keyboard.
-- 🔁 **Spaced review.** A kana is *known* after 4 right answers spread over at least two sessions. Known kana then
-  come back after 1, 3, 7, 14, 30 and 90 days.
+- 🔁 **Spaced review.** A kana or word is *known* after 4 right answers spread over at least two sessions. Known kana
+  and words then come back after 1, 3, 7, 14, 30 and 90 days.
 - 🔀 **Mix-ups.** Short drills on look-alikes such as さ/き, ね/れ/わ, シ/ツ and ソ/ン, with a note on how to tell them
   apart. Pairs you've confused yourself are added too.
 - ⏱️ **Timed challenge.** One-tap answers for 60 seconds, with a personal best for each script.
 - 🍱 **Word packs.** 12 topics (greetings, food, numbers, time, people, animals, body, home, town & travel, nature,
   actions and describing words), about 340 words in all. Each pack quizzes meanings both ways, reading and typing.
-  A word joins its pack as soon as you've unlocked every kana in it, so packs fill up as you learn.
+  A word joins its pack as soon as you've unlocked every kana in it, so packs fill up as you learn. New words are
+  shown on a card before they're ever tested, and each pack has a word list you can browse.
 - 🎯 **Practice sets.** Pick kana in the chart and drill just those. A single kana is mixed with its look-alikes, so
   the answer isn't always the same.
 
@@ -56,6 +57,8 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 
 ### 📈 Keep going
 - 🔥 **Daily goal and streak**, from 5 to 30 answers a day.
+- 🏅 **Achievements.** 17 badges for learning kana and words, streaks, timed scores and perfect sessions, with your
+  progress towards each one (Stats, then X).
 - 📊 **Stats.** Your last 14 days and an accuracy heatmap of every kana. Tap one to see it in the chart.
 - 🎉 **Celebrations.** Confetti when a kana becomes known, a stage unlocks, you hit your daily goal or beat your
   timed best.
@@ -88,6 +91,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 | <img src="docs/img/skip.png" width="250"><br>Skipping ahead | <img src="docs/img/guided.png" width="250"><br>Guided writing | <img src="docs/img/credits.png" width="250"><br>Credits |
 | <img src="docs/img/draw-any.png" width="250"><br>Draw any kana | <img src="docs/img/extras.png" width="250"><br>Extras stage | <img src="docs/img/handwriting.png" width="250"><br>Handwriting font and grid |
 | <img src="docs/img/match.png" width="250"><br>Hiragana ↔ katakana | <img src="docs/img/packs.png" width="250"><br>Word packs | <img src="docs/img/words.png" width="250"><br>Word pack quiz |
+| <img src="docs/img/new-word.png" width="250"><br>New word card | <img src="docs/img/word-list.png" width="250"><br>A pack's word list | <img src="docs/img/achievements.png" width="250"><br>Achievements |
 
 </details>
 
@@ -117,7 +121,7 @@ A backup copy is also kept in `roms/ports/BananaKana/progress-backup.txt`: copy 
 | ✛ **D-pad** or the analogue **stick** (shown as a cross in the hint chips) | Move between tiles, cartridges, stages, chart cells, settings and keyboard keys |
 | **A** | Choose / confirm (press again on a chosen answer to check it) |
 | **B** | Back. In drills: undo a stroke or delete a letter |
-| **X** | Check the answer |
+| **X** | Check the answer. On Stats: achievements |
 | **Y** | Hint while writing, guide in free writing. On Home and stats: switch hiragana / katakana |
 | ▶️ **START** | Show me (stroke-order animation) when writing; in the chart, write the practice set freely |
 | **L / R** | Switch tabs, scripts or settings groups |
@@ -136,7 +140,8 @@ A backup copy is also kept in `roms/ports/BananaKana/progress-backup.txt`: copy 
   to the next interval; a miss moves it back one and costs it a step, so it has to be re-learnt.
 - 🔤 **っ and ー.** These have no sound of their own, so they're practised by reading words that use them (きって = kitte,
   コーヒー = koohii), with near-miss answers that ignore the mark.
-- 🍱 **Word packs.** Words use the same 4 steps as kana. A pack opens once at least 4 of its words use only kana you've
+- 🍱 **Word packs.** You meet each word on a card first (up to 5 a session), then it's asked again later in the same
+  session. Meaning questions only use words you've met. Words use the same 4 steps as kana. A pack opens once at least 4 of its words use only kana you've
   unlocked; the rest join as you go.
 - 🔀 **Mix-ups.** When you pick the wrong kana, the pair is remembered. Mix-up drills show only the look-alikes as options.
 - ✍️ **Staging.** Step 0: multiple choice only. Step 1: romaji typing too. Step 2: the kana keyboard and writing.

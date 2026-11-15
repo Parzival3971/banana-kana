@@ -9,7 +9,7 @@
 
 namespace kt {
 
-enum class Screen { Home, Stages, Lesson, Unlocked, Drill, Result, Chart, Settings, SettingsGroup, Credits, Stats, Welcome, FreeWrite, Packs };
+enum class Screen { Home, Stages, Lesson, Unlocked, Drill, Result, Chart, Settings, SettingsGroup, Credits, Stats, Welcome, FreeWrite, Packs, PackWords, Awards };
 
 // What a practice session draws from.
 enum class Mode { Normal, Focus, Review, Mixup, Timed, Pack };
@@ -40,7 +40,7 @@ enum BtnId {
   // keyboard
   B_KEY0 = 300, B_KANA0 = 400, B_DAKU = 460, B_HANDAKU, B_SMALLK, B_CHOON,
   // stats heatmap
-  B_HEAT0 = 2000, B_PACK0 = 2600, B_PACK_START = 2650,
+  B_HEAT0 = 2000, B_PACK0 = 2600, B_PACK_START = 2650, B_PACK_BROWSE, B_WORD0 = 2700, B_WPREV = 2720, B_WNEXT, B_AWARDS = 2730, B_AWARD0 = 2740,
 };
 
 struct Button {
@@ -61,7 +61,10 @@ struct App {
   std::vector<Button> buttons; int pressedId = -1;
 
   // home / stage map / settings / chart selections
-  int packSel = 0, packIdx = -1;  // word packs: highlighted tile, pack being practised
+  // achievements: earned ones pop up one at a time on the top screen
+  std::vector<int> toastQ; Uint32 toastUntil = 0; int toastAch = -1, awardSel = 0;
+  void earned(const std::vector<int>& newly);
+  int packSel = 0, packIdx = -1; PackSession packSession; int wordSel = 0;  // wordSel: highlighted word in the pack word list  // word packs: highlighted tile, pack being practised
   void startPack(int pack);
   int homeSel = 0, mapSel = -1, chartTab = 0, chartSel = -1, chartScroll = 0;
   int setGroup = 0, setRow = 0; bool resetArmed = false; std::string version = "dev";
@@ -145,7 +148,7 @@ struct App {
   int currentLessonKana() const;
 
   void drawHome(); void drawStages(); void drawLesson(); void drawUnlocked(); void drawDrill(); void drawResult();
-  void drawChart(); void drawSettings(); void drawSettingsGroup(); void drawCredits(); void drawPause(); void drawStats(); void drawWelcome(); void drawFreeWrite(); void drawPacks();
+  void drawChart(); void drawSettings(); void drawSettingsGroup(); void drawCredits(); void drawPause(); void drawStats(); void drawWelcome(); void drawFreeWrite(); void drawPacks(); void drawPackWords(); void drawAwards(); void drawToast();
   void drawKanaKeyboard();
   // settings model
   struct SRow { std::string label, value, help; int kind = 0; bool canDec = false, canInc = false; };  // kind 0 choice, 1 action, 2 info, 3 skip-ahead (pick then confirm)

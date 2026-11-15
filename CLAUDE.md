@@ -163,6 +163,21 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   option shares the answer's meaning). app: Screen::Packs (3x4 tiles, tap twice or A to start), Mode::Pack (packIdx),
   Home mode row = 5 tiles drawn Review, Mix-ups, Words, Timed, Stats (HOME_MODE_IDS; Words = B_MODE0+4; homeSel 4-8).
   Words reaching step 4 get "Known word!" + confetti. Result screen shows pack stats, B = back to Packs.
+- Word intros + browse (user, 2026-11-15: "asking what a word means but it hasn't taught the word"): a word is
+  "introduced" when it has a stat entry (Progress::introduce/introduced). makePackQuestion(..., PackSession&) shows
+  Question.intro cards (max PACK_NEW_PER_SESSION 5, only while ps.left > fresh+2), quizzes each fresh word ~2 questions
+  later, and only tests introduced words; intro cards don't use up a question (nextQuestion skips index++).
+  makeWordQuestion turns Meaning into ReadKana when no eligible word is introduced. Screen::PackWords (15 a page,
+  B_WORD0/B_WPREV/B_WNEXT; Words button or Y on Packs).
+- Home redesign (user, 2026-11-15): sticker colours per cartridge (STICKER[]), MODE_ICONS pixel icons indexed by
+  B_MODE0 id, selected mode tile = yellow fill, goal ring (gfx drawRing), streak FLAME, bilingual greeting by local hour
+  + hinomaru drawn next to it (user asked for "a japanese flag or something").
+- Word SRS + achievements (user picked from my list 2026-11-15): record() schedules w: keys like kana; dueWords/dueCount;
+  makeReviewQuestion mixes due words (wordQuiz, shared with packs). Achievements: achievementList() (17), Progress::
+  achieved id->day ("ach" lines), checkAchievements (silent at start-up in main.cpp; after answers, sessions and on
+  Home -> App::earned toast queue + confetti + Goal sfx), award("perfect") in finishSession; Screen::Awards from Stats
+  (X / tappable chip). B_HEAT0 range check matters: higher button ids live above it.
+- Git (user, 2026-11-15 18:02): hold off committing/pushing/releasing until the user gives the go-ahead.
 - Audio: user asked for licensed recordings 2026-11-15. Candidates: tofugu/japanese-vocabulary-pronunciation-audio
   (CC BY-SA 4.0, on GitHub), Lingua Libre (CC BY-SA 4.0), Kanji alive (CC BY 4.0, kanji words). None covers single kana.
   User said hold off on audio.

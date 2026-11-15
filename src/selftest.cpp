@@ -35,6 +35,7 @@ int App::selfTest(const std::string& shotDir) {
   const char* tname[5] = {"read", "recall", "meaning", "write", "type"};
   // Answers the current drill question; returns whether the app marked it correct.
   auto answer = [&](bool right, bool shots) {
+    if (q.intro) { frame(); if (shots && !shotTypes.count("intro")) { shot("q_intro"); shotTypes.insert("intro"); } click(B_CONTINUE); return true; }
     frame(); typesSeen.insert(int(q.type));
     std::string tn = tname[int(q.type)] + std::string(q.isWord ? "_word" : "");
     if (shots && !shotTypes.count(tn)) shot("q_" + tn);
@@ -297,6 +298,16 @@ int App::selfTest(const std::string& shotDir) {
   CHECK(click(B_MODE0 + 3), "stats"); CHECK(screen == Screen::Stats, "stats screen"); shot("stats");
   { int ka = data.findKana(Script::Hiragana, "か");
     CHECK(click(B_HEAT0 + ka), "heatmap cell"); CHECK(screen == Screen::Chart && chartSel == ka && chartTab == 0, "heatmap opens chart"); }
+  // ---- 13b. achievements: earned along the way, a toast when new, and their own screen from Stats (X)
+  CHECK(prog.achieved.count("answers10") && prog.achieved.count("first_kana"), "achievements earned while playing");
+  go(Screen::Stats); padButton(SDL_CONTROLLER_BUTTON_X); CHECK(screen == Screen::Awards, "X opens achievements");
+  padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); CHECK(awardSel == 5, "move between achievements");
+  shot("awards");
+  { int ti = -1; for (int i = 0; i < int(achievementList().size()); i++) if (achievementList()[i].id == "streak30") ti = i;
+    toastQ.clear(); toastUntil = 0; toastAch = -1;  // earlier toasts would still be queued (no real time passes here)
+    earned({ti}); CHECK(toastUntil && toastAch == ti, "achievement toast"); shot("achievement_toast");
+    tick(toastUntil + 10); CHECK(!toastUntil && toastAch < 0, "toast goes away"); }
+  CHECK(click(B_BACK) && screen == Screen::Stats, "achievements -> stats");
   go(Screen::Home);
 
   // ---- 14. kana keyboard
@@ -380,17 +391,31 @@ int App::selfTest(const std::string& shotDir) {
       int food = -1; for (size_t i = 0; i < data.packs.size(); i++) if (data.packs[i].id == "food") food = int(i);
       CHECK(food >= 0 && click(B_PACK0 + food) && packSel == food, "select food pack"); shot("packs");
       padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); CHECK(packSel == (food + 3) % int(data.packs.size()), "pad moves down a row");
-      CHECK(click(B_PACK0 + food) && click(B_PACK0 + food), "tap twice starts");
+      packSel = food; padButton(SDL_CONTROLLER_BUTTON_Y); CHECK(screen == Screen::PackWords && wordSel == 0, "Y opens the word list");
+      padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); CHECK(wordSel == 4, "move in the word list");
+      shot("pack_words");
+      CHECK(click(B_WNEXT) && wordSel == 15, "next page"); shot("pack_words_page2");
+      CHECK(click(B_WORD0 + 2) && wordSel == 17, "tap a word");
+      padButton(SDL_CONTROLLER_BUTTON_LEFTSHOULDER); CHECK(wordSel == 0, "L: previous page");
+      CHECK(click(B_BACK) && screen == Screen::Packs, "word list -> packs");
+      CHECK(click(B_PACK0 + food), "tap the selected pack starts it");
       CHECK(screen == Screen::Drill && mode == Mode::Pack && q.isWord, "pack session");
-      std::set<int> kinds; bool missShown = false;
+      std::set<int> kinds; bool missShown = false, introSeen = false; int answered = 0;
       for (int i = 0; i < 40 && screen == Screen::Drill; i++) {
-        CHECK(q.isWord, "pack questions are words"); kinds.insert(int(q.type));
+        CHECK(q.isWord, "pack questions are words");
+        if (q.intro) {  // new-word card: doesn't use up a question, marks the word as met
+          int idx = index; std::string key = q.key; introSeen = true;
+          if (!shotTypes.count("intro")) { shot("q_intro"); shotTypes.insert("intro"); }
+          CHECK(!prog.introduced(key), "card for an unmet word"); padButton(SDL_CONTROLLER_BUTTON_A);
+          CHECK(prog.introduced(key) && index == idx, "Got it: met, no question used"); continue;
+        }
+        CHECK(prog.introduced(q.key), "only met words are tested"); kinds.insert(int(q.type));
         std::string tn = "pack_" + std::string(tname[int(q.type)]);
         if (!shotTypes.count(tn)) { shot("q_" + tn); shotTypes.insert(tn); }
-        bool right = i != 1; answer(right, false);
+        bool right = answered++ != 1; answer(right, false);
         if (!right) missShown = true;
       }
-      CHECK(missShown && kinds.size() >= 3, "pack question kinds");
+      CHECK(missShown && kinds.size() >= 3 && introSeen, "pack question kinds and new-word cards");
       CHECK(screen == Screen::Result, "pack result"); shot("result_pack");
       CHECK(click(B_HOME) && screen == Screen::Packs, "result -> packs");
       CHECK(click(B_BACK) && screen == Screen::Home, "packs -> home"); }

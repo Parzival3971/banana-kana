@@ -3,6 +3,20 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
+## 0.4.0 - 2026-11-15
+
+- New words are taught before they're tested: a pack session shows up to 5 new words on cards (kana, rōmaji, meaning
+  and the kana it's made of), then asks each one again a few questions later. "What does it mean?" questions, in packs
+  and in normal practice, only use words you've already met.
+- Browse a pack's words: the new **Words** button (or Y) on the pack screen lists every word with its meaning and
+  whether it's new, learning, known or still locked (and which kana it needs).
+- Spaced review for words: known words come back after 1, 3, 7, 14, 30 and 90 days, just like kana, and due words
+  count in the Review tile.
+- Achievements: 17 to earn (learning kana and words, streaks, timed scores, a perfect session...). A card and confetti
+  pop up when you earn one; see them all, with your progress towards each, from Stats (X).
+- A brighter Home screen: coloured cartridge stickers, icons on the mode tiles, a daily goal ring, a streak flame and
+  a bilingual greeting (こんばんは · Good evening) with a little Japanese flag.
+
 ## 0.3.1 - 2026-11-15
 
 - Fix: rumble only happened on wrong answers. The right-answer buzz was too short and soft to start the RG DS Plus

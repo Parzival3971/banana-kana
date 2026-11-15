@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <fstream>
+#include <map>
 #include <set>
 #include <vector>
 #include "../src/core.h"
@@ -82,6 +83,7 @@ int main(int argc, char** argv) {
   // ---- questions only use unlocked kana; small pools get 4 options; words appear only when eligible
   {
     std::mt19937 rng(7); Progress p; p.settings.meanings = 2; p.settings.writing = 2; p.settings.typing = 2;
+    for (auto& w : d.words) p.introduce(Progress::keyWord(w));  // words already met, so meaning questions can come up
     std::set<std::string> stage1;
     for (int i : d.stages[0][0].kana) { stage1.insert(d.kana[i].glyph); stage1.insert(d.kana[i].romaji); }
     std::set<int> types;
@@ -419,27 +421,54 @@ int main(int argc, char** argv) {
     }
     p.skipTo(d, Script::Hiragana, SKIP_ALL); p.skipTo(d, Script::Katakana, SKIP_ALL);
     PackInfo fi = packInfo(d, p, food); CHECK(fi.ready == fi.total && fi.known == 0);
-    std::mt19937 rng(11); int kinds[4] = {0, 0, 0, 0};
-    for (int n = 0; n < 400; n++) {
-      Question q = makePackQuestion(d, p, rng, food);
-      CHECK(q.isWord && q.key.rfind("w:", 0) == 0);
-      const Word* w = nullptr; for (int wi : d.packs[food].words) if (Progress::keyWord(d.words[wi]) == q.key) w = &d.words[wi];
-      CHECK(w != nullptr); if (!w) continue;
-      if (q.type == QType::Meaning) { kinds[0]++; CHECK(q.options[q.correct] == w->english && q.prompt == w->kana); }
-      else if (q.type == QType::RecallKana) {
-        kinds[1]++; CHECK(q.prompt == w->english && q.options[q.correct] == w->kana && q.optionsAreKana);
-        for (size_t o = 0; o < q.options.size(); o++)       // no other option means the same thing
-          if (int(o) != q.correct) for (auto& x : d.words) if (x.kana == q.options[o]) CHECK(x.english != w->english);
+    std::mt19937 rng(11); int kinds[4] = {0, 0, 0, 0}, intros = 0;
+    for (int sess = 0; sess < 12; sess++) {                // sessions of 10 questions, like the app
+      PackSession ps; std::vector<std::string> introduced; int asked = 0, cards = 0;
+      std::map<std::string, int> introAt, quizAt;
+      while (asked < 10) {
+        ps.left = 10 - asked;
+        Question q = makePackQuestion(d, p, rng, food, ps);
+        CHECK(q.isWord && q.key.rfind("w:", 0) == 0);
+        const Word* w = nullptr; for (int wi : d.packs[food].words) if (Progress::keyWord(d.words[wi]) == q.key) w = &d.words[wi];
+        CHECK(w != nullptr); if (!w) break;
+        if (q.intro) {                                    // a card: shows kana, romaji and meaning; never a word met before
+          CHECK(!p.introduced(q.key) && q.prompt == w->kana && q.answer == w->romaji && q.meaning == w->english && q.options.empty());
+          p.introduce(q.key); introduced.push_back(q.key); introAt[q.key] = asked; cards++; intros++;
+          CHECK(cards <= PACK_NEW_PER_SESSION);
+          continue;
+        }
+        asked++;
+        if (!quizAt.count(q.key)) quizAt[q.key] = asked;
+        CHECK(p.introduced(q.key));                       // never tested on a word you haven't met
+        if (q.type == QType::Meaning) { kinds[0]++; CHECK(q.options[q.correct] == w->english && q.prompt == w->kana); }
+        else if (q.type == QType::RecallKana) {
+          kinds[1]++; CHECK(q.prompt == w->english && q.options[q.correct] == w->kana && q.optionsAreKana);
+          for (size_t o = 0; o < q.options.size(); o++)     // no other option means the same thing
+            if (int(o) != q.correct) for (auto& x : d.words) if (x.kana == q.options[o]) CHECK(x.english != w->english);
+        }
+        else if (q.type == QType::ReadKana) { kinds[2]++; CHECK(q.options[q.correct] == w->romaji && !q.meaning.empty()); }
+        else if (q.type == QType::Type) { kinds[3]++; CHECK(q.answer == w->romaji || q.answer == w->kana); }
+        if (!q.options.empty()) { std::set<std::string> u(q.options.begin(), q.options.end()); CHECK(u.size() == q.options.size() && q.options.size() >= 4); }
+        p.session++; p.record(q.key, (asked % 4) != 0);
       }
-      else if (q.type == QType::ReadKana) { kinds[2]++; CHECK(q.options[q.correct] == w->romaji && !q.meaning.empty()); }
-      else if (q.type == QType::Type) { kinds[3]++; CHECK(q.answer == w->romaji || q.answer == w->kana); }
-      if (!q.options.empty()) { std::set<std::string> u(q.options.begin(), q.options.end()); CHECK(u.size() == q.options.size() && q.options.size() >= 4); }
+      if (sess == 0) CHECK(cards >= 2);                   // a first session starts by meeting words
+      for (auto& k : introduced) CHECK(quizAt.count(k) && quizAt[k] > introAt[k]);  // every new word is asked again the same session
     }
-    CHECK(kinds[0] > 0 && kinds[1] > 0 && kinds[2] > 0 && kinds[3] > 0);
-    Question q = makePackQuestion(d, p, rng, food);      // knowing words shows in the pack's count
-    for (int r = 0; r < 4; r++) { p.session++; p.record(q.key, true); p.record(q.key, true); }
-    CHECK(packInfo(d, p, food).known == 1);
-    printf("packs: %zu packs, %d words, food %d/%d ready\n", d.packs.size(), words, fi.ready, fi.total);
+    CHECK(intros >= 15 && kinds[0] > 0 && kinds[1] > 0 && kinds[2] > 0 && kinds[3] > 0);
+    {  // normal practice: "what does it mean?" only for words you've met
+      Progress np; np.skipTo(d, Script::Hiragana, SKIP_ALL); np.settings.reading = 0; np.settings.typing = 0; np.settings.writing = 0;
+      int meanings = 0;
+      for (int n = 0; n < 200; n++) { Question q = makeQuestionOfType(d, np, rng, QType::Meaning); if (q.type == QType::Meaning) meanings++; }
+      CHECK(meanings == 0);                               // nothing met yet: meaning questions turn into reading (which shows the meaning)
+      int a = -1; for (size_t i = 0; i < d.words.size(); i++) if (d.words[i].kana == "ねこ") a = int(i);
+      np.introduce(Progress::keyWord(d.words[a]));
+      for (int n = 0; n < 200; n++) { Question q = makeQuestionOfType(d, np, rng, QType::Meaning); if (q.type == QType::Meaning) { meanings++; CHECK(q.prompt == "ねこ"); } }
+      CHECK(meanings > 0);
+    }
+    Question q; for (int n = 0; n < 50 && (q.key.empty() || q.intro); n++) { PackSession ps2; q = makePackQuestion(d, p, rng, food, ps2); }
+    for (int r = 0; r < 4; r++) { p.session++; p.record(q.key, true); p.record(q.key, true); }  // knowing words shows in the count
+    CHECK(packInfo(d, p, food).known >= 1);
+    printf("packs: %zu packs, %d words, food %d/%d ready, %d new-word cards\n", d.packs.size(), words, fi.ready, fi.total, intros);
   }
   {  // rumble patterns: right, wrong, learned and unlock feel different on one motor
     using snd::Sfx; using snd::rumblePattern;
@@ -459,6 +488,39 @@ int main(int argc, char** argv) {
     CHECK(rumblePattern(Sfx::Right, 0).empty() && rumblePattern(Sfx::Tap, 2).empty());
     CHECK(rumblePattern(Sfx::Unlock, 2)[0].ms > rumblePattern(Sfx::Unlock, 1)[0].ms);
     printf("rumble: patterns ok\n");
+  }
+  {  // spaced review for words, like kana
+    Progress p; p.clock = 1800000000; p.skipTo(d, Script::Hiragana, SKIP_ALL);
+    int wi = -1; for (size_t i = 0; i < d.words.size(); i++) if (d.words[i].kana == "ねこ") wi = int(i);
+    std::string key = Progress::keyWord(d.words[wi]);
+    for (int s2 = 0; s2 < 2; s2++) { p.session++; p.record(key, true); p.record(key, true); }
+    CHECK(p.step(key) == KNOWN_STEP && p.stats[key].srs == 1);
+    CHECK(p.dueWords(d).empty());
+    p.clock += 86400 * 2; CHECK(p.isDue(key));
+    int dueW = int(p.dueWords(d).size()); CHECK(dueW >= 1 && p.dueCount(d, Script::Hiragana) >= dueW);
+    for (auto& [k, st] : p.stats) if (k[0] != 'w' && st.srs) st.due = p.clock + 86400 * 30;  // only the word is due
+    std::mt19937 rng(5); bool wordAsked = false;
+    for (int n = 0; n < 20; n++) { Question q = makeReviewQuestion(d, p, rng); if (q.key == key) { wordAsked = true; CHECK(q.isWord && q.hint.rfind("Review", 0) == 0); } }
+    CHECK(wordAsked);
+    p.session++; p.record(key, true); CHECK(p.stats[key].srs == 2 && !p.isDue(key));
+    p.clock += 86400 * 4; p.session++; p.record(key, false); CHECK(p.stats[key].srs == 1 && p.step(key) == KNOWN_STEP - 1);
+    printf("word reviews: ok\n");
+  }
+  {  // achievements
+    Progress p; p.clock = 1800000000;
+    CHECK(p.checkAchievements(d).empty() && achievementList().size() >= 15);
+    std::set<std::string> ids; for (auto& a : achievementList()) ids.insert(a.id); CHECK(ids.size() == achievementList().size());
+    p.skipTo(d, Script::Hiragana, SKIP_ALL);
+    auto got = p.checkAchievements(d); std::set<std::string> g; for (int i : got) g.insert(achievementList()[i].id);
+    CHECK(g.count("first_kana") && g.count("hira_half") && g.count("hira_all") && g.count("kata_open") && !g.count("kata_all"));
+    CHECK(p.checkAchievements(d).empty());                 // each one only once
+    CHECK(!g.count("perfect") && p.award("perfect") && !p.award("perfect"));
+    int ki = -1; for (int i = 0; i < int(achievementList().size()); i++) if (achievementList()[i].id == "words10") ki = i;
+    AchProgress ap = achievementProgress(d, p, ki); CHECK(ap.cur == 0 && ap.target == 10);
+    p.timedBest[1] = 25; got = p.checkAchievements(d); CHECK(got.size() == 1 && achievementList()[got[0]].id == "timed20");
+    std::string path = "/tmp/kt_ach_test.txt"; CHECK(p.save(path));
+    Progress q; CHECK(q.load(path, &d)); CHECK(q.achieved == p.achieved && q.checkAchievements(d).empty());
+    printf("achievements: %zu earned in the test\n", p.achieved.size());
   }
   printf(fails ? "%d FAILURES\n" : "all core tests passed\n", fails); return fails != 0;
 }

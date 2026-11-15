@@ -99,6 +99,7 @@ struct Progress {
   struct Day { int answers = 0, correct = 0; };
   std::map<int, Day> days;               // answers per calendar day (YYYYMMDD), last 90 days kept
   int timedBest[2] = {0, 0};             // best 60-second challenge score per script
+  std::map<std::string, int> achieved;   // achievement id -> day earned (YYYYMMDD)
   Time clock = 0;                        // 0 = real time (tests set a fake clock)
   Time now() const;
   std::array<int, 2> unlocked{{1, 0}};   // stages unlocked per script (katakana starts at 0 = locked)
@@ -108,12 +109,22 @@ struct Progress {
   static std::string keyKana(const Kana& k);
   static std::string keyWord(const Word& w);
   void record(const std::string& key, bool correct);  // steps, spaced review, daily goal
+  // Words are met before they're tested: a word is "introduced" once it has a stat entry (a new-word card, or any
+  // question that showed its meaning). Meaning questions only ask about introduced words.
+  void introduce(const std::string& key) { stats[key]; }
+  bool introduced(const std::string& key) const { return stats.count(key) > 0; }
   void countAnswer(bool correct, Time t);
   void recordWrite(const std::string& key, bool correct, int level);  // guided writes (level < 2) don't move steps
   int writeLevel(const std::string& key) const;
   void skipTo(const Data& d, Script s, int stage);  // stages before `stage` (1-14, SKIP_ALL = all) become known, review soon
   bool isDue(const std::string& key) const;
   std::vector<int> dueKana(const Data& d, Script s) const;
+  std::vector<int> dueWords(const Data& d) const;           // word indices whose spaced review is due (either script)
+  // Achievements: checkAchievements() earns every one whose goal is met and returns the newly earned indices;
+  // award() earns an event achievement (a perfect session). Both save the day it was earned.
+  std::vector<int> checkAchievements(const Data& d);
+  bool award(const std::string& id);
+  int dueCount(const Data& d, Script s) const { return int(dueKana(d, s).size() + dueWords(d).size()); }
   void addConfusion(const std::string& a, const std::string& b);
   int currentStreak() const;  // 0 once a day without reaching the goal has passed
   int step(const std::string& key) const;
@@ -147,6 +158,7 @@ struct Question {
   int writeLevel = WRITE_MEMORY;  // Write: 0 full guide, 1 faint outline, 2 from memory
   std::string meaning;  // the English meaning, shown under word prompts (empty when it would give the answer away)
   bool mixup = false; std::string note;  // mix-up questions carry the set's difference note
+  bool intro = false;              // a new-word card: shown, not answered (prompt = kana, answer = romaji, meaning)
   bool match = false;              // RecallKana shown with the twin from the other script (あ -> ア)
   int kanaIdx = -1;                // for kana questions
 };
@@ -162,13 +174,23 @@ Question makeQuestionOfType(const Data& d, const Progress& p, std::mt19937& rng,
 bool typeAllowed(const Data& d, const Progress& p, int kanaIdx, QType t);  // the staging above
 int twinKana(const Data& d, const Progress& p, int kanaIdx);  // same sound in the other script, unlocked; -1 if none
 Question makeMatchQuestion(const Data& d, const Progress& p, std::mt19937& rng, int kanaIdx);
+// ---- achievements
+struct Achievement { std::string id, title, desc; };
+const std::vector<Achievement>& achievementList();
+struct AchProgress { int cur = 0, target = 1; };
+AchProgress achievementProgress(const Data& d, const Progress& p, int idx);
+
 // ---- word packs: a word is ready once every kana in it is unlocked (in its own script)
 constexpr int PACK_MIN = 4;  // ready words a pack needs before it can be practised
 bool wordReady(const Data& d, const Progress& p, const Word& w);
 std::vector<int> readyWords(const Data& d, const Progress& p, int pack);
 struct PackInfo { int total = 0, ready = 0, known = 0; };
 PackInfo packInfo(const Data& d, const Progress& p, int pack);
-Question makePackQuestion(const Data& d, const Progress& p, std::mt19937& rng, int pack);
+// A pack session introduces at most PACK_NEW_PER_SESSION new words, each on a card, and quizzes every new word again
+// a couple of questions later (while it's fresh). Meaning questions only ever ask about introduced words.
+constexpr int PACK_NEW_PER_SESSION = 5;
+struct PackSession { int intros = 0, sinceIntro = 0, left = 99; std::vector<std::string> fresh; };  // left: questions left (set by the caller)
+Question makePackQuestion(const Data& d, const Progress& p, std::mt19937& rng, int pack, PackSession& ps);
 Question makeReviewQuestion(const Data& d, const Progress& p, std::mt19937& rng);  // due kana only
 std::vector<MixSet> mixupSets(const Data& d, const Progress& p, Script s);       // built-in + learned, unlocked only
 Question makeMixupQuestion(const Data& d, const Progress& p, std::mt19937& rng);

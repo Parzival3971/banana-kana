@@ -206,6 +206,7 @@ int main(int argc, char** argv) {
   { FILE* pf = fopen(app.statePath.c_str(), "r"); app.firstRun = !pf; if (pf) fclose(pf); }
   if (app.prog.load(app.statePath, &app.data) && app.prog.migrated) { fprintf(stderr, "  progress upgraded to v2\n"); app.prog.save(app.statePath); }
   applyTheme(app.prog.settings.light);
+  app.prog.checkAchievements(app.data);  // anything already earned (progress from before achievements): no fanfare
   if (app.firstRun) app.go(kt::Screen::Welcome);
   { FILE* vf = fopen((dataDir + "/../VERSION").c_str(), "r"); char vb[64] = {0};
     if (vf) { if (fgets(vb, sizeof vb, vf)) { vb[strcspn(vb, "\r\n")] = 0; if (vb[0]) app.version = vb; } fclose(vf); } }
