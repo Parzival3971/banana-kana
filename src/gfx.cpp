@@ -196,16 +196,34 @@ void iconCross(Win& w, int x, int y, int px, Col c) { pixIcon(w, {"#...#", ".#.#
 SDL_Point glyphToBox(Pt p, SDL_Rect b) { return {int(b.x + p.x * b.w / 109.f), int(b.y + p.y * b.h / 109.f)}; }
 Pt boxToGlyph(int x, int y, SDL_Rect b) { return {(x - b.x) * 109.f / b.w, (y - b.y) * 109.f / b.h}; }
 
+// Thick strokes as triangles (one SDL_RenderGeometry call): quads per segment plus round joints/caps.
+// The old version drew dozens of 1-px lines per segment, which was far too slow for the device GPU.
 void drawStrokeIn(Win& w, const Stroke& s, SDL_Rect box, Col c, float thick) {
-  int t = std::max(1, int(thick));
-  SDL_SetRenderDrawColor(w.r, c.r, c.g, c.b, 255);
-  for (size_t i = 1; i < s.size(); i++) {
-    SDL_Point a = glyphToBox(s[i - 1], box), b = glyphToBox(s[i], box);
-    for (int dx = -t / 2; dx <= t / 2; dx++)
-      for (int dy = -t / 2; dy <= t / 2; dy++)
-        if (dx * dx + dy * dy <= t * t / 4) SDL_RenderDrawLine(w.r, a.x + dx, a.y + dy, b.x + dx, b.y + dy);
+  if (s.empty()) return;
+  const float r = std::max(0.75f, thick / 2.f);
+  const SDL_Color col{c.r, c.g, c.b, 255};
+  std::vector<SDL_FPoint> p; p.reserve(s.size());
+  for (const Pt& q : s) p.push_back({box.x + q.x * box.w / 109.f, box.y + q.y * box.h / 109.f});
+  std::vector<SDL_Vertex> v; v.reserve(p.size() * 36);
+  auto put = [&](SDL_FPoint a) { v.push_back(SDL_Vertex{a, col, SDL_FPoint{0, 0}}); };
+  const int SEG = 10;
+  auto disc = [&](SDL_FPoint o) {
+    for (int k = 0; k < SEG; k++) {
+      float a0 = 6.2831853f * k / SEG, a1 = 6.2831853f * (k + 1) / SEG;
+      put(o); put({o.x + r * std::cos(a0), o.y + r * std::sin(a0)}); put({o.x + r * std::cos(a1), o.y + r * std::sin(a1)});
+    }
+  };
+  disc(p[0]);
+  for (size_t i = 1; i < p.size(); i++) {
+    SDL_FPoint a = p[i - 1], b = p[i];
+    float dx = b.x - a.x, dy = b.y - a.y, len = std::sqrt(dx * dx + dy * dy);
+    if (len < 0.01f) continue;
+    float nx = -dy / len * r, ny = dx / len * r;
+    SDL_FPoint a1{a.x + nx, a.y + ny}, a2{a.x - nx, a.y - ny}, b1{b.x + nx, b.y + ny}, b2{b.x - nx, b.y - ny};
+    put(a1); put(a2); put(b2); put(a1); put(b2); put(b1);
+    disc(b);
   }
-  if (s.size() == 1) { SDL_Point a = glyphToBox(s[0], box); fillCircle(w, a.x, a.y, t / 2, c); }
+  SDL_RenderGeometry(w.r, nullptr, v.data(), int(v.size()), nullptr, 0);
 }
 
 void drawStrokeNumbers(Win& w, const Glyph& g, SDL_Rect box, int highlightUpTo, int count) {

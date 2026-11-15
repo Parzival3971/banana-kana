@@ -150,8 +150,10 @@ int main(int argc, char** argv) {
 
   if (self) { int rc = app.selfTest(shotDir); SDL_Quit(); return rc; }
 
-  fprintf(stderr, "  sdl touch devices: %d\n", SDL_GetNumTouchDevices());
-  EvTouch touch; touch.open(); int sdlTouchLogged = 0, buttonsLogged = 0; bool menuKeyDown = false, menuCombo = false; fflush(stderr);
+  fprintf(stderr, "  sdl touch devices: %d, joysticks: %d\n", SDL_GetNumTouchDevices(), SDL_NumJoysticks());
+  for (int i = 0; i < SDL_NumJoysticks(); i++)
+    fprintf(stderr, "  joystick %d: %s gamecontroller=%d\n", i, SDL_JoystickNameForIndex(i) ? SDL_JoystickNameForIndex(i) : "?", SDL_IsGameController(i));
+  EvTouch touch; touch.open(); int sdlTouchLogged = 0, buttonsLogged = 0, rawLogged = 0; bool menuKeyDown = false, menuCombo = false; fflush(stderr);
   std::signal(SIGTERM, onSignal); std::signal(SIGINT, onSignal); std::signal(SIGHUP, onSignal);
   // Keep the bottom backlight on: BananaOS can switch it off again after sleep (/run/banana/panel-off).
   std::string blPower;
@@ -159,13 +161,23 @@ int main(int argc, char** argv) {
     if (f) { if (fgets(buf, sizeof buf, f)) { buf[strcspn(buf, "\n")] = 0; std::string p = buf;
         if (!p.empty()) blPower = (p[0] == '/' ? p : "/sys/class/backlight/" + p) + "/bl_power"; } fclose(f); } }
   Uint32 lastBlCheck = 0; int blFixes = 0;
-  int frames = 0;
+  int frames = 0; bool dirty = true; Uint32 lastRender = 0;
   while (app.running && !gStop) {
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
+      dirty = true;
       switch (e.type) {
         case SDL_QUIT: app.running = false; break;
-        case SDL_CONTROLLERDEVICEADDED: SDL_GameControllerOpen(e.cdevice.which); break;
+        case SDL_CONTROLLERDEVICEADDED: {
+          SDL_GameController* gc = SDL_GameControllerOpen(e.cdevice.which);
+          fprintf(stderr, "  controller added: index %d %s (%s)\n", e.cdevice.which, gc ? SDL_GameControllerName(gc) : "?",
+                  gc ? "opened" : SDL_GetError());
+          if (gc) { char* m = SDL_GameControllerMapping(gc); fprintf(stderr, "  mapping: %s\n", m ? m : "none"); if (m) SDL_free(m); }
+          fflush(stderr); break; }
+        case SDL_JOYBUTTONDOWN:
+          // Raw joystick buttons, logged even when SDL has no controller mapping: tells us what F, SELECT etc. are.
+          if (rawLogged < 40) { rawLogged++; fprintf(stderr, "  raw joystick %d button %d down\n", e.jbutton.which, e.jbutton.button); fflush(stderr); }
+          break;
         case SDL_CONTROLLERBUTTONDOWN: {
           // SDL names face buttons by position (A = south). The RG DS Plus is labelled Nintendo-style
           // (A = east, B = south, X = north, Y = west), so translate to the printed labels. KT_POSITIONAL=1 disables.
@@ -212,7 +224,7 @@ int main(int argc, char** argv) {
         default: break;
       }
     }
-    touch.poll([&](int t, int x, int y) { app.pointer(t, x, y); });
+    touch.poll([&](int t, int x, int y) { app.pointer(t, x, y); dirty = true; });
     if (!blPower.empty() && SDL_GetTicks() - lastBlCheck > 2000) {
       lastBlCheck = SDL_GetTicks();
       FILE* f = fopen(blPower.c_str(), "r"); int v = 0;
@@ -220,7 +232,9 @@ int main(int argc, char** argv) {
       if (v != 0) { FILE* w = fopen(blPower.c_str(), "w"); if (w) { fputs("0", w); fclose(w); }
         if (blFixes++ < 5) { fprintf(stderr, "  bottom backlight was off (bl_power=%d), switched on\n", v); fflush(stderr); } }
     }
-    app.render(); SDL_Delay(8);
+    // Redraw only when something changed (plus a slow refresh): far less GPU work, and each frame finishes before it shows.
+    if (dirty || SDL_GetTicks() - lastRender > 500) { app.render(); dirty = false; lastRender = SDL_GetTicks(); }
+    SDL_Delay(8);
     if (++frames == 90) {
       fprintf(stderr, "  after 90 frames: top flags=0x%x bottom flags=0x%x sdl_error='%s'\n",
               SDL_GetWindowFlags(app.top.w), SDL_GetWindowFlags(app.bot.w), SDL_GetError());

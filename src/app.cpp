@@ -581,7 +581,7 @@ void App::drawHome() {
     if (!prog.scriptUnlocked(ss)) lastBtn().icon = 1;
   }
   drawText(bot, "Pick a script, then a cartridge", SDL_Rect{16, 340, 608, 30}, DIM, F_MICRO);
-  chips({{"A", lesson ? "Lesson" : "Start"}, {"◀▶", "Choose"}, {"Y", "Script"}, {"F+START", "Quit"}});
+  chips({{"A", lesson ? "Lesson" : "Start"}, {"◀▶", "Choose"}, {"Y", "Script"}, {"F+SELECT", "Quit"}});
 }
 
 void App::drawStages() {
@@ -801,7 +801,7 @@ void App::drawDrill() {
     (void)rows;
     if (checked) { addBtn(SDL_Rect{16, 340, 608, 76}, B_CONTINUE, "Continue", F_SMALL); accent(lastBtn()); }
     else { addBtn(SDL_Rect{16, 340, 608, 76}, B_CHECK, "Check answer", F_SMALL, sel >= 0); if (sel >= 0) accent(lastBtn()); }
-    chips({{"A", "Choose"}, {"X", "Check"}, {"F", "Pause"}});
+    chips({{"A", "Choose"}, {"X", "Check"}, {"SELECT", "Pause"}});
   } else if (q.type == QType::Type) {
     const char* rows[3] = {"qwertyuiop", "asdfghjkl", "zxcvbnm"};
     for (int r = 0; r < 3; r++) {
@@ -815,7 +815,7 @@ void App::drawDrill() {
     addBtn(SDL_Rect{16, 236, 180, 68}, B_BKSP, "Delete", F_TINY, !checked && !typed.empty());
     if (checked) { addBtn(SDL_Rect{212, 236, 412, 68}, B_CONTINUE, "Continue", F_SMALL); accent(lastBtn()); }
     else { addBtn(SDL_Rect{212, 236, 412, 68}, B_CHECK, "Check answer", F_SMALL, !typed.empty()); if (!typed.empty()) accent(lastBtn()); }
-    chips({{"X", "Check"}, {"B", "Delete"}, {"F", "Pause"}});
+    chips({{"X", "Check"}, {"B", "Delete"}, {"SELECT", "Pause"}});
   } else {
     addBtn(SDL_Rect{16, 20, 120, 90}, B_UNDO, "Undo", F_TINY, !checked && !strokes.empty());
     addBtn(SDL_Rect{16, 120, 120, 90}, B_CLEAR, "Clear", F_TINY, !checked && !strokes.empty());
@@ -824,7 +824,7 @@ void App::drawDrill() {
     if (checked) { addBtn(SDL_Rect{16, 320, 120, 96}, B_CONTINUE, "Next", F_TINY); accent(lastBtn()); }
     else { addBtn(SDL_Rect{16, 320, 120, 96}, B_CHECK, "Check", F_TINY, !strokes.empty()); if (!strokes.empty()) accent(lastBtn()); }
     drawCanvas(canvasRect(), activeGlyph(), showHint || checked, checked);
-    chips({{"X", "Check"}, {"Y", "Hint"}, {"B", "Undo"}, {"F", "Pause"}});
+    chips({{"X", "Check"}, {"Y", "Hint"}, {"B", "Undo"}, {"SELECT", "Pause"}});
   }
 }
 
