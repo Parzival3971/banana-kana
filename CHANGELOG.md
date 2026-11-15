@@ -3,7 +3,7 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
-## 0.1.4 - unreleased
+## 0.1.4 - 2026-11-15
 
 - Fix: the stick still made the selector jump. The RG DS Plus reports a phantom second stick that moves along with the
   real one in a different direction; only the real (left) stick is used now. `KT_STICKS=both` turns the second one back on.
