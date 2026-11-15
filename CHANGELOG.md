@@ -40,6 +40,8 @@ First release for BananaOS on the Anbernic RG DS Plus.
 - Zen Maru Gothic fonts, rendered at the panel's real resolution.
 - Progress is saved after every answer and on power-off. F + START quits; F or SELECT pauses during practice
   (or tap the Pause hint), also in lessons and free writing; F + START mid-practice pauses instead of quitting.
-  The Back key next to F works as B. On-screen keyboards work with the d-pad and A.
+  The Back key next to F works as B (read straight from the input device). On-screen keyboards work with the d-pad and A.
+- Confetti for newly known kana, unlocked stages, the daily goal and a new timed best.
+- Volume and brightness (F + volume) show a level bar on the top screen, like the BananaOS menu.
 - Sound effects (synthesised): taps, right and wrong answers, newly known kana, unlocks, daily goal, last seconds of
   the timed challenge. Off / quiet / normal / loud in Settings > Display.

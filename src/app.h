@@ -81,6 +81,11 @@ struct App {
   // first launch, settings skip-ahead
   Uint32 creditsLast = 0, animStart = 0, animLast = 0;  // stroke-order animation (0 = not playing)
   void playStrokes() { animStart = SDL_GetTicks(); if (!animStart) animStart = 1; }
+  std::string osdWhat; int osdPct = 0; Uint32 osdUntil = 0;  // volume / brightness level card (from BananaOS)
+  void showOsd(const std::string& what, int pct) { osdWhat = what; osdPct = pct; osdUntil = SDL_GetTicks() + 1800; if (!osdUntil) osdUntil = 1; }
+  void drawOsd();
+  Uint32 confStart = 0, confDur = 0, confLast = 0; bool confBoth = false;  // confetti celebration
+  void celebrate(Uint32 ms, bool both); void drawConfetti();
   int keyRow = 0, keyCol = 0;  // d-pad cursor on the on-screen keyboards
   int kbRows() const; int kbRowLen(int r) const; int kbItemId(int r, int c) const; void kbMove(int dc, int dr);
   bool inPractice() const { return screen == Screen::Drill || screen == Screen::Lesson || screen == Screen::FreeWrite; }

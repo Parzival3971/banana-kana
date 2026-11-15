@@ -73,7 +73,8 @@ bool isKataText(const std::string& s) { auto c = utf8Codepoints(s); return !c.em
 // ================================================================== flow
 void App::go(Screen s) {
   screen = s; pressedId = -1; drawing = false; cur.clear(); paused = false; animStart = 0;
-  if (s == Screen::Unlocked) snd::play(snd::Sfx::Unlock);
+  if (s == Screen::Unlocked) { snd::play(snd::Sfx::Unlock); celebrate(3200, true); }
+  if (s == Screen::Result && mode == Mode::Timed && timedNewBest) celebrate(2400, true);
   if (s == Screen::Stages) { mapScript = prog.settings.script; mapSel = prog.currentStage(mapScript); }
   if (s == Screen::Chart) {
     chartScroll = 0; chartSel = -1;
@@ -166,24 +167,24 @@ void App::startMode(Mode m) {
   go(Screen::Drill); nextQuestion(true); save();
 }
 
-bool App::tick(Uint32 now) {
-  if (animStart && !paused) {  // stroke-order animation: ~30 frames a second while it plays
-    if (now - animLast >= 33) { animLast = now; return true; }
-    return false;
+bool App::tick(Uint32 now) {  // every timer runs every time; true if anything needs a redraw
+  bool redraw = false;
+  if (osdUntil && now >= osdUntil) { osdUntil = 0; redraw = true; }  // level card gone
+  if (confStart && now - confLast >= 33) { confLast = now; redraw = true; }  // confetti at ~30 fps
+  if (animStart && !paused && now - animLast >= 33) { animLast = now; redraw = true; }  // stroke-order animation
+  if (screen == Screen::Credits && !paused && now - creditsLast >= 80) { creditsLast = now; redraw = true; }
+  if (screen == Screen::Drill && mode == Mode::Timed) {
+    Uint32 dt = now - timedLast; timedLast = now;
+    if (!paused) {
+      int before = (timedLeft + 999) / 1000;
+      timedLeft -= int(std::min<Uint32>(dt, 1000));  // a long stall (sleep) doesn't eat the clock
+      if (timedLeft <= 0) { timedLeft = 0; finishSession(); return true; }
+      int after = (timedLeft + 999) / 1000;
+      if (after != before && after <= 5) snd::play(snd::Sfx::Tick);  // last five seconds
+      if (after != before) redraw = true;
+    }
   }
-  if (screen == Screen::Credits && !paused) {  // gentle animation
-    if (now - creditsLast >= 80) { creditsLast = now; return true; }
-    return false;
-  }
-  if (screen != Screen::Drill || mode != Mode::Timed) return false;
-  Uint32 dt = now - timedLast; timedLast = now;
-  if (paused) return false;
-  int before = (timedLeft + 999) / 1000;
-  timedLeft -= int(std::min<Uint32>(dt, 1000));  // a long stall (sleep) doesn't eat the clock
-  if (timedLeft <= 0) { timedLeft = 0; finishSession(); return true; }
-  int after = (timedLeft + 999) / 1000;
-  if (after != before && after <= 5) snd::play(snd::Sfx::Tick);  // last five seconds
-  return after != before;
+  return redraw;
 }
 
 void App::nextQuestion(bool first) {
@@ -303,7 +304,10 @@ void App::check() {
   const Kana* k = q.kanaIdx >= 0 ? &data.kana[q.kanaIdx] : nullptr;
   if (ok) {
     score++;
-    if (k && before < KNOWN_STEP && after >= KNOWN_STEP) { newlyKnown.push_back(k->glyph); feedbackNote = "Known! " + k->glyph + " reached step 4."; }
+    if (k && before < KNOWN_STEP && after >= KNOWN_STEP) {
+      newlyKnown.push_back(k->glyph); feedbackNote = "Known! " + k->glyph + " reached step 4.";
+      if (mode != Mode::Timed) celebrate(1800, false);
+    }
     else if (k) feedbackNote = after > before ? "Step " + std::to_string(after) + " of 4" : (after >= KNOWN_STEP ? "Known" : "Step " + std::to_string(after) + " of 4 (2 steps per session at most)");
   } else {
     if (k) { auto it = data.hints.find(k->glyph); feedbackNote = it != data.hints.end() ? it->second : ""; }
@@ -332,6 +336,7 @@ void App::check() {
   snd::play(!newlyKnown.empty() && newlyKnown.back() == (k ? k->glyph : "") && ok ? snd::Sfx::Known : ok ? snd::Sfx::Right : snd::Sfx::Wrong);
   if (prog.goalJustMet) {
     snd::play(snd::Sfx::Goal);
+    if (mode != Mode::Timed) celebrate(2400, true);
     goalMet = true;
     feedbackNote = "Daily goal reached! " + std::to_string(prog.streak) + "-day streak." + (feedbackNote.empty() ? "" : " " + feedbackNote);
   }
@@ -836,7 +841,38 @@ void App::render() {
     case Screen::FreeWrite: drawFreeWrite(); break;
   }
   drawButtons();
+  drawConfetti();
+  drawOsd();
   SDL_RenderPresent(top.r); SDL_RenderPresent(bot.r);
+}
+
+void App::celebrate(Uint32 ms, bool both) {
+  confStart = SDL_GetTicks(); if (!confStart) confStart = 1;
+  confDur = ms; confBoth = both;
+}
+
+void App::drawConfetti() {  // falling, fluttering paper; lands on top of whatever the screen shows
+  if (!confStart) return;
+  float t = (SDL_GetTicks() - confStart) / 1000.f, dur = confDur / 1000.f;
+  if (t > dur) { confStart = 0; return; }
+  const Col cols[6] = {ACCENT, GOOD, BAD, FG, mix(ACCENT, BAD, 0.5f), Col{110, 170, 255}};
+  auto rain = [&](Win& w, unsigned seed, float delay) {
+    float tt = t - delay; if (tt < 0) return;
+    int n = 80;
+    for (int i = 0; i < n; i++) {
+      unsigned h = (2654435761u * unsigned(i + 1)) ^ (seed * 40503u);
+      float x0 = float(h % unsigned(LW)), y0 = -20.f - float((h >> 9) % 260u);
+      float v = 140.f + float((h >> 3) % 160u), sway = 18.f + float((h >> 13) % 30u);
+      float x = x0 + sway * std::sin(tt * (2.f + (h % 3)) + i), y = y0 + v * tt + 90.f * tt * tt;
+      if (y < -12 || y > 490) continue;
+      float flip = std::fabs(std::sin(tt * (5.f + (h >> 7) % 5) + i));  // paper turning over
+      int wdt = 6 + int((h >> 5) % 5), hgt = std::max(2, int((7 + (h >> 11) % 6) * flip));
+      float fade = t > dur - 0.5f ? (dur - t) / 0.5f : 1.f;
+      fillRect(w, SDL_Rect{int(x), int(y), wdt, hgt}, mix(BG, cols[h % 6], std::clamp(fade, 0.f, 1.f)));
+    }
+  };
+  rain(top, 1, 0.f);
+  if (confBoth) rain(bot, 7, 0.35f);  // the bottom screen catches the confetti falling from the top
 }
 
 static Col stateFill(KanaState s) {
@@ -1473,6 +1509,15 @@ void App::drawResult() {
                    : mode == Mode::Mixup ? "More mix-ups" : "Practice again";
   addBtn(SDL_Rect{212, 330, 412, 84}, B_AGAIN, again, F_SMALL); accent(lastBtn());
   chips({{"A", unlock ? "Continue" : "Again"}, {"B", "Home"}});
+}
+
+void App::drawOsd() {  // BananaOS's volume / brightness card, across the top of the top screen
+  if (!osdUntil) return;
+  bool vol = osdWhat == "volume";
+  SDL_Rect r{120, 8, 400, 52}; boxRound(top, r, 26, PANEL2, ACCENT, 2);
+  drawText(top, vol ? (osdPct == 0 ? "Muted" : "Volume") : "Brightness", SDL_Rect{r.x + 22, r.y, 130, r.h}, FG, F_TINY, A_LEFT);
+  bar(top, SDL_Rect{r.x + 152, r.y + 20, 168, 12}, std::clamp(osdPct, 0, 100) / 100.f);
+  drawText(top, std::to_string(osdPct) + "%", SDL_Rect{r.x + 326, r.y, 60, r.h}, ACCENT_TXT, F_TINY, A_RIGHT);
 }
 
 void App::drawPause() {

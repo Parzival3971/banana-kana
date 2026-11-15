@@ -359,6 +359,14 @@ int App::selfTest(const std::string& shotDir) {
     go(Screen::Stats); shot("stats_katakana");
     prog = keep; setScript(Script::Hiragana); go(Screen::Home); }
 
+  // ---- 15c. BananaOS level card and confetti
+  go(Screen::Home); showOsd("volume", 45); CHECK(osdUntil != 0, "level card shown"); shot("osd_volume");
+  showOsd("brightness", 80); shot("osd_brightness");
+  CHECK(tick(osdUntil + 1) && osdUntil == 0, "level card goes away");
+  go(Screen::Unlocked); CHECK(confStart != 0 && confBoth, "unlock confetti"); confStart = SDL_GetTicks() - 1100; shot("confetti_unlock");
+  confStart = SDL_GetTicks() - 10000; frame(); CHECK(confStart == 0, "confetti ends");
+  go(Screen::Home);
+
   // ---- 16. first launch and skipping ahead (on a fresh profile, then put back)
   { Progress keep = prog;
     prog = Progress{}; prog.settings = keep.settings; prog.settings.script = Script::Hiragana;

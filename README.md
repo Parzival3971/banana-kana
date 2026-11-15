@@ -54,6 +54,8 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 ### 📈 Keep going
 - 🔥 **Daily goal and streak**, from 5 to 30 answers a day.
 - 📊 **Stats.** Your last 14 days and an accuracy heatmap of every kana. Tap one to see it in the chart.
+- 🎉 **Celebrations.** Confetti when a kana becomes known, a stage unlocks, you hit your daily goal or beat your
+  timed best.
 - 🔊 **Sound effects.** Little chimes for right answers, newly known kana, unlocks and your daily goal (made in code,
   no audio files). Off, quiet, normal or loud.
 
@@ -61,6 +63,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 - 🖥️ Prompts on the top screen; answers, keyboards and the tracing canvas on the touch screen.
 - 🕹️ Everything works with the d-pad and buttons too, including the on-screen keyboards.
 - 🌗 Dark and light themes, with text rendered at the panels' real resolution.
+- 🔆 Volume and F + volume (brightness) work as usual, with a level bar across the top screen.
 - 💾 Progress is saved after every answer, so closing the lid or powering off loses nothing.
 
 <details>
@@ -148,7 +151,7 @@ Six groups, laid out like BananaOS's own Settings app:
 - 🌑 **The bottom screen stays dark.** The launcher switches the bottom backlight on, and the app keeps it on.
   If it's still dark after waking from sleep, quit and start the app again.
 - 🔇 **No sound.** Check Settings > Display > Sound, and the volume on BananaOS itself.
-- 🔙 **The Back key does nothing.** Send the launch log below: it lists the buttons you pressed, so the key can be set.
+- 🔙 **The Back key does nothing.** Send the launch log below: its `back key:` line shows which input device was found.
 - 🐛 **Something else is wrong.** Every launch writes `home/.config/banana-kana/launch.log` on the SD card. It lists the
   screens, touch device and controller it found. Please attach it when you
   [open an issue](https://github.com/Parzival3971/banana-kana/issues/new?template=bug_report.md).

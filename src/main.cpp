@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <vector>
 #include <set>
 #include <string>
 #include <sys/stat.h>
@@ -110,6 +111,61 @@ struct EvTouch {
 #endif
 };
 
+// The RG DS Plus's Back key (right of F) is BTN_Z on the gamepad's evdev device (BananaOS's bananad calls it "back").
+// SDL's controller mapping doesn't pass it on reliably, so read it directly, like the touchscreen (evdev allows many
+// readers; nothing is grabbed). KT_BACK_CODE=<evdev key code> picks another code.
+struct EvBack {
+  std::vector<int> fds; int code = BTN_Z;
+  static bool hasKey(int fd, int code) {
+    unsigned long bits[KEY_MAX / (8 * sizeof(long)) + 1] = {};
+    if (ioctl(fd, EVIOCGBIT(EV_KEY, sizeof bits), bits) < 0) return false;
+    return (bits[code / (8 * sizeof(long))] >> (code % (8 * sizeof(long)))) & 1;
+  }
+  void open() {
+    if (const char* c = getenv("KT_BACK_CODE")) code = atoi(c);
+    DIR* d = opendir("/dev/input"); if (!d) return;
+    while (dirent* e = readdir(d)) {
+      if (strncmp(e->d_name, "event", 5)) continue;
+      std::string path = std::string("/dev/input/") + e->d_name;
+      int fd = ::open(path.c_str(), O_RDONLY | O_NONBLOCK); if (fd < 0) continue;
+      if (hasKey(fd, code)) {
+        char name[128] = "?"; ioctl(fd, EVIOCGNAME(sizeof name), name);
+        fprintf(stderr, "  back key: code %d on %s (%s)\n", code, path.c_str(), name);
+        fds.push_back(fd);
+      } else ::close(fd);
+    }
+    closedir(d);
+    if (fds.empty()) fprintf(stderr, "  back key: no input device has code %d\n", code);
+  }
+  template <class F> void poll(F onPress) {
+    for (int fd : fds) {
+      input_event ev[32];
+      for (;;) {
+        ssize_t n = read(fd, ev, sizeof ev); if (n <= 0) break;
+        for (int i = 0; i < int(n / sizeof(input_event)); i++)
+          if (ev[i].type == EV_KEY && ev[i].code == code && ev[i].value == 1) onPress();
+      }
+    }
+  }
+};
+
+// BananaOS's level card: after a volume key (or F + volume for brightness) bananad writes "volume 45" or
+// "brightness 60" to /run/banana/osd. Only its own menu shows it, so we show it too.
+struct OsdWatch {
+  timespec last{}; bool primed = false;
+  bool changed(std::string& what, int& pct) {
+    struct stat st{}; if (stat("/run/banana/osd", &st) != 0) { primed = true; return false; }
+    bool diff = st.st_mtim.tv_sec != last.tv_sec || st.st_mtim.tv_nsec != last.tv_nsec;
+    last = st.st_mtim;
+    if (!primed) { primed = true; return false; }  // an old card from before we started
+    if (!diff) return false;
+    FILE* f = fopen("/run/banana/osd", "r"); if (!f) return false;
+    char w[32] = {}; int p = -1; bool ok = fscanf(f, "%31s %d", w, &p) == 2; fclose(f);
+    if (!ok) return false;
+    what = w; pct = p; return true;
+  }
+};
+
 int main(int argc, char** argv) {
   bool self = false, forceDual = false; std::string shotDir, dataDir, stateDir;
   for (int i = 1; i < argc; i++) {
@@ -166,9 +222,9 @@ int main(int argc, char** argv) {
   fprintf(stderr, "  sdl touch devices: %d, joysticks: %d\n", SDL_GetNumTouchDevices(), SDL_NumJoysticks());
   for (int i = 0; i < SDL_NumJoysticks(); i++)
     fprintf(stderr, "  joystick %d: %s gamecontroller=%d\n", i, SDL_JoystickNameForIndex(i) ? SDL_JoystickNameForIndex(i) : "?", SDL_IsGameController(i));
+  EvBack backKey; backKey.open(); OsdWatch osdWatch; Uint32 osdChecked = 0;
   EvTouch touch; touch.open(); int sdlTouchLogged = 0, buttonsLogged = 0, rawLogged = 0; bool menuKeyDown = false, menuCombo = false;
-  // The RG DS Plus has a Back key to the right of F that the controller mapping doesn't name: a raw joystick button the
-  // mapping doesn't use is taken as Back (= B). KT_BACK_BUTTON=<raw index> picks one explicitly.
+  // The Back key is read from evdev (EvBack). KT_BACK_BUTTON=<raw SDL joystick index> also maps one, if ever needed.
   std::set<int> mappedRaw; int backRaw = getenv("KT_BACK_BUTTON") ? atoi(getenv("KT_BACK_BUTTON")) : -1; int keysLogged = 0; fflush(stderr);
   std::signal(SIGTERM, onSignal); std::signal(SIGINT, onSignal); std::signal(SIGHUP, onSignal);
   // Keep the bottom backlight on: BananaOS can switch it off again after sleep (/run/banana/panel-off).
@@ -195,15 +251,15 @@ int main(int argc, char** argv) {
               SDL_GameControllerButtonBind bd = SDL_GameControllerGetBindForButton(gc, (SDL_GameControllerButton)cb);
               if (bd.bindType == SDL_CONTROLLER_BINDTYPE_BUTTON) { mappedRaw.insert(bd.value.button); list += " " + std::to_string(bd.value.button); }
             }
-            fprintf(stderr, "  raw buttons used by the mapping:%s (any other raw button counts as Back)\n", list.c_str());
+            fprintf(stderr, "  raw buttons used by the mapping:%s\n", list.c_str());
           }
           fflush(stderr); break; }
         case SDL_JOYBUTTONDOWN: {
           // Raw joystick buttons, logged even when SDL has no controller mapping: tells us what F, SELECT etc. are.
           int rb = e.jbutton.button;
-          bool isBack = backRaw >= 0 ? rb == backRaw : (!mappedRaw.empty() && !mappedRaw.count(rb));
+          bool isBack = backRaw >= 0 && rb == backRaw;  // only when set explicitly: the Back key is read from evdev (EvBack)
           if (rawLogged < 40) { rawLogged++; fprintf(stderr, "  raw joystick %d button %d down%s\n", e.jbutton.which, rb, isBack ? " (taken as Back)" : ""); fflush(stderr); }
-          if (isBack) { if (menuKeyDown) menuCombo = true; app.padButton(SDL_CONTROLLER_BUTTON_B); }
+          if (isBack) { if (menuKeyDown) menuCombo = true; app.padButton(SDL_CONTROLLER_BUTTON_B); dirty = true; }
           break; }
         case SDL_CONTROLLERBUTTONDOWN: {
           // SDL names face buttons by position (A = south). The RG DS Plus is labelled Nintendo-style
@@ -259,6 +315,11 @@ int main(int argc, char** argv) {
       }
     }
     touch.poll([&](int t, int x, int y) { app.pointer(t, x, y); dirty = true; });
+    backKey.poll([&]() { if (menuKeyDown) menuCombo = true; app.padButton(SDL_CONTROLLER_BUTTON_B); dirty = true; });
+    if (SDL_GetTicks() - osdChecked > 100) {
+      osdChecked = SDL_GetTicks(); std::string what; int pct;
+      if (osdWatch.changed(what, pct)) { app.showOsd(what, pct); dirty = true; }
+    }
     if (!blPower.empty() && SDL_GetTicks() - lastBlCheck > 2000) {
       lastBlCheck = SDL_GetTicks();
       FILE* f = fopen(blPower.c_str(), "r"); int v = 0;

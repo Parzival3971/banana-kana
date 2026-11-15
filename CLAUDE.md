@@ -128,9 +128,14 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
 - F alone DOES pause in drills (it is GUIDE). User wants: F/SELECT pause also in lessons + free writing (togglePause works on
   every screen but Home/Welcome); F + START mid-practice must NOT quit (App::inPractice() -> opens pause instead; still
   quits from menus); F + SELECT is BananaOS's. Two menu keys together = combo. "F Pause" chip is tappable (B_PAUSE).
-- The RG DS Plus has a Back key right of F: any raw joystick button the controller mapping doesn't use is taken as Back
-  (padButton B); KT_BACK_BUTTON=<raw> overrides; SDLK_AC_BACK also = B. Launch log lists mapped raw buttons, raw presses
-  ("taken as Back") and the first 20 key codes - ask for it if Back does nothing.
+- Back key (right of F) = evdev BTN_Z (BananaLinux bananad names it "back"); the unmapped-SDL-button guess did NOT work.
+  main.cpp EvBack reads BTN_Z from every /dev/input device that has it (non-grabbing) -> padButton B. KT_BACK_CODE=<evdev
+  code> / KT_BACK_BUTTON=<raw SDL index> override; SDLK_AC_BACK = B. Log line "back key: code N on /dev/input/eventX".
+- Volume / F+volume brightness are done by BananaOS's bananad even while apps run (it grabs nothing). It writes
+  "volume 45" / "brightness 60" to /run/banana/osd (rename) for banana-ui's level card; main.cpp OsdWatch polls its mtime
+  every 100 ms and App::showOsd draws our own card on the top screen (1.8 s).
+- Confetti: App::celebrate(ms, both) on newly known kana (top), stage unlocked / daily goal / timed best (both screens).
+  tick() runs every timer each call (an early return once froze the timed clock during confetti).
 - On-screen keyboards (kana + romaji) have a d-pad cursor (keyRow/keyCol, kbMove skips gaps), A types, X checks, B deletes.
 - Sound effects (src/sound.cpp): synthesised at start-up (Tap, Right, Wrong, Known, Unlock, Goal, Tick), SDL queue audio,
   Settings > Display > Sound (off/quiet/normal/loud). Not yet heard on device.
