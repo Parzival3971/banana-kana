@@ -3,7 +3,7 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
-## 0.1.2 - unreleased
+## 0.1.2 - 2026-11-15
 
 - The little banana icon is gone from the top-left header; the BANANA KANA wordmark sits there instead.
 
