@@ -42,6 +42,8 @@ def main():
         im = device(Image.open(t), Image.open(b))
         im = im.resize((WIDTH, round(im.height * WIDTH / im.width)), Image.LANCZOS)
         im.save(os.path.join(out, name + ".png"), optimize=True)
-    print("wrote", len(SHOTS), "images to", out)
+    icon = Image.open(os.path.join(os.path.dirname(__file__), "..", "launcher", "media", "box", "Banana Kana.png"))
+    icon.thumbnail((280, 280), Image.LANCZOS); icon.save(os.path.join(out, "icon.png"), optimize=True)  # README icon: no space in its path
+    print("wrote", len(SHOTS), "images and icon.png to", out)
 
 if __name__ == "__main__": main()

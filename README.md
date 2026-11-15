@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="launcher/media/box/Banana%20Kana.png" width="140" alt="Banana Kana icon">
+<img src="docs/img/icon.png" width="140" alt="Banana Kana icon">
 
 # Banana Kana
 
