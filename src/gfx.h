@@ -18,14 +18,20 @@ inline bool sameCol(Col a, Col b) { return a.r == b.r && a.g == b.g && a.b == b.
 constexpr Col hex(unsigned v) { return Col{Uint8(v >> 16), Uint8(v >> 8), Uint8(v), 255}; }
 Col mix(Col a, Col b, float t);  // a..b
 
-// BananaOS-style palettes: banana yellow on warm neutrals. ACCENT is a fill; ACCENT_TXT is yellow used as text
-// (a dark gold on the light theme, where yellow text would be unreadable). ON_ACCENT is text placed on ACCENT.
+// "Handheld" palettes (light and dark): pale striped top screen, dotted bottom screen, white cards with a hard drop
+// shadow, glossy pill buttons. ACCENT is the current MODE colour (Lesson orange, Review blue, Words green, Mix-ups
+// purple, Timed red, Stats/Settings teal): a fill; ACCENT_TXT is that colour as readable text; ON_ACCENT is text on it.
 struct Theme { Col bg, panel, panel2, line, fg, dim, accent, accentTxt, onAccent, good, goodFill, bad, badFill,
                canvas, ghost, ghostOk, disLine, disTxt, track, frame; };
 extern const Theme DARK_THEME, LIGHT_THEME;
 extern Col BG, PANEL, PANEL2, LINE, FG, DIM, ACCENT, ACCENT_TXT, ON_ACCENT, GOOD, GOOD_FILL, BAD, BAD_FILL, CANVAS, GHOST,
     GHOST_OK, DIS_LINE, DIS_TXT, TRACK;
+extern Col BG2, CARD_SH, PILL_LINE, PILL_SH, PILL_HI, PILL_LO, ACC_LINE, ACC_SH, ACC_HI, ACC_LO, PAPER_LINE, PAPER_MARGIN;
+extern bool gLight;
 void applyTheme(bool light);
+enum ModeCol { MC_ORANGE, MC_BLUE, MC_GREEN, MC_PURPLE, MC_RED, MC_TEAL, MC_COUNT };
+Col modeCol(ModeCol m);     // the fill colour of a mode, without changing ACCENT
+void setAccent(ModeCol m);  // sets ACCENT, ACCENT_TXT, ON_ACCENT and the ACC_* pill shades
 
 struct Win {
   SDL_Window* w = nullptr; SDL_Renderer* r = nullptr; Uint32 id = 0;
@@ -36,7 +42,8 @@ struct Win {
 enum FontId { F_HUGE, F_BIG, F_MID, F_SMALL, F_TINY, F_MICRO, F_COUNT };
 bool loadFonts(const std::string& dataDir, float scale, std::string* err);
 void clearTextCache(Win& w);
-void setKanaHand(bool on);  // kana in the handwriting font (kana_hand.ttf) instead of rounded print
+void setKanaHand(bool on);
+void setBold(bool on);       // Latin text in the bold UI font at every size (until setBold(false))  // kana in the handwriting font (kana_hand.ttf) instead of rounded print
 
 enum Align { A_CENTER, A_LEFT, A_RIGHT };
 void clearWin(Win& w, Col c);
@@ -45,6 +52,15 @@ void fillRound(Win& w, SDL_Rect r, int rad, Col c);
 void boxRound(Win& w, SDL_Rect r, int rad, Col fill, Col line, int t = 3);
 void fillCircle(Win& w, int cx, int cy, int rad, Col c);
 void drawRing(Win& w, int cx, int cy, int rad, int thick, float frac, Col fill, Col track);  // progress ring from 12 o'clock
+void gradRound(Win& w, SDL_Rect r, int rad, Col top, Col bottom);   // vertical gradient, one geometry call
+void card(Win& w, SDL_Rect r, int rad = 20, Col fill = Col{0, 0, 0, 0});  // white (PANEL) card + hard drop shadow
+// Glossy pill/tile: drop shadow, outline, top-to-bottom gradient. kind 0 = plain (white), 1 = accent (mode colour),
+// 2 = disabled (flat, dashed look). pressed sinks it. Returns the face rect (for placing content).
+SDL_Rect pill(Win& w, SDL_Rect r, int rad, int kind, bool pressed = false);
+void drawBackdrop(Win& w, bool topScreen);  // stripes (top) or dots (bottom), drawn once into a cached texture
+// Line icons (24x24 design grid, round strokes): review mixups words timed stats pencil clock script display chart
+// info flame medal lock check cross play pause gear arrow back star book map grid pen eraser
+void lineIcon(Win& w, const std::string& name, SDL_Rect box, Col c, float thick = 2.2f);
 int textWidth(Win& w, int font, const std::string& s);  // logical px
 // Draws text in `box`, using the biggest font <= maxFont that fits on one line.
 void drawText(Win& w, const std::string& s, SDL_Rect box, Col c, int maxFont = F_MID, Align al = A_CENTER);

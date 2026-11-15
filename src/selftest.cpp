@@ -15,6 +15,7 @@ int App::selfTest(const std::string& shotDir) {
   auto frame = [&]() { render(); };
   auto find = [&](int id) -> const Button* { frame(); for (auto& b : buttons) if (b.id == id) return &b; return nullptr; };
   auto click = [&](int id) {
+    if (screen == Screen::Home && homeItemIndex(id) >= 0) homeSel = homeItemIndex(id);  // scroll the mode strip to it first
     const Button* b = find(id); if (!b || !b->enabled) return false;
     int cx = b->r.x + b->r.w / 2, cy = b->r.y + b->r.h / 2; pointer(0, cx, cy); pointer(2, cx, cy); return true;
   };
@@ -187,15 +188,15 @@ int App::selfTest(const std::string& shotDir) {
   setGroup = 0; shot("settings");
   CHECK(click(B_GROUP0 + 0), "open Practice (tap selected tile)"); CHECK(screen == Screen::SettingsGroup && setGroup == 0, "practice group");
   shot("settings_practice");
-  CHECK(click(B_SDEC0 + 0), "reading <"); CHECK(prog.settings.reading == 1, "reading sometimes");
-  CHECK(click(B_SINC0 + 0), "reading >"); CHECK(prog.settings.reading == 2, "reading often");
+  CHECK(click(B_SSEG0 + 0 * 8 + 1), "reading <"); CHECK(prog.settings.reading == 1, "reading sometimes");
+  CHECK(click(B_SSEG0 + 0 * 8 + 2), "reading >"); CHECK(prog.settings.reading == 2, "reading often");
   padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); CHECK(setRow == 1, "row down");
   int m0 = prog.settings.meanings; padButton(SDL_CONTROLLER_BUTTON_DPAD_LEFT); CHECK(prog.settings.meanings == std::max(0, m0 - 1), "meanings via d-pad");
   padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); CHECK(prog.settings.meanings == std::min(2, std::max(0, m0 - 1) + 1), "meanings back");
   prog.settings.meanings = 2;
   padButton(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER); CHECK(setGroup == 1 && screen == Screen::SettingsGroup, "R: next group");
   shot("settings_sessions");
-  CHECK(click(B_SDEC0 + 0), "length <"); CHECK(prog.settings.sessionLen == 5, "length 5");
+  CHECK(click(B_SSEG0 + 0 * 8 + 0), "length <"); CHECK(prog.settings.sessionLen == 5, "length 5");
   padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); CHECK(prog.settings.sessionLen == 10, "length via d-pad");
   padButton(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER); CHECK(setGroup == 2, "script group");
   CHECK(click(B_SINC0 + 0), "script >"); CHECK(prog.settings.script == Script::Hiragana, "katakana stays locked");
@@ -204,30 +205,30 @@ int App::selfTest(const std::string& shotDir) {
   CHECK(click(B_GROUP0 + 5), "select About"); CHECK(setGroup == 5 && screen == Screen::Settings, "tile selected, not opened");
   CHECK(click(B_GROUP0 + 5), "open About"); CHECK(screen == Screen::SettingsGroup, "about open");
   CHECK(click(B_SROW0 + 1), "select credits"); CHECK(click(B_SROW0 + 1), "open credits"); CHECK(screen == Screen::Credits, "credits");
-  shot("credits"); CHECK(click(B_BACK), "credits back"); CHECK(screen == Screen::SettingsGroup, "back to about");
+  toastQ.clear(); toastUntil = 0; confStart = 0; shot("credits");  /* no toast/confetti in the shot */ CHECK(click(B_BACK), "credits back"); CHECK(screen == Screen::SettingsGroup, "back to about");
   CHECK(click(B_FOOT_L), "footer back"); CHECK(screen == Screen::Settings, "groups again");
   { Progress re; re.load(statePath, &data); CHECK(re.settings.sessionLen == 10 && re.settings.reading == 2, "settings persisted"); }
 
-  // ---- 7. light theme: every screen once more
-  setGroup = 3; CHECK(click(B_FOOT_R), "open Display"); CHECK(click(B_SINC0 + 0), "light");
-  CHECK(prog.settings.light && sameCol(BG, LIGHT_THEME.bg), "light applied");
-  shot("light_settings_display");
-  go(Screen::Settings); shot("light_settings");
-  go(Screen::Home); shot("light_home");
-  go(Screen::Stats); shot("light_stats");
-  go(Screen::Stages); shot("light_stages");
-  go(Screen::Chart); shot("light_chart");
-  openLesson(Script::Hiragana, 1, true); trace(*activeGlyph(), 0.5f, 0.5f); shot("light_lesson");
+  // ---- 7. dark theme: every screen once more (light is the default)
+  setGroup = 3; CHECK(click(B_FOOT_R), "open Display"); CHECK(click(B_SSEG0 + 0 * 8 + 0), "dark");
+  CHECK(!prog.settings.light && sameCol(BG, DARK_THEME.bg), "dark applied");
+  shot("dark_settings_display");
+  go(Screen::Settings); shot("dark_settings");
+  go(Screen::Home); shot("dark_home");
+  go(Screen::Stats); shot("dark_stats");
+  go(Screen::Stages); shot("dark_stages");
+  go(Screen::Chart); shot("dark_chart");
+  openLesson(Script::Hiragana, 1, true); trace(*activeGlyph(), 0.5f, 0.5f); shot("dark_lesson");
   startSession();
   for (int i = 0; i < 40 && screen == Screen::Drill; i++) {
     std::string tn = tname[int(q.type)];
-    if (!shotTypes.count("light_" + tn)) { shot("light_q_" + tn); shotTypes.insert("light_" + tn); }
+    if (!shotTypes.count("dark_" + tn)) { shot("dark_q_" + tn); shotTypes.insert("dark_" + tn); }
     answer(i % 4 != 1, false);
   }
-  shot("light_result");
-  pendingUnlocks = {{Script::Hiragana, 2}}; go(Screen::Unlocked); shot("light_unlocked"); pendingUnlocks.clear();
-  startSession(); togglePause(); shot("light_pause"); paused = false;
-  prog.settings.light = false; applyTheme(false); go(Screen::Home);
+  shot("dark_result");
+  pendingUnlocks = {{Script::Hiragana, 2}}; go(Screen::Unlocked); shot("dark_unlocked"); pendingUnlocks.clear();
+  startSession(); togglePause(); shot("dark_pause"); paused = false;
+  prog.settings.light = true; applyTheme(true); go(Screen::Home);
 
   // ---- 8. katakana unlock after hiragana stage 10
   for (int st = 0; st < KATAKANA_AFTER; st++)
@@ -253,7 +254,7 @@ int App::selfTest(const std::string& shotDir) {
   setScript(Script::Hiragana); go(Screen::Home);
   { int n = 0; for (int ki : data.stages[0][0].kana) { Stat& st = prog.stats[Progress::keyKana(data.kana[ki])]; st.step = KNOWN_STEP; st.srs = 2; st.due = prog.now() - 60; n++; }
     CHECK(int(prog.dueKana(data, Script::Hiragana).size()) >= n, "reviews due"); }
-  homeSel = 4; shot("home_reviews");
+  homeSel = homeItemIndex(B_MODE0); shot("home_reviews");
   { const Button* rb = find(B_MODE0); CHECK(rb && rb->enabled && rb->sub.find("due") != std::string::npos, "review button shows due"); }
   int dueBefore = int(prog.dueKana(data, Script::Hiragana).size());
   CHECK(click(B_MODE0), "review"); CHECK(screen == Screen::Drill && mode == Mode::Review, "review session");
@@ -350,13 +351,13 @@ int App::selfTest(const std::string& shotDir) {
   { Uint32 a0 = animStart; CHECK(tick(SDL_GetTicks() + 40), "animation redraws"); (void)a0; }
   CHECK(click(B_SHOWME), "lesson show me"); go(Screen::Home);
   go(Screen::Settings); setGroup = 3; CHECK(click(B_FOOT_R), "open Display");
-  CHECK(click(B_SINC0 + 1), "kana font >"); CHECK(prog.settings.kanaHand, "handwriting font"); shot("settings_display");
-  CHECK(click(B_SINC0 + 2), "canvas lines >"); CHECK(prog.settings.guideLines == 1, "grid");
-  CHECK(click(B_SINC0 + 3), "ink >"); CHECK(prog.settings.ink == 2, "thick ink");
+  CHECK(click(B_SSEG0 + 1 * 8 + 1), "kana font >"); CHECK(prog.settings.kanaHand, "handwriting font"); shot("settings_display");
+  CHECK(click(B_SSEG0 + 2 * 8 + 1), "canvas lines >"); CHECK(prog.settings.guideLines == 1, "grid");
+  CHECK(click(B_SSEG0 + 3 * 8 + 2), "ink >"); CHECK(prog.settings.ink == 2, "thick ink");
   openLesson(Script::Hiragana, 1, true); animStart = 0; trace(*activeGlyph(), 0.5f, 0.5f); shot("lesson_handwriting_grid");
   prog.settings.kanaHand = false; setKanaHand(false); prog.settings.guideLines = 0; prog.settings.ink = 1;
   go(Screen::Settings); setGroup = 1; CHECK(click(B_FOOT_R), "open Sessions");
-  CHECK(click(B_SINC0 + 3), "writing check >"); CHECK(prog.settings.strict == 2, "strict"); prog.settings.strict = 1;
+  CHECK(click(B_SSEG0 + 3 * 8 + 2), "writing check >"); CHECK(prog.settings.strict == 2, "strict"); prog.settings.strict = 1;
   { Progress keep = prog; prog.skipTo(data, Script::Hiragana, STAGE_COUNT); prog.skipTo(data, Script::Katakana, STAGE_COUNT);
     CHECK(prog.unlocked[1] == STAGE_COUNT, "katakana extras open");
     setScript(Script::Katakana); go(Screen::Stages); shot("stages_15");
@@ -384,8 +385,8 @@ int App::selfTest(const std::string& shotDir) {
       }
       CHECK(seen, "saw a matching question"); }
     { // word packs: Words tile -> picker -> a pack session -> back to the picker
-      go(Screen::Home); homeSel = 4;
-      padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); CHECK(homeSel == 6, "pad to the Words tile");
+      go(Screen::Home); homeSel = homeItemIndex(B_MODE0);
+      padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); CHECK(homeSel == homeItemIndex(B_MODE0 + 4), "pad to the Words tile");
       shot("home_words");
       padButton(SDL_CONTROLLER_BUTTON_A); CHECK(screen == Screen::Packs, "words tile opens packs");
       int food = -1; for (size_t i = 0; i < data.packs.size(); i++) if (data.packs[i].id == "food") food = int(i);

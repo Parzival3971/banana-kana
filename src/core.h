@@ -81,7 +81,7 @@ struct Settings {
   int sound = 2;          // sound effects: 0 off, 1 quiet, 2 normal, 3 loud
   int rumble = 1;         // gamepad rumble on answers: 0 off, 1 light, 2 strong
   Script script = Script::Hiragana;
-  bool light = false;  // UI theme
+  bool light = true;   // UI theme: the Handheld design in light (default) or dark
 };
 
 enum class KanaState { Locked, New, Learning, Known, Weak };

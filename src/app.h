@@ -28,7 +28,7 @@ enum BtnId {
   // results / unlock
   B_AGAIN = 60, B_LATER, B_START_LESSON,
   // stages
-  B_STAGE0 = 70, B_STAGE_ACTION = 90,
+  B_STAGE0 = 70, B_STAGE_ACTION = 90, B_HOME_GO = 91,
   // lesson
   B_LESSON_NEXT = 95, B_LESSON_PREV, B_LESSON_CLEAR,
   // chart
@@ -36,7 +36,7 @@ enum BtnId {
   // free writing, welcome
   B_FW_GUIDE = 130, B_FW_NEXT, B_FW_PREV, B_SHOWME, B_WELCOME0 = 140,
   // settings (BananaOS style: group tiles -> rows with < value >)
-  B_GROUP0 = 200, B_SROW0 = 220, B_SDEC0 = 240, B_SINC0 = 260, B_FOOT_L = 280, B_FOOT_R,
+  B_GROUP0 = 200, B_SROW0 = 220, B_SDEC0 = 240, B_SINC0 = 260, B_FOOT_L = 280, B_FOOT_R, B_SSEG0 = 3000,  // B_SSEG0 + row * 8 + option
   // keyboard
   B_KEY0 = 300, B_KANA0 = 400, B_DAKU = 460, B_HANDAKU, B_SMALLK, B_CHOON,
   // stats heatmap
@@ -64,6 +64,10 @@ struct App {
   // achievements: earned ones pop up one at a time on the top screen
   std::vector<int> toastQ; Uint32 toastUntil = 0; int toastAch = -1, awardSel = 0;
   void earned(const std::vector<int>& newly);
+  // Home: a scrolling strip of mode tiles (homeSel = the centred one) over a big "Lesson / Practise" pill
+  struct HomeItem { int id; std::string name, icon, sub; ModeCol col; bool enabled; };
+  std::vector<HomeItem> homeItems() const;
+  int homeItemIndex(int id) const;  // -1 if id isn't a Home tile
   int packSel = 0, packIdx = -1; PackSession packSession; int wordSel = 0;  // wordSel: highlighted word in the pack word list  // word packs: highlighted tile, pack being practised
   void startPack(int pack);
   int homeSel = 0, mapSel = -1, chartTab = 0, chartSel = -1, chartScroll = 0;
@@ -136,7 +140,11 @@ struct App {
   void addBtn(SDL_Rect r, int id, const std::string& label, int font = F_SMALL, bool enabled = true);
   Button& lastBtn() { return buttons.back(); }
   void drawButtons();
-  void header(const std::string& right);
+  // Header bar across the top screen: bold title on the left, small text (or the wordmark) on the right;
+  // coloured = filled with the mode colour (drills).
+  void appTile(Win& w, int x, int y, int size);            // the app icon: glossy orange tile with あ and a little ア
+  void medal(Win& w, SDL_Rect box, bool earned);              // achievement medal: ribbon + gold disc (grey when not earned)
+  void header(const std::string& title, const std::string& right = "", bool coloured = false, int indent = 0);
   void chips(const std::vector<std::pair<std::string, std::string>>& items);
   void segBar(Win& w, SDL_Rect r, int total, int done, const std::vector<int>& res);
   void statBox(Win& w, SDL_Rect r, const std::string& label, const std::string& value, int font = F_SMALL);
@@ -151,7 +159,8 @@ struct App {
   void drawChart(); void drawSettings(); void drawSettingsGroup(); void drawCredits(); void drawPause(); void drawStats(); void drawWelcome(); void drawFreeWrite(); void drawPacks(); void drawPackWords(); void drawAwards(); void drawToast();
   void drawKanaKeyboard();
   // settings model
-  struct SRow { std::string label, value, help; int kind = 0; bool canDec = false, canInc = false; };  // kind 0 choice, 1 action, 2 info, 3 skip-ahead (pick then confirm)
+  struct SRow { std::string label, value, help; int kind = 0; bool canDec = false, canInc = false;
+                std::vector<std::string> opts; int cur = 0; };  // opts: shown as a segmented pill (tap one)  // kind 0 choice, 1 action, 2 info, 3 skip-ahead (pick then confirm)
   static const int GROUPS = 6;
   std::vector<SRow> settingRows(int g) const;
   std::string groupName(int g) const; std::string groupSummary(int g) const;

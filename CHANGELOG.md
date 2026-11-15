@@ -3,6 +3,22 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
+## 0.5.0 - unreleased
+
+A whole new look: the "Handheld" design.
+
+- Light (the new default) and dark versions of one clean design: a pale striped top screen and a dotted bottom screen,
+  white cards with soft shadows, glossy pill buttons and smooth line icons (no more pixel art).
+- Every mode has its own colour: lessons and practice orange, Review blue, Words green, Mix-ups purple, Timed red,
+  Stats and Settings teal. Headers are bilingual (れんしゅう · Stage 3, ふくしゅう · Review).
+- New Home: a scrolling strip of mode tiles (tap one, or scroll with the d-pad and press A), a big Lesson / Practise
+  button (or START), a daily goal ring and a streak strip for the week (月 火 水 …).
+- Answers are marked ○ or ×, like a Japanese test (せいかい! / ざんねん). Writing happens on a notepad page.
+- Settings rows are segmented pills: every option is one tap away.
+- Achievements get gold medals; Pause is a ひとやすみ card; results cheer in Japanese.
+- New app icon: an orange あ tile with a little ア (`tools/make_icon.py` renders it).
+- Bold text for headings and buttons (Zen Maru Gothic Bold, OFL). Stronger rumble for right answers.
+
 ## 0.4.0 - 2026-11-15
 
 - New words are taught before they're tested: a pack session shows up to 5 new words on cards (kana, rōmaji, meaning

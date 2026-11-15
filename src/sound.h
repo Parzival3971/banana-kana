@@ -25,14 +25,14 @@ inline std::vector<Pulse> rumblePattern(Sfx s, int level) {
   if (level <= 0) return {};
   std::vector<Pulse> p;
   switch (s) {
-    case Sfx::Right:  p = {{0, 0x7000, 90}}; break;
+    case Sfx::Right:  p = {{0, 0xB000, 130}}; break;  // 0.3.1's 0x7000 / 90 ms still felt very light on the device
     case Sfx::Wrong:  p = {{0, 0xC000, 110}, {220, 0xC000, 110}}; break;
     case Sfx::Known:  p = {{0, 0x9000, 80}, {160, 0x9000, 80}, {320, 0x9000, 80}}; break;
     case Sfx::Unlock: case Sfx::Goal: p = {{0, 0xD000, 420}}; break;
     default: return {};
   }
   for (Pulse& x : p) {
-    x.strength = std::min(0xFFFF, std::max(RUMBLE_FLOOR, level == 1 ? x.strength * 4 / 5 : x.strength));
+    x.strength = std::min(0xFFFF, std::max(RUMBLE_FLOOR, level == 1 ? x.strength * 9 / 10 : x.strength));
     if (level >= 2 && p.size() == 1) x.ms += x.ms / 3;   // strong: single buzzes last longer (gaps stay the same)
     x.ms = std::max(RUMBLE_MIN_MS, x.ms);
   }

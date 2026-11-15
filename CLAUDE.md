@@ -5,7 +5,8 @@ running BananaOS. Top screen: prompt and feedback. Bottom screen (touch/stylus):
 (Renamed from kanji-trainer; GitHub repo is Parzival3971/banana-kana.)
 
 ## Git
-- Commit straight to `main`.
+- Small fixes: commit straight to `main`. Big changes (e.g. the 0.5.0 Handheld redesign, user agreed 2026-11-15): a branch +
+  PR into main; the PR's CI builds the aarch64 zip (build.yml artifact) for a device test before merging.
 - NEVER create tags or GitHub releases by hand. Releases come from
   `.github/workflows/release.yml`, triggered by a change to `VERSION` on main
   (`0.0.0` = placeholder, no release). To release: add a `## <version>` section to CHANGELOG.md (release notes come
@@ -177,7 +178,8 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   achieved id->day ("ach" lines), checkAchievements (silent at start-up in main.cpp; after answers, sessions and on
   Home -> App::earned toast queue + confetti + Goal sfx), award("perfect") in finishSession; Screen::Awards from Stats
   (X / tappable chip). B_HEAT0 range check matters: higher button ids live above it.
-- Git (user, 2026-11-15 18:02): hold off committing/pushing/releasing until the user gives the go-ahead.
+- Git (user, 2026-11-15 18:02): hold off committing/pushing/releasing until the user gives the go-ahead. 19:30: go-ahead for
+  branch `handheld-theme` + PR (no merge, no release until the device test).
 - Audio: user asked for licensed recordings 2026-11-15. Candidates: tofugu/japanese-vocabulary-pronunciation-audio
   (CC BY-SA 4.0, on GitHub), Lingua Libre (CC BY-SA 4.0), Kanji alive (CC BY 4.0, kanji words). None covers single kana.
   User said hold off on audio.
@@ -194,8 +196,19 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
 - Ports shelf box art: `media/box/Banana Kana.png` (512x512, size unverified) shipped in the zip.
 - README install notes include the Mac "zip opens into its own folder" gotcha.
 
-## v1 spec (decided 2026-11-15; mockups: https://claude.ai/artifact/AHzvzZCbRSnBpttUyaXq6z)
-- Look: BananaOS palette (banana yellow #FFD23F on warm neutrals), button-hint chips, cartridge tiles.
+## Handheld theme (0.5.0, user chose it 2026-11-15; mockup canvas: https://claude.ai/artifact/BJVYoG1euyAfWGPgbpsoi1)
+- Replaces the BananaOS look (user: "looks so much cleaner and more professional"). One design, light (default) + dark
+  palettes in gfx.cpp (LIGHT_THEME/DARK_THEME + BG2, CARD_SH, PILL_*, PAPER_*). ACCENT = mode colour via setAccent(MC_*),
+  chosen per screen/mode at the top of App::render (orange lessons/practice, blue review, green words, purple mix-ups,
+  red timed, teal stats/settings). Primitives: gradRound, card (hard 5px drop shadow), pill (gloss gradient, outline,
+  shadow; kind 0 plain/1 accent/2 disabled), drawBackdrop (stripes top, dots bottom, cached texture), lineIcon (24-grid
+  polylines drawn with drawStrokeIn; NO pixel icons: user said they clash), drawRing. ui_bold.ttf (Zen Maru Gothic Bold)
+  for F_HUGE..F_SMALL and setBold(). drawButtons draws PANEL/ACCENT buttons as pills, custom fills stay flat.
+  header(title, right, coloured, indent): bar with bilingual title. Home = homeItems() strip (9 tiles, homeSel = centred,
+  B_HOME_GO big pill), goal ring card, week streak strip (weekday kanji added to fallback.ttf), script bars.
+  Settings rows: SRow.opts -> segmented pills (B_SSEG0 + row*8 + opt). Medals: App::medal; app tile: App::appTile.
+  Icon: tools/make_icon.py (option A "kana tile") -> launcher/media/box/Banana Kana.png.
+- Old v1 look (kept for history): BananaOS palette (banana yellow #FFD23F on warm neutrals), button-hint chips, cartridge tiles.
   Fonts: kana in Zen Maru Gothic Bold (or Klee One SemiBold, setting), English/UI/keyboard in Zen Maru Gothic Medium (all OFL). Pixelify Sans (Banana
   Player's pixel font) was tried and DROPPED 2026-11-15: user found it hard to read. Don't reintroduce pixel fonts.
   Fallback for missing glyphs: Noto Sans CJK JP subset (fallback.ttf) instead of Fusion Pixel (already had it, OFL).
