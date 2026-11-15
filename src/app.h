@@ -9,12 +9,16 @@
 
 namespace kt {
 
-enum class Screen { Home, Stages, Lesson, Unlocked, Drill, Result, Chart, Settings, SettingsGroup, Credits };
+enum class Screen { Home, Stages, Lesson, Unlocked, Drill, Result, Chart, Settings, SettingsGroup, Credits, Stats };
+
+// What a practice session draws from.
+enum class Mode { Normal, Focus, Review, Mixup, Timed };
+constexpr int TIMED_MS = 60000;
 
 enum BtnId {
   B_NONE = 0,
   // home
-  B_CART0 = 1, B_SCRIPT_H = 10, B_SCRIPT_K,
+  B_CART0 = 1, B_SCRIPT_H = 10, B_SCRIPT_K, B_MODE0 = 120,  // B_MODE0..+3: Review, Mix-ups, Timed, Stats
   // shared
   B_BACK = 20, B_HOME, B_QUIT,
   // drill
@@ -32,7 +36,9 @@ enum BtnId {
   // settings (BananaOS style: group tiles -> rows with < value >)
   B_GROUP0 = 200, B_SROW0 = 220, B_SDEC0 = 240, B_SINC0 = 260, B_FOOT_L = 280, B_FOOT_R,
   // keyboard
-  B_KEY0 = 300,
+  B_KEY0 = 300, B_KANA0 = 400, B_DAKU = 460, B_HANDAKU, B_SMALLK, B_CHOON,
+  // stats heatmap
+  B_HEAT0 = 2000,
 };
 
 struct Button {
@@ -64,10 +70,18 @@ struct App {
   std::string typed, lastKey; std::vector<Stroke> strokes; Stroke cur; std::vector<int> strokeOk, results;
   std::vector<Missed> missed; std::vector<std::string> newlyKnown; std::string feedbackNote;
   std::vector<std::pair<Script, int>> pendingUnlocks;
+  Mode mode = Mode::Normal; bool goalMet = false;
+  // timed challenge
+  int timedLeft = 0; Uint32 timedLast = 0; bool timedNewBest = false; int flash = 0; std::string flashText;  // flash 1 right, 2 wrong
+  // writing in parts (combination kana): finished parts and their per-stroke results
+  int part = 0; std::vector<std::vector<Stroke>> partStrokes; std::vector<std::vector<int>> partOk;
 
   // flow
   void go(Screen s);
-  void startSession(int focus = -1);
+  void startSession(int focus = -1);  // focus >= 0: five questions on one kana
+  void startMode(Mode m);
+  bool modeAvailable(Mode m) const;
+  bool tick(Uint32 nowMs);  // timers; true if the screen should be redrawn
   void nextQuestion(bool first = false);
   void finishSession();
   void check();
@@ -96,10 +110,12 @@ struct App {
   void stepPips(Win& w, int x, int y, int step, int size = 12);
   SDL_Rect canvasRect() const;
   const Glyph* activeGlyph() const;
+  int writePartCount() const;
   int currentLessonKana() const;
 
   void drawHome(); void drawStages(); void drawLesson(); void drawUnlocked(); void drawDrill(); void drawResult();
-  void drawChart(); void drawSettings(); void drawSettingsGroup(); void drawCredits(); void drawPause();
+  void drawChart(); void drawSettings(); void drawSettingsGroup(); void drawCredits(); void drawPause(); void drawStats();
+  void drawKanaKeyboard();
   // settings model
   struct SRow { std::string label, value, help; int kind = 0; bool canDec = false, canInc = false; };  // kind 0 choice, 1 action, 2 info
   static const int GROUPS = 6;

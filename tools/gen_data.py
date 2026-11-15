@@ -400,7 +400,8 @@ def build_fonts(rows):
        ui.ttf    : Zen Maru Gothic Medium, Latin (OFL) - same family as the kana, readable at small sizes
        fallback.ttf: Noto Sans CJK JP subset, for any glyph the other two lack (OFL)"""
     lic = os.path.join(DATA, "licenses"); os.makedirs(lic, exist_ok=True)
-    kana = sorted({c for _, g, _, _ in rows for c in g} | {c for w in WORDS for c in w.split("|")[0]})
+    kana = sorted({c for _, g, _, _ in rows for c in g} | {c for w in WORDS for c in w.split("|")[0]}
+                  | {chr(c) for c in range(0x3041, 0x3097)} | {chr(c) for c in range(0x30A1, 0x30FB)})  # whole kana blocks: the kana keyboard can type any of them
     jp_extra = "ー・…。、「」？！〜（）"
     zen = fetch(GF + "ofl/zenmarugothic/ZenMaruGothic-Bold.ttf", "ZenMaruGothic-Bold.ttf")
     subprocess.run([sys.executable, "-m", "fontTools.subset", zen, f"--text={''.join(kana)}{jp_extra}",

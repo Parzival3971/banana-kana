@@ -28,6 +28,13 @@ constexpr int KNOWN_STEP = 4;          // a kana is "known" at step 4
 constexpr int MAX_GAIN_PER_SESSION = 2;  // right answers count for at most 2 steps per session
 
 struct Stage { std::string name; std::vector<int> kana; };  // indices into Data::kana
+struct MixSet { std::vector<int> kana; std::string note; };  // look-alike kana and how to tell them apart
+
+// ---------------------------------------------------------------- time
+using Time = long long;  // unix seconds
+constexpr int SRS_LEVELS = 6;
+extern const int SRS_DAYS[SRS_LEVELS];  // review intervals for known kana: 1, 3, 7, 14, 30, 90 days
+int dayNumber(Time t);                  // local calendar day as YYYYMMDD
 
 std::vector<uint32_t> utf8Codepoints(const std::string& s);
 
@@ -38,18 +45,27 @@ struct Data {
   std::map<std::string, std::string> hints;  // kana glyph -> lesson hint
   std::array<std::vector<Stage>, 2> stages;  // [script]
   std::vector<int> stageOfKana;              // kana index -> stage index
+  std::vector<MixSet> mixSets;               // built-in look-alike sets (both scripts)
   bool load(const std::string& dir, std::string* err = nullptr);
   const Glyph* glyphFor(const std::string& kanaGlyph) const;  // single-codepoint kana only
+  // Glyphs to trace for a kana, one per character (combos: き + ゃ, small kana traced full size). Empty if any is missing.
+  std::vector<const Glyph*> writeParts(const std::string& kanaGlyph) const;
+  static std::vector<std::string> partNames(const std::string& kanaGlyph);  // the characters, small ones as written
   int findKana(Script s, const std::string& glyph) const;
 };
 
 // ---------------------------------------------------------------- progress
-struct Stat { int seen = 0, correct = 0, wrong = 0, streak = 0, step = 0, gainSession = -1, gain = 0; };
+struct Stat {
+  int seen = 0, correct = 0, wrong = 0, streak = 0, step = 0, gainSession = -1, gain = 0;
+  int srs = 0; Time due = 0;  // spaced review once known: level 1..SRS_LEVELS and when it is next due
+};
 
 struct Settings {
   int review = 1;  // older stages in practice: 0 off (weak ones only), 1 some, 2 lots
   int reading = 2, meanings = 1, writing = 1, typing = 1;  // drill weights 0..2
   int sessionLen = 10;
+  int dailyGoal = 10;  // answers per day for the streak
+  bool kanaKeys = false;  // Typing answers with a kana keyboard (see romaji, type kana) instead of romaji
   Script script = Script::Hiragana;
   bool light = false;  // UI theme
 };
@@ -61,13 +77,27 @@ struct Progress {
   Settings settings;
   int session = 0;                       // incremented at the start of every practice session
   int lastScore = -1, lastLen = 0;       // most recent finished session
+  // daily goal and streak
+  int today = 0, todayCount = 0, streak = 0, bestStreak = 0, lastGoalDay = 0;
+  bool goalJustMet = false;              // set by record() when today's goal is reached (not saved)
+  // mix-ups: how often two kana were confused ("h:さ|h:き" -> count)
+  std::map<std::string, int> confusions;
+  struct Day { int answers = 0, correct = 0; };
+  std::map<int, Day> days;               // answers per calendar day (YYYYMMDD), last 90 days kept
+  int timedBest[2] = {0, 0};             // best 60-second challenge score per script
+  Time clock = 0;                        // 0 = real time (tests set a fake clock)
+  Time now() const;
   std::array<int, 2> unlocked{{1, 0}};   // stages unlocked per script (katakana starts at 0 = locked)
   std::array<int, 2> lessons{{0, 0}};    // stage lessons completed per script
   bool migrated = false;                 // set when an older progress file was upgraded on load
 
   static std::string keyKana(const Kana& k);
   static std::string keyWord(const Word& w);
-  void record(const std::string& key, bool correct);
+  void record(const std::string& key, bool correct);  // steps, spaced review, daily goal
+  bool isDue(const std::string& key) const;
+  std::vector<int> dueKana(const Data& d, Script s) const;
+  void addConfusion(const std::string& a, const std::string& b);
+  int currentStreak() const;  // 0 once a day without reaching the goal has passed
   int step(const std::string& key) const;
   KanaState state(const Data& d, int kanaIdx) const;
   bool isUnlocked(const Data& d, int kanaIdx) const;
@@ -95,6 +125,8 @@ struct Question {
   std::string answer;              // expected romaji (Type), kana glyph (Write), option text otherwise
   bool isWord = false;
   bool optionsAreKana = false;
+  bool kanaInput = false;  // Type question answered on the kana keyboard
+  bool mixup = false; std::string note;  // mix-up questions carry the set's difference note
   int kanaIdx = -1;                // for kana questions
 };
 
@@ -106,6 +138,12 @@ std::vector<const Word*> eligibleWords(const Data& d, const Progress& p, Script 
 Question makeQuestion(const Data& d, const Progress& p, std::mt19937& rng);
 Question makeKanaQuestion(const Data& d, const Progress& p, std::mt19937& rng, int kanaIdx, QType t);
 Question makeQuestionOfType(const Data& d, const Progress& p, std::mt19937& rng, QType t);
+Question makeReviewQuestion(const Data& d, const Progress& p, std::mt19937& rng);  // due kana only
+std::vector<MixSet> mixupSets(const Data& d, const Progress& p, Script s);       // built-in + learned, unlocked only
+Question makeMixupQuestion(const Data& d, const Progress& p, std::mt19937& rng);
+Question makeTimedQuestion(const Data& d, const Progress& p, std::mt19937& rng);  // multiple choice only
+bool kanaTypedMatches(const Data& d, const Question& q, const std::string& typed);  // じ/ぢ etc. both accepted for "ji"
+int dayDiff(int dayA, int dayB);  // calendar days from A to B (YYYYMMDD)
 
 // ---------------------------------------------------------------- strokes
 Stroke resample(const Stroke& s, int n);

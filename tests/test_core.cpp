@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
     for (int n = 0; n < 2000; n++) {
       Question q = makeQuestion(d, p, rng); types.insert(int(q.type));
       if (!q.options.empty()) CHECK(q.options.size() == 6);
-      if (q.type == QType::Write) CHECK(d.glyphFor(q.answer) != nullptr);
+      if (q.type == QType::Write) CHECK(!d.writeParts(q.answer).empty());
     }
     CHECK(types.size() == 5);
     // katakana words stay katakana
@@ -142,6 +142,96 @@ int main(int argc, char** argv) {
     CHECK(p.unlocked[0] == 2 && p.lessons[0] == 1);           // あ row known -> か row unlocked, its lesson pending
     CHECK(p.settings.script == Script::Hiragana);              // katakana still locked, so back to hiragana
     CHECK(p.settings.light);
+  }
+  // ---- spaced review: known -> due after 1, 3, 7... days; a miss drops a level
+  {
+    Progress p; const Time day = 86400; p.clock = 1700000000;
+    std::string k = "h:あ";
+    for (int sess = 0; sess < 2; sess++) { p.session = sess; p.record(k, true); p.record(k, true); }
+    CHECK(p.step(k) == KNOWN_STEP && p.stats[k].srs == 1 && p.stats[k].due == p.clock + day);
+    CHECK(!p.isDue(k)); p.clock += day; CHECK(p.isDue(k));
+    CHECK(p.dueKana(d, Script::Hiragana).size() == 1);
+    p.record(k, true); CHECK(p.stats[k].srs == 2 && p.stats[k].due == p.clock + 3 * day && !p.isDue(k));
+    p.record(k, true); CHECK(p.stats[k].srs == 2);              // answering early doesn't advance it
+    p.clock += 3 * day; p.record(k, true); CHECK(p.stats[k].srs == 3);
+    p.clock += 7 * day; p.record(k, false); CHECK(p.stats[k].srs == 2 && p.step(k) == KNOWN_STEP - 1 && !p.isDue(k));
+    p.session = 5; p.record(k, true); CHECK(p.step(k) == KNOWN_STEP && p.stats[k].due == p.clock + 3 * day);
+    for (int i = 0; i < 20; i++) { p.clock += 100 * day; p.record(k, true); }
+    CHECK(p.stats[k].srs == SRS_LEVELS);
+    // review questions only ask due kana
+    std::mt19937 rng(5); p.clock += 100 * day; Progress& q = p;
+    for (int n = 0; n < 50; n++) CHECK(makeReviewQuestion(d, q, rng).key == k);
+    // saved and loaded; kana known before SRS get scheduled 1-3 days out
+    CHECK(p.save("/tmp/kt_srs.txt")); Progress b; b.clock = p.clock; CHECK(b.load("/tmp/kt_srs.txt", &d));
+    CHECK(b.stats[k].srs == SRS_LEVELS && b.stats[k].due == p.stats[k].due);
+    std::ofstream f("/tmp/kt_old.txt"); f << "# banana-kana progress v2\nset version 2\nstat h:い 9 9 0 9 4 1 2\n"; f.close();
+    Progress o; o.clock = p.clock; CHECK(o.load("/tmp/kt_old.txt", &d));
+    CHECK(o.stats["h:い"].srs == 1 && o.stats["h:い"].due > o.clock && !o.isDue("h:い"));
+  }
+  // ---- daily goal and streak
+  {
+    Progress p; p.settings.dailyGoal = 5; p.clock = 1700000000; const Time day = 86400;
+    for (int i = 0; i < 4; i++) p.record("h:あ", true);
+    CHECK(p.todayCount == 4 && p.streak == 0 && !p.goalJustMet);
+    p.record("h:い", false); CHECK(p.goalJustMet && p.streak == 1 && p.currentStreak() == 1);
+    p.record("h:い", true); CHECK(!p.goalJustMet && p.streak == 1 && p.todayCount == 6);
+    p.clock += day; CHECK(p.currentStreak() == 1);
+    for (int i = 0; i < 5; i++) p.record("h:あ", true);
+    CHECK(p.streak == 2 && p.bestStreak == 2 && p.todayCount == 5);
+    p.clock += 3 * day; CHECK(p.currentStreak() == 0);        // missed days break it
+    for (int i = 0; i < 5; i++) p.record("h:あ", true);
+    CHECK(p.streak == 1 && p.bestStreak == 2);
+    CHECK(p.save("/tmp/kt_goal.txt")); Progress b; CHECK(b.load("/tmp/kt_goal.txt", &d));
+    CHECK(b.streak == 1 && b.bestStreak == 2 && b.settings.dailyGoal == 5 && b.lastGoalDay == p.lastGoalDay);
+  }
+  // ---- mix-ups: built-in sets for unlocked kana, plus your own confusions
+  {
+    Progress p; std::mt19937 rng(9);
+    CHECK(d.mixSets.size() >= 20);
+    for (auto& m : mixupSets(d, p, Script::Hiragana)) CHECK(m.kana.size() >= 2);
+    auto sets = mixupSets(d, p, Script::Hiragana);
+    CHECK(sets.size() == 1 && sets[0].kana.size() == 2);         // あ row only: just あ/お
+    p.unlocked[0] = 2; CHECK(mixupSets(d, p, Script::Hiragana).size() == 1);  // こ/に waits for に
+    p.addConfusion("h:か", "h:え"); p.addConfusion("h:え", "h:か");
+    CHECK(p.confusions["h:え|h:か"] == 2); CHECK(mixupSets(d, p, Script::Hiragana).size() == 2);
+    for (int n = 0; n < 100; n++) {
+      Question q = makeMixupQuestion(d, p, rng);
+      CHECK(q.mixup && !q.note.empty() && q.options.size() == 2 && q.options[q.correct] == q.answer);
+    }
+    p.unlocked[0] = STAGE_COUNT; p.unlocked[1] = STAGE_COUNT;
+    CHECK(mixupSets(d, p, Script::Katakana).size() >= 10);
+    CHECK(p.save("/tmp/kt_mix.txt")); Progress b; CHECK(b.load("/tmp/kt_mix.txt", &d)); CHECK(b.confusions["h:え|h:か"] == 2);
+  }
+  // ---- writing parts: every kana can be traced; combos in two parts, the small kana full size
+  {
+    for (auto& x : d.kana) CHECK(!d.writeParts(x.glyph).empty());
+    auto kya = d.writeParts("きゃ"); CHECK(kya.size() == 2 && kya[0] == d.glyphFor("き") && kya[1] == d.glyphFor("や"));
+    CHECK(d.writeParts("ジョ").size() == 2 && d.writeParts("ジョ")[1] == d.glyphFor("ヨ"));
+    CHECK(Data::partNames("きゃ").size() == 2 && Data::partNames("きゃ")[1] == "ゃ");
+    Progress p; p.unlocked[0] = STAGE_COUNT; std::mt19937 rng(4); int combos = 0;
+    for (int n = 0; n < 400; n++) { Question q = makeQuestionOfType(d, p, rng, QType::Write); CHECK(q.type == QType::Write);
+      if (Data::partNames(q.answer).size() == 2) combos++; }
+    CHECK(combos > 0);
+  }
+  // ---- kana keyboard typing
+  {
+    Progress p; p.settings.kanaKeys = true; p.unlocked[0] = STAGE_COUNT; std::mt19937 rng(6);
+    int ji = d.findKana(Script::Hiragana, "ぢ");
+    Question q = makeKanaQuestion(d, p, rng, ji, QType::Type);
+    CHECK(q.kanaInput && q.answer == "ぢ" && q.prompt == d.kana[ji].romaji);
+    CHECK(kanaTypedMatches(d, q, "ぢ") && kanaTypedMatches(d, q, "じ") && !kanaTypedMatches(d, q, "し"));
+    for (int n = 0; n < 200; n++) { Question w = makeQuestionOfType(d, p, rng, QType::Type); CHECK(w.kanaInput); }
+    p.settings.kanaKeys = false; CHECK(!makeKanaQuestion(d, p, rng, ji, QType::Type).kanaInput);
+  }
+  // ---- timed questions are always multiple choice; history and best are saved
+  {
+    Progress p; p.unlocked[0] = 5; std::mt19937 rng(8);
+    for (int n = 0; n < 300; n++) { Question q = makeTimedQuestion(d, p, rng); CHECK(!q.options.empty()); }
+    p.clock = 1700000000; p.record("h:あ", true); p.record("h:い", false); p.clock += 86400; p.record("h:あ", true);
+    CHECK(p.days.size() == 2 && p.days.begin()->second.answers == 2 && p.days.begin()->second.correct == 1);
+    p.timedBest[1] = 23; CHECK(p.save("/tmp/kt_days.txt")); Progress b; CHECK(b.load("/tmp/kt_days.txt", &d));
+    CHECK(b.days.size() == 2 && b.timedBest[1] == 23 && b.days.rbegin()->second.correct == 1);
+    CHECK(dayDiff(20261130, 20261201) == 1 && dayDiff(20261231, 20270101) == 1 && dayDiff(20261115, 20261101) == -14);
   }
   printf(fails ? "%d FAILURES\n" : "all core tests passed\n", fails); return fails != 0;
 }

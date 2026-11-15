@@ -7,6 +7,7 @@
 #include <fstream>
 #include <set>
 #include <sstream>
+#include <ctime>
 
 namespace kt {
 
@@ -61,7 +62,44 @@ const StageDef STAGE_DEFS[STAGE_COUNT] = {
   {"わ を ん", "わをん", false}, {"が ざ だ", "がぎぐげござじずぜぞだぢづでど", false},
   {"ば ぱ", "ばびぶべぼぱぴぷぺぽ", false}, {"きゃ … ひゃ", "きしちにひ", true}, {"みゃ … ぴゃ", "みりぎじびぴ", true},
 };
+struct MixDef { const char* kana; const char* note; };
+const MixDef MIX_DEFS[] = {
+  {"さ き", "き has two bars across, さ has one."},
+  {"さ ち", "Mirror images: さ ends in a small c-curve, ち bulges out like the number 5."},
+  {"は ほ け", "は is a post plus a bar and loop; ほ adds a second bar on top; け has no loop."},
+  {"ね れ わ", "Same post, different ending: ね loops, れ kicks out, わ curves round like a wave."},
+  {"め ぬ", "ぬ is め with a little loop at the end."},
+  {"る ろ", "る ends in a loop, ろ stays open."},
+  {"い り", "い has two short, even strokes; り's right stroke is much longer."},
+  {"こ に", "に is こ with a post on the left."},
+  {"あ お", "あ has a cross through its loop; お has one bar and an open loop with a dot."},
+  {"う つ", "う has a dash on top; つ is just the wave."},
+  {"ま も", "ま loops at the bottom of its post; も is a hook with two bars."},
+  {"た な", "た ends in こ; な ends in a loop."},
+  {"ば ぱ", "Two marks make b; a little circle makes p."},
+  {"シ ツ", "シ's strokes rise from the bottom-left; ツ's fall from the top, like rain."},
+  {"ソ ン", "ソ's long stroke falls from the top; ン's rises from the bottom."},
+  {"ク ケ タ", "ク is the bare hook; ケ's bar crosses out to the right; タ adds a line inside ク."},
+  {"ウ ワ フ", "ウ has a tick on top, ワ is the box without it, フ has no left side."},
+  {"ス ヌ", "ヌ has a short slash through it; ス's leg kicks out on its own."},
+  {"チ テ", "チ's top stroke slants; テ has two flat bars."},
+  {"ノ メ", "メ is ノ crossed by a second stroke."},
+  {"コ ユ", "ユ's bottom bar sticks out to the left; コ is a closed corner."},
+  {"フ ヲ", "ヲ is フ with an extra bar across the middle."},
+  {"マ ム", "マ points down; ム points up with an arm out."},
+  {"ア マ", "ア has a tail falling through the middle; マ ends with a short tick."},
+};
 }  // namespace
+
+const int SRS_DAYS[SRS_LEVELS] = {1, 3, 7, 14, 30, 90};
+
+int dayNumber(Time t) {
+  std::time_t tt = std::time_t(t); std::tm tmv{};
+  localtime_r(&tt, &tmv);
+  return (tmv.tm_year + 1900) * 10000 + (tmv.tm_mon + 1) * 100 + tmv.tm_mday;
+}
+
+Time Progress::now() const { return clock ? clock : Time(std::time(nullptr)); }
 
 bool Data::load(const std::string& dir, std::string* err) {
   auto fail = [&](const std::string& m) { if (err) *err = m; return false; };
@@ -126,6 +164,16 @@ bool Data::load(const std::string& dir, std::string* err) {
     }
   }
   for (size_t i = 0; i < kana.size(); i++) if (stageOfKana[i] < 0) return fail("kana in no stage: " + kana[i].glyph);
+  for (const MixDef& m : MIX_DEFS) {
+    MixSet set; set.note = m.note;
+    for (const std::string& g : chars(m.kana)) {
+      uint32_t cp = utf8Codepoints(g)[0];
+      int idx = findKana(cp >= 0x30A0 ? Script::Katakana : Script::Hiragana, g);
+      if (idx < 0) return fail("mix-up kana missing: " + g);
+      set.kana.push_back(idx);
+    }
+    mixSets.push_back(set);
+  }
   return true;
 }
 
@@ -141,19 +189,84 @@ const Glyph* Data::glyphFor(const std::string& g) const {
   return it == glyphs.end() ? nullptr : &it->second;
 }
 
+std::vector<std::string> Data::partNames(const std::string& g) {
+  std::vector<std::string> out; size_t i = 0;
+  while (i < g.size()) {
+    unsigned char c = g[i]; size_t n = c < 0x80 ? 1 : c < 0xE0 ? 2 : c < 0xF0 ? 3 : 4;
+    out.push_back(g.substr(i, n)); i += n;
+  }
+  return out;
+}
+
+std::vector<const Glyph*> Data::writeParts(const std::string& g) const {
+  static const std::map<std::string, std::string> BIG = {{"ゃ", "や"}, {"ゅ", "ゆ"}, {"ょ", "よ"}, {"っ", "つ"},
+                                                         {"ャ", "ヤ"}, {"ュ", "ユ"}, {"ョ", "ヨ"}, {"ッ", "ツ"}};
+  std::vector<const Glyph*> out;
+  for (const std::string& c : partNames(g)) {
+    auto it = BIG.find(c);
+    const Glyph* gl = glyphFor(it != BIG.end() && partNames(g).size() > 1 ? it->second : c);
+    if (!gl) return {};
+    out.push_back(gl);
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------- progress
 std::string Progress::keyKana(const Kana& k) { return std::string(k.script == Script::Hiragana ? "h:" : "k:") + k.glyph; }
 std::string Progress::keyWord(const Word& w) { return "w:" + w.kana; }
 
 void Progress::record(const std::string& key, bool ok) {
+  const Time t = now();
   Stat& s = stats[key]; s.seen++;
+  const bool kana = key.size() > 2 && (key[0] == 'h' || key[0] == 'k') && key[1] == ':';
+  const bool wasKnown = s.step >= KNOWN_STEP;
+  const bool wasDue = kana && wasKnown && s.srs > 0 && s.due <= t;
   if (ok) {
     s.correct++; s.streak++;
     if (s.gainSession != session) { s.gainSession = session; s.gain = 0; }
     if (s.gain < MAX_GAIN_PER_SESSION && s.step < KNOWN_STEP) { s.step++; s.gain++; }
+    if (kana && s.step >= KNOWN_STEP && (!wasKnown || s.srs == 0)) {            // newly known: first review in a day (or at its old level)
+      s.srs = std::max(1, s.srs); s.due = t + Time(SRS_DAYS[s.srs - 1]) * 86400;
+    } else if (wasDue) {                                         // a review answered right: wait longer next time
+      s.srs = std::min(SRS_LEVELS, std::max(1, s.srs) + 1); s.due = t + Time(SRS_DAYS[s.srs - 1]) * 86400;
+    }
   } else {
     s.wrong++; s.streak = 0; s.step = std::max(0, s.step - 1);
+    if (kana && wasKnown) s.srs = std::max(1, s.srs - 1);       // relearn it; it comes back sooner once known again
   }
+  // daily goal and streak
+  goalJustMet = false;
+  int d = dayNumber(t);
+  if (d != today) { today = d; todayCount = 0; }
+  todayCount++;
+  Day& dh = days[d]; dh.answers++; if (ok) dh.correct++;
+  while (days.size() > 90) days.erase(days.begin());
+  if (todayCount == settings.dailyGoal && lastGoalDay != d) {
+    streak = lastGoalDay == dayNumber(t - 86400) ? streak + 1 : 1;
+    lastGoalDay = d; bestStreak = std::max(bestStreak, streak); goalJustMet = true;
+  }
+}
+
+bool Progress::isDue(const std::string& key) const {
+  auto it = stats.find(key);
+  return it != stats.end() && it->second.step >= KNOWN_STEP && it->second.srs > 0 && it->second.due <= now();
+}
+
+std::vector<int> Progress::dueKana(const Data& d, Script s) const {
+  std::vector<int> out;
+  for (size_t i = 0; i < d.kana.size(); i++)
+    if (d.kana[i].script == s && isUnlocked(d, int(i)) && isDue(keyKana(d.kana[i]))) out.push_back(int(i));
+  return out;
+}
+
+void Progress::addConfusion(const std::string& a, const std::string& b) {
+  if (a == b) return;
+  confusions[a < b ? a + "|" + b : b + "|" + a]++;
+}
+
+int Progress::currentStreak() const {
+  int d = dayNumber(now());
+  return (lastGoalDay == d || lastGoalDay == dayNumber(now() - 86400)) ? streak : 0;
 }
 
 int Progress::step(const std::string& key) const { auto it = stats.find(key); return it == stats.end() ? 0 : it->second.step; }
@@ -220,6 +333,15 @@ bool Progress::load(const std::string& path, const Data* d) {
       else if (k == "writing") settings.writing = std::clamp(v, 0, 2);
       else if (k == "typing") settings.typing = std::clamp(v, 0, 2);
       else if (k == "session_len") settings.sessionLen = std::clamp(v, 5, 30);
+      else if (k == "daily_goal") settings.dailyGoal = std::clamp(v, 5, 50);
+      else if (k == "today") today = v;
+      else if (k == "today_count") todayCount = std::max(0, v);
+      else if (k == "streak") streak = std::max(0, v);
+      else if (k == "best_streak") bestStreak = std::max(0, v);
+      else if (k == "last_goal_day") lastGoalDay = v;
+      else if (k == "kana_keys") settings.kanaKeys = v != 0;
+      else if (k == "timed_best_h") timedBest[0] = std::max(0, v);
+      else if (k == "timed_best_k") timedBest[1] = std::max(0, v);
       else if (k == "script") settings.script = v ? Script::Katakana : Script::Hiragana;
       else if (k == "theme") settings.light = v != 0;
       else if (k == "session") session = std::max(0, v);
@@ -229,9 +351,14 @@ bool Progress::load(const std::string& path, const Data* d) {
       else if (k == "unlocked_k") unlocked[1] = std::clamp(v, 0, STAGE_COUNT);
       else if (k == "lessons_h") lessons[0] = std::clamp(v, 0, STAGE_COUNT);
       else if (k == "lessons_k") lessons[1] = std::clamp(v, 0, STAGE_COUNT);
+    } else if (tag == "day") {
+      int dd = 0; Day x; if (is >> dd >> x.answers >> x.correct) days[dd] = x;
+    } else if (tag == "mix") {
+      std::string a, b; int n = 0; if (is >> a >> b >> n && n > 0) confusions[a < b ? a + "|" + b : b + "|" + a] = n;
     } else if (tag == "stat") {
       std::string key; Stat s; is >> key >> s.seen >> s.correct >> s.wrong >> s.streak;
       if (!(is >> s.step >> s.gainSession >> s.gain)) { s.step = 0; s.gainSession = -1; s.gain = 0; }
+      else if (!(is >> s.srs >> s.due)) { s.srs = 0; s.due = 0; }
       stats[key] = s; anyStat = true;
     }
   }
@@ -243,6 +370,10 @@ bool Progress::load(const std::string& path, const Data* d) {
       for (int i = 0; i < 2; i++) lessons[i] = std::max(0, unlocked[i] - 1);
     }
   }
+  // kana known before spaced review existed: first review in 1-3 days, spread out so they don't all land at once
+  int spread = 0;
+  for (auto& [k, s] : stats)
+    if (s.step >= KNOWN_STEP && s.srs == 0 && k.size() > 2 && k[1] == ':') { s.srs = 1; s.due = now() + Time(86400) * (1 + spread++ % 3); }
   if (!scriptUnlocked(settings.script)) settings.script = Script::Hiragana;
   return true;
 }
@@ -254,11 +385,16 @@ bool Progress::save(const std::string& path) const {
     f << "set review " << settings.review << "\nset reading " << settings.reading << "\nset meanings " << settings.meanings
       << "\nset writing " << settings.writing << "\nset typing " << settings.typing << "\nset session_len " << settings.sessionLen
       << "\nset script " << (settings.script == Script::Katakana) << "\nset theme " << settings.light
+      << "\nset daily_goal " << settings.dailyGoal << "\nset today " << today << "\nset today_count " << todayCount
+      << "\nset kana_keys " << int(settings.kanaKeys) << "\nset timed_best_h " << timedBest[0] << "\nset timed_best_k " << timedBest[1]
+      << "\nset streak " << streak << "\nset best_streak " << bestStreak << "\nset last_goal_day " << lastGoalDay
       << "\nset session " << session << "\nset last_score " << lastScore << "\nset last_len " << lastLen << "\nset unlocked_h " << unlocked[0] << "\nset unlocked_k " << unlocked[1]
       << "\nset lessons_h " << lessons[0] << "\nset lessons_k " << lessons[1] << "\n";
     for (const auto& [k, s] : stats)
       f << "stat " << k << ' ' << s.seen << ' ' << s.correct << ' ' << s.wrong << ' ' << s.streak << ' ' << s.step << ' '
-        << s.gainSession << ' ' << s.gain << '\n';
+        << s.gainSession << ' ' << s.gain << ' ' << s.srs << ' ' << s.due << '\n';
+    for (const auto& [dd, x] : days) f << "day " << dd << ' ' << x.answers << ' ' << x.correct << '\n';
+    for (const auto& [k, n] : confusions) { auto bar = k.find('|'); f << "mix " << k.substr(0, bar) << ' ' << k.substr(bar + 1) << ' ' << n << '\n'; }
     if (!f) return false; }
   return std::rename(tmp.c_str(), path.c_str()) == 0;
 }
@@ -319,6 +455,7 @@ double kanaWeight(const Data& d, const Progress& p, int i) {
   const std::string key = Progress::keyKana(d.kana[i]);
   double w = baseWeight(p, key);
   int st = p.step(key);
+  if (p.settings.review > 0 && p.isDue(key)) return std::max(w, 1.0) * 5;  // reviews due come first
   if (d.stageOfKana[i] == p.currentStage(d.kana[i].script)) return w * (2 + (KNOWN_STEP - std::min(st, KNOWN_STEP)));
   KanaState ks = p.state(d, i);
   bool needs = ks == KanaState::Weak || st < KNOWN_STEP;
@@ -339,12 +476,12 @@ std::vector<std::string> fillOptions(std::vector<std::string> pool, const std::s
 int pickKana(const Data& d, const Progress& p, std::mt19937& rng, Script s, bool needGlyph) {
   std::vector<int> pool; std::vector<double> w;
   for (int i : unlockedKana(d, p, s)) {
-    if (needGlyph && !d.glyphFor(d.kana[i].glyph)) continue;
+    if (needGlyph && d.writeParts(d.kana[i].glyph).empty()) continue;
     double x = kanaWeight(d, p, i); if (x <= 0) continue;
     pool.push_back(i); w.push_back(x);
   }
   if (pool.empty()) {  // everything reviewed away: fall back to any unlocked kana
-    for (int i : unlockedKana(d, p, s)) if (!needGlyph || d.glyphFor(d.kana[i].glyph)) { pool.push_back(i); w.push_back(1); }
+    for (int i : unlockedKana(d, p, s)) if (!needGlyph || !d.writeParts(d.kana[i].glyph).empty()) { pool.push_back(i); w.push_back(1); }
   }
   if (pool.empty()) return -1;
   std::discrete_distribution<int> dist(w.begin(), w.end());
@@ -354,7 +491,7 @@ int pickKana(const Data& d, const Progress& p, std::mt19937& rng, Script s, bool
 
 Question makeKanaQuestion(const Data& d, const Progress& p, std::mt19937& rng, int ki, QType type) {
   const Kana& k = d.kana[ki];
-  if (type == QType::Write && !d.glyphFor(k.glyph)) type = QType::ReadKana;
+  if (type == QType::Write && d.writeParts(k.glyph).empty()) type = QType::ReadKana;
   if (type == QType::Meaning) type = QType::ReadKana;
   Question q; q.type = type; q.key = Progress::keyKana(k); q.kanaIdx = ki;
   std::vector<int> pool = unlockedKana(d, p, k.script);
@@ -378,7 +515,9 @@ Question makeKanaQuestion(const Data& d, const Progress& p, std::mt19937& rng, i
     case QType::Write:
       q.prompt = k.romaji; q.hint = "Trace the kana"; q.answer = k.glyph; break;
     case QType::Type:
-      q.prompt = k.glyph; q.hint = "Type the romaji"; q.answer = k.romaji; break;
+      if (p.settings.kanaKeys) { q.prompt = k.romaji; q.hint = "Type it in kana"; q.answer = k.glyph; q.kanaInput = true; }
+      else { q.prompt = k.glyph; q.hint = "Type the romaji"; q.answer = k.romaji; }
+      break;
     default: break;
   }
   return q;
@@ -396,7 +535,9 @@ static Question makeWordQuestion(const Data&, const Progress& p, std::mt19937& r
       q.prompt = w.kana; q.hint = "What does it mean?";
       q.options = fillOptions(engPool, w.english, rng, 6, &q.correct); q.answer = w.english; break;
     case QType::Type:
-      q.prompt = w.kana; q.hint = "Type the romaji · " + w.english; q.answer = w.romaji; break;
+      if (p.settings.kanaKeys) { q.prompt = w.romaji; q.hint = "Type it in kana · " + w.english; q.answer = w.kana; q.kanaInput = true; }
+      else { q.prompt = w.kana; q.hint = "Type the romaji · " + w.english; q.answer = w.romaji; }
+      break;
     default:
       q.type = QType::ReadKana; q.prompt = w.kana; q.hint = "How do you read this word?";
       q.options = fillOptions(romajiPool, w.romaji, rng, 6, &q.correct); q.answer = w.romaji; break;
@@ -434,6 +575,99 @@ Question makeQuestion(const Data& d, const Progress& p, std::mt19937& rng) {
   const Opt& o = opts[dist(rng)];
   if (o.word) return makeWordQuestion(d, p, rng, o.t, words);
   return makeKanaQuestion(d, p, rng, pickKana(d, p, rng, s, o.t == QType::Write), o.t);
+}
+
+// ---------------------------------------------------------------- reviews and mix-ups
+Question makeReviewQuestion(const Data& d, const Progress& p, std::mt19937& rng) {
+  Script s = p.settings.script;
+  auto due = p.dueKana(d, s);
+  if (due.empty()) return makeQuestion(d, p, rng);
+  std::vector<double> w; for (int i : due) w.push_back(baseWeight(p, Progress::keyKana(d.kana[i])));
+  std::discrete_distribution<int> pick(w.begin(), w.end());
+  int ki = due[pick(rng)];
+  const Settings& st = p.settings;
+  std::vector<std::pair<QType, int>> ts = {{QType::ReadKana, st.reading}, {QType::RecallKana, st.reading},
+                                           {QType::Write, d.writeParts(d.kana[ki].glyph).empty() ? 0 : st.writing}, {QType::Type, st.typing}};
+  std::vector<double> tw; for (auto& t : ts) tw.push_back(t.second);
+  QType t = QType::ReadKana;
+  double tot = 0; for (double x : tw) tot += x;
+  if (tot > 0) { std::discrete_distribution<int> dt(tw.begin(), tw.end()); t = ts[dt(rng)].first; }
+  Question q = makeKanaQuestion(d, p, rng, ki, t);
+  q.hint = "Review · " + q.hint;
+  return q;
+}
+
+std::vector<MixSet> mixupSets(const Data& d, const Progress& p, Script s) {
+  std::vector<MixSet> out;
+  for (const MixSet& m : d.mixSets) {
+    MixSet u; u.note = m.note;
+    for (int i : m.kana) if (d.kana[i].script == s && p.isUnlocked(d, i)) u.kana.push_back(i);
+    if (u.kana.size() >= 2) out.push_back(u);
+  }
+  for (const auto& [k, n] : p.confusions) {  // pairs you've mixed up yourself
+    auto bar = k.find('|'); std::string a = k.substr(0, bar), b = k.substr(bar + 1);
+    int ia = -1, ib = -1;
+    for (size_t i = 0; i < d.kana.size(); i++) { std::string kk = Progress::keyKana(d.kana[i]); if (kk == a) ia = int(i); if (kk == b) ib = int(i); }
+    if (ia < 0 || ib < 0 || d.kana[ia].script != s || !p.isUnlocked(d, ia) || !p.isUnlocked(d, ib)) continue;
+    bool covered = false;
+    for (auto& m : out) if (std::count(m.kana.begin(), m.kana.end(), ia) && std::count(m.kana.begin(), m.kana.end(), ib)) covered = true;
+    if (!covered) out.push_back({{ia, ib}, "You've mixed these up before: " + d.kana[ia].glyph + " is " + d.kana[ia].romaji + ", " +
+                                              d.kana[ib].glyph + " is " + d.kana[ib].romaji + "."});
+  }
+  return out;
+}
+
+Question makeMixupQuestion(const Data& d, const Progress& p, std::mt19937& rng) {
+  Script s = p.settings.script;
+  auto sets = mixupSets(d, p, s);
+  if (sets.empty()) return makeQuestion(d, p, rng);
+  std::vector<double> w;
+  for (auto& m : sets) {
+    int n = 0;
+    for (size_t a = 0; a < m.kana.size(); a++)
+      for (size_t b = a + 1; b < m.kana.size(); b++) {
+        std::string ka = Progress::keyKana(d.kana[m.kana[a]]), kb = Progress::keyKana(d.kana[m.kana[b]]);
+        auto it = p.confusions.find(ka < kb ? ka + "|" + kb : kb + "|" + ka); if (it != p.confusions.end()) n += it->second;
+      }
+    w.push_back(1.0 + 3.0 * n);
+  }
+  std::discrete_distribution<int> pick(w.begin(), w.end());
+  const MixSet& m = sets[pick(rng)];
+  int ki = m.kana[std::uniform_int_distribution<int>(0, int(m.kana.size()) - 1)(rng)];
+  const Kana& k = d.kana[ki];
+  bool recall = std::uniform_int_distribution<int>(0, 1)(rng) == 1;
+  Question q; q.type = recall ? QType::RecallKana : QType::ReadKana; q.key = Progress::keyKana(k); q.kanaIdx = ki;
+  q.mixup = true; q.note = m.note; q.optionsAreKana = recall;
+  for (int i : m.kana) q.options.push_back(recall ? d.kana[i].glyph : d.kana[i].romaji);
+  std::shuffle(q.options.begin(), q.options.end(), rng);
+  q.answer = recall ? k.glyph : k.romaji;
+  q.correct = int(std::find(q.options.begin(), q.options.end(), q.answer) - q.options.begin());
+  q.prompt = recall ? k.romaji : k.glyph;
+  q.hint = recall ? "Mix-up · which one is " + k.romaji + "?" : "Mix-up · what sound is this?";
+  return q;
+}
+
+Question makeTimedQuestion(const Data& d, const Progress& p, std::mt19937& rng) {
+  Script s = p.settings.script;
+  std::vector<QType> ts = {QType::ReadKana, QType::RecallKana, QType::ReadKana};
+  if (p.settings.meanings > 0 && eligibleWords(d, p, s).size() >= 6) ts.push_back(QType::Meaning);
+  QType t = ts[std::uniform_int_distribution<int>(0, int(ts.size()) - 1)(rng)];
+  if (t == QType::Meaning) return makeQuestionOfType(d, p, rng, t);
+  int ki = pickKana(d, p, rng, s, false);
+  return makeKanaQuestion(d, p, rng, ki, t);
+}
+
+bool kanaTypedMatches(const Data& d, const Question& q, const std::string& typed) {
+  if (typed == q.answer) return true;
+  if (q.isWord || q.kanaIdx < 0) return false;
+  const Kana& k = d.kana[q.kanaIdx];
+  for (const Kana& o : d.kana) if (o.script == k.script && o.romaji == k.romaji && o.glyph == typed) return true;
+  return false;
+}
+
+int dayDiff(int a, int b) {
+  auto toT = [](int x) { std::tm t{}; t.tm_year = x / 10000 - 1900; t.tm_mon = x / 100 % 100 - 1; t.tm_mday = x % 100; t.tm_hour = 12; return std::mktime(&t); };
+  return int(std::lround(std::difftime(toT(b), toT(a)) / 86400.0));
 }
 
 // ---------------------------------------------------------------- strokes

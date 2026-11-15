@@ -39,13 +39,17 @@ int App::selfTest(const std::string& shotDir) {
     if (shots && !shotTypes.count(tn)) shot("q_" + tn);
     if (!q.options.empty()) {
       int n = int(q.options.size()); click(B_TILE0 + (right ? q.correct : (q.correct + 1) % n)); click(B_CHECK);
+    } else if (q.type == QType::Type && q.kanaInput) {
+      typed = right ? q.answer : "ぬぬ"; click(B_CHECK);
     } else if (q.type == QType::Type) {
       for (char ch : (right ? q.answer : std::string("zzq"))) click(B_KEY0 + (ch - 'a'));
       click(B_CHECK);
     } else {
-      const Glyph* g = activeGlyph(); CHECK(g != nullptr, "write glyph");
-      if (right) trace(*g, 1.5f, -1.0f); else { SDL_Rect c = canvasRect(); pointer(0, c.x + 10, c.y + 10); pointer(1, c.x + 60, c.y + 12); pointer(2, c.x + 60, c.y + 12); }
-      click(B_CHECK);
+      for (int guard = 0; guard < 3 && !checked; guard++) {  // combination kana take two parts
+        const Glyph* g = activeGlyph(); CHECK(g != nullptr, "write glyph"); if (!g) break;
+        if (right) trace(*g, 1.5f, -1.0f); else { SDL_Rect c = canvasRect(); pointer(0, c.x + 10, c.y + 10); pointer(1, c.x + 60, c.y + 12); pointer(2, c.x + 60, c.y + 12); }
+        click(B_CHECK);
+      }
     }
     CHECK(checked, "question checked");
     if (shots && !shotTypes.count(tn)) { shot("q_" + tn + "_checked"); shotTypes.insert(tn); }
@@ -170,6 +174,7 @@ int App::selfTest(const std::string& shotDir) {
   shot("light_settings_display");
   go(Screen::Settings); shot("light_settings");
   go(Screen::Home); shot("light_home");
+  go(Screen::Stats); shot("light_stats");
   go(Screen::Stages); shot("light_stages");
   go(Screen::Chart); shot("light_chart");
   openLesson(Script::Hiragana, 1, true); trace(*activeGlyph(), 0.5f, 0.5f); shot("light_lesson");
@@ -201,9 +206,86 @@ int App::selfTest(const std::string& shotDir) {
 
   CHECK(prog.save(statePath), "save");
   { Progress re; CHECK(re.load(statePath, &data), "reload"); CHECK(re.unlocked[1] == 1 && re.lessons[1] >= 1, "katakana state persisted"); }
-  // ---- 9. reset progress needs two presses and keeps settings
+  // ---- 9. daily goal: plenty answered today
+  CHECK(prog.streak >= 1 && prog.currentStreak() >= 1 && prog.todayCount >= prog.settings.dailyGoal, "daily goal reached");
+
+  // ---- 10. spaced review: known kana that are due
+  setScript(Script::Hiragana); go(Screen::Home);
+  { int n = 0; for (int ki : data.stages[0][0].kana) { Stat& st = prog.stats[Progress::keyKana(data.kana[ki])]; st.step = KNOWN_STEP; st.srs = 2; st.due = prog.now() - 60; n++; }
+    CHECK(int(prog.dueKana(data, Script::Hiragana).size()) >= n, "reviews due"); }
+  homeSel = 4; shot("home_reviews");
+  { const Button* rb = find(B_MODE0); CHECK(rb && rb->enabled && rb->sub.find("due") != std::string::npos, "review button shows due"); }
+  int dueBefore = int(prog.dueKana(data, Script::Hiragana).size());
+  CHECK(click(B_MODE0), "review"); CHECK(screen == Screen::Drill && mode == Mode::Review, "review session");
+  CHECK(sessionLen == std::min(prog.settings.sessionLen, dueBefore), "review length = due");
+  for (int i = 0; i < 40 && screen == Screen::Drill; i++) {
+    CHECK(prog.isDue(q.key) || i > 0, "review asks due kana");
+    if (i == 0) shot("q_review");
+    answer(true, false); if (i == 0) { CHECK(feedbackNote.find("Next review") != std::string::npos || !correct, "next review note"); }
+  }
+  CHECK(screen == Screen::Result, "review result"); shot("result_review");
+  CHECK(int(prog.dueKana(data, Script::Hiragana).size()) < dueBefore, "reviews cleared");
+  CHECK(click(B_HOME), "home after review");
+
+  // ---- 11. mix-ups: options from one look-alike set, wrong picks remember the confusion
+  CHECK(click(B_MODE0 + 1), "mix-ups"); CHECK(screen == Screen::Drill && mode == Mode::Mixup && q.mixup, "mix-up session");
+  shot("q_mixup");
+  { std::string key = q.key; size_t before = prog.confusions.size();
+    click(B_TILE0 + (q.correct + 1) % int(q.options.size())); click(B_CHECK);
+    CHECK(checked && !correct && feedbackNote == q.note, "mix-up note"); CHECK(prog.confusions.size() >= before && !prog.confusions.empty(), "confusion recorded");
+    shot("q_mixup_checked"); click(B_CONTINUE); (void)key; }
+  for (int i = 0; i < 40 && screen == Screen::Drill; i++) { CHECK(q.mixup, "mix-up questions only"); answer(true, false); }
+  CHECK(screen == Screen::Result, "mix-up result"); CHECK(click(B_HOME), "home after mix-ups");
+
+  // ---- 12. timed challenge: one tap answers, the clock ends it, best is kept
+  CHECK(click(B_MODE0 + 2), "timed"); CHECK(screen == Screen::Drill && mode == Mode::Timed && timedLeft == TIMED_MS, "timed session");
+  for (int i = 0; i < 12; i++) {
+    CHECK(!q.options.empty(), "timed is multiple choice");
+    int before = index; click(B_TILE0 + (i % 4 == 3 ? (q.correct + 1) % int(q.options.size()) : q.correct));
+    CHECK(index == before + 1 && !checked, "tap answers and moves on");
+    if (i == 3) { CHECK(flash == 2, "miss flashed"); shot("timed"); }
+  }
+  CHECK(score == 9, "timed score");
+  padButton(SDL_CONTROLLER_BUTTON_A); CHECK(index == 13, "A answers in timed");
+  togglePause(); tick(timedLast + 5000); CHECK(timedLeft > TIMED_MS - 2000 && screen == Screen::Drill, "pause stops the clock"); togglePause();
+  timedLeft = 300; tick(timedLast + 400); CHECK(screen == Screen::Result, "time up -> result");
+  CHECK(prog.timedBest[0] == score && timedNewBest, "timed best saved"); shot("result_timed");
+  CHECK(click(B_AGAIN), "try again"); CHECK(mode == Mode::Timed && timedLeft == TIMED_MS, "timed again");
+  timedLeft = 1; tick(timedLast + 10); CHECK(screen == Screen::Result && !timedNewBest, "no new best on 0");
+  CHECK(click(B_HOME), "home after timed");
+
+  // ---- 13. stats screen and its heatmap
+  CHECK(click(B_MODE0 + 3), "stats"); CHECK(screen == Screen::Stats, "stats screen"); shot("stats");
+  { int ka = data.findKana(Script::Hiragana, "か");
+    CHECK(click(B_HEAT0 + ka), "heatmap cell"); CHECK(screen == Screen::Chart && chartSel == ka && chartTab == 0, "heatmap opens chart"); }
+  go(Screen::Home);
+
+  // ---- 14. kana keyboard
+  { Settings keep = prog.settings;
+    prog.settings.reading = 0; prog.settings.meanings = 0; prog.settings.writing = 0; prog.settings.typing = 2; prog.settings.kanaKeys = true;
+    startSession(); CHECK(q.type == QType::Type && q.kanaInput, "kana typing question"); shot("q_type_kana");
+    click(B_KANA0 + 6); click(B_KANA0 + 35); CHECK(typed == "きや", "kana keys"); click(B_SMALLK); CHECK(typed == "きゃ", "small key");
+    click(B_DAKU); CHECK(typed == "ぎゃ" || typed == "きゃ", "dakuten leaves small ゃ"); click(B_BKSP); click(B_KANA0 + 5 * 5); click(B_HANDAKU);
+    CHECK(typed == "きぱ", "handakuten"); click(B_HANDAKU); CHECK(typed == "きは", "handakuten off"); click(B_DAKU); CHECK(typed == "きば", "dakuten");
+    click(B_CHOON); CHECK(typed == "きばー", "long vowel"); shot("q_type_kana_typed");
+    typed = q.answer; click(B_CHECK); CHECK(checked && correct, "kana typed right"); shot("q_type_kana_checked");
+    // ---- 15. writing a combination kana in two parts
+    prog.settings.typing = 0; prog.settings.writing = 2; prog.settings.kanaKeys = false; prog.unlocked[0] = STAGE_COUNT;
+    startSession(); bool found = false;
+    for (int t = 0; t < 400 && !found; t++) { if (q.type == QType::Write && writePartCount() == 2) found = true; else { index = 0; nextQuestion(true); } }
+    CHECK(found, "combo writing question");
+    if (found) {
+      shot("q_write_combo"); trace(*activeGlyph(), 1.0f, 0.5f); click(B_CHECK);
+      CHECK(!checked && part == 1 && strokes.empty(), "on to part 2"); shot("q_write_combo_part2");
+      click(B_UNDO); CHECK(part == 0 && !strokes.empty(), "undo goes back a part"); click(B_CHECK); CHECK(part == 1, "part 2 again");
+      trace(*activeGlyph(), 1.0f, 0.5f); click(B_CHECK); CHECK(checked && correct, "combo traced right"); shot("q_write_combo_checked");
+    }
+    prog.settings = keep; prog.unlocked[0] = KATAKANA_AFTER + 1; go(Screen::Home);
+  }
+
+  // ---- 16. reset progress needs two presses and keeps settings
   go(Screen::Settings); setGroup = 4; CHECK(click(B_FOOT_R), "open Progress"); shot("settings_progress");
-  CHECK(click(B_SROW0 + 2), "select reset"); CHECK(click(B_SROW0 + 2), "reset once"); CHECK(resetArmed && prog.unlocked[1] == 1, "first press only arms");
+  CHECK(click(B_SROW0 + 4), "select reset"); CHECK(click(B_SROW0 + 4), "reset once"); CHECK(resetArmed && prog.unlocked[1] == 1, "first press only arms");
   shot("settings_reset_armed");
   CHECK(click(B_FOOT_R), "confirm reset"); CHECK(prog.unlocked[0] == 1 && prog.unlocked[1] == 0 && prog.stats.empty(), "progress reset");
   CHECK(prog.settings.sessionLen == 10, "settings kept after reset");

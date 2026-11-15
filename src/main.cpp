@@ -235,6 +235,7 @@ int main(int argc, char** argv) {
         if (blFixes++ < 5) { fprintf(stderr, "  bottom backlight was off (bl_power=%d), switched on\n", v); fflush(stderr); } }
     }
     // Redraw only when something changed (plus a slow refresh): far less GPU work, and each frame finishes before it shows.
+    if (app.tick(SDL_GetTicks())) dirty = true;
     if (dirty || SDL_GetTicks() - lastRender > 500) { app.render(); dirty = false; lastRender = SDL_GetTicks(); }
     SDL_Delay(8);
     if (++frames == 90) {
