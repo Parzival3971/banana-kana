@@ -1021,7 +1021,7 @@ void App::drawCredits() {
   auto para = [&](const std::string& t, Col c, int font) { y += drawWrapped(top, t, SDL_Rect{24, y, 592, 120}, c, font) + 12; };
   para("Banana Kana: hiragana and katakana practice for BananaOS on the RG DS Plus.", FG, F_TINY);
   para("Stroke data: KanjiVG (c) Ulrich Apel, Creative Commons BY-SA 3.0. kanjivg.tagaini.net", DIM, F_TINY);
-  para("Fonts: Zen Maru Gothic (kana), Pixelify Sans (English) and Noto Sans CJK JP (fallback), all under the SIL Open Font License 1.1. "
+  para("Fonts: Zen Maru Gothic and Noto Sans CJK JP (fallback), both under the SIL Open Font License 1.1. "
        "Full licence texts are in data/licenses.", DIM, F_TINY);
   para("Lesson hints and the word list were written for Banana Kana.", DIM, F_TINY);
   addBtn(SDL_Rect{16, 16, 608, 80}, B_BACK, "Back", F_SMALL); accent(lastBtn());

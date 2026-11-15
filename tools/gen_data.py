@@ -397,7 +397,7 @@ def fetch(url, name):
 
 def build_fonts(rows):
     """kana.ttf  : Zen Maru Gothic Bold, subset to kana + Japanese punctuation (OFL)
-       ui.ttf    : Pixelify Sans at weight 500, Latin (OFL; Banana Player's UI font)
+       ui.ttf    : Zen Maru Gothic Medium, Latin (OFL) - same family as the kana, readable at small sizes
        fallback.ttf: Noto Sans CJK JP subset, for any glyph the other two lack (OFL)"""
     lic = os.path.join(DATA, "licenses"); os.makedirs(lic, exist_ok=True)
     kana = sorted({c for _, g, _, _ in rows for c in g} | {c for w in WORDS for c in w.split("|")[0]})
@@ -405,11 +405,9 @@ def build_fonts(rows):
     zen = fetch(GF + "ofl/zenmarugothic/ZenMaruGothic-Bold.ttf", "ZenMaruGothic-Bold.ttf")
     subprocess.run([sys.executable, "-m", "fontTools.subset", zen, f"--text={''.join(kana)}{jp_extra}",
                     "--layout-features=*", f"--output-file={os.path.join(DATA, 'kana.ttf')}"], check=True)
-    pix = fetch(GF + "ofl/pixelifysans/PixelifySans%5Bwght%5D.ttf", "PixelifySans-VF.ttf")
-    inst = "/tmp/gf/PixelifySans-500.ttf"
-    subprocess.run([sys.executable, "-m", "fontTools.varLib.instancer", pix, "wght=500", "-o", inst], check=True)
+    zenm = fetch(GF + "ofl/zenmarugothic/ZenMaruGothic-Medium.ttf", "ZenMaruGothic-Medium.ttf")
     latin = "".join(chr(c) for c in range(0x20, 0x7f)) + "".join(chr(c) for c in range(0xa0, 0x180)) + "‹›–—‘’“”…•·×←→↑↓"
-    subprocess.run([sys.executable, "-m", "fontTools.subset", inst, f"--text={latin}", "--layout-features=*",
+    subprocess.run([sys.executable, "-m", "fontTools.subset", zenm, f"--text={latin}", "--layout-features=*",
                     f"--output-file={os.path.join(DATA, 'ui.ttf')}"], check=True)
     noto = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
     fb = "".join(kana) + jp_extra + latin + "✓✗▲▼◀▶✛"
@@ -417,8 +415,9 @@ def build_fonts(rows):
                     "--layout-features=*", f"--output-file={os.path.join(DATA, 'fallback.ttf')}"], check=True)
     old = os.path.join(DATA, "font.ttf")
     if os.path.exists(old): os.remove(old)
-    for url, name in [(GF + "ofl/zenmarugothic/OFL.txt", "ZenMaruGothic-OFL.txt"),
-                      (GF + "ofl/pixelifysans/OFL.txt", "PixelifySans-OFL.txt")]:
+    stale = os.path.join(lic, "PixelifySans-OFL.txt")
+    if os.path.exists(stale): os.remove(stale)
+    for url, name in [(GF + "ofl/zenmarugothic/OFL.txt", "ZenMaruGothic-OFL.txt")]:
         open(os.path.join(lic, name), "w").write(open(fetch(url, name)).read())
     open(os.path.join(lic, "NotoSansCJK.txt"), "w").write(
         "fallback.ttf is a subset of Noto Sans CJK JP (c) Google / Adobe, SIL Open Font License 1.1.\n")

@@ -32,7 +32,7 @@ void applyTheme(bool light) {
 namespace {
 const int FONT_PX[F_COUNT] = {170, 100, 52, 30, 22, 17};
 TTF_Font* kanaF[F_COUNT];  // Zen Maru Gothic: kana
-TTF_Font* uiF[F_COUNT];    // Pixelify Sans: English / UI
+TTF_Font* uiF[F_COUNT];    // Zen Maru Gothic Medium (Latin): English / UI
 TTF_Font* fbF[F_COUNT];    // Noto subset: anything the others lack
 float gFontScale = 1.f;
 
@@ -103,6 +103,7 @@ bool loadFonts(const std::string& dir, float scale, std::string* err) {
     uiF[i] = TTF_OpenFont((dir + "/ui.ttf").c_str(), px);
     fbF[i] = TTF_OpenFont((dir + "/fallback.ttf").c_str(), px);
     if (!kanaF[i] || !uiF[i] || !fbF[i]) { if (err) *err = TTF_GetError(); return false; }
+    for (TTF_Font* f : {kanaF[i], uiF[i], fbF[i]}) TTF_SetFontHinting(f, TTF_HINTING_LIGHT);  // keeps thin strokes (H crossbar) at small sizes
   }
   return true;
 }

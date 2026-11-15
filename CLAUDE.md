@@ -62,7 +62,7 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
 
 ## Known gaps / to verify on device
 - Device test 2026-11-15 passed (old UI): touch + tracing land correctly, A/B correct, F + START quits, bottom survives sleep.
-- New UI (M3/M4) not yet seen on device: check text sharpness at 1.6x, Pixelify readability at F_MICRO (17px logical),
+- New UI (M3/M4) not yet seen on device: check text sharpness at 1.6x, readability at F_MICRO (17px logical),
   L/R shoulder buttons (Stages script switch, Chart tabs) and that GUIDE really is the F key.
 - Yoon kana (きゃ etc.) have no Write drill (two glyphs). Typing has no Japanese-keyboard mode (romaji only).
 - Kana count is 104 per script (Maru shows 105).
@@ -89,9 +89,10 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
 
 ## v1 spec (decided 2026-11-15; mockups: https://claude.ai/artifact/AHzvzZCbRSnBpttUyaXq6z)
 - Look: BananaOS palette (banana yellow #FFD23F on warm neutrals), button-hint chips, cartridge tiles.
-  Fonts: kana in Zen Maru Gothic (OFL), English/UI/keyboard in Pixelify Sans (OFL, Banana Player's UI font),
+  Fonts: kana in Zen Maru Gothic Bold, English/UI/keyboard in Zen Maru Gothic Medium (both OFL). Pixelify Sans (Banana
+  Player's pixel font) was tried and DROPPED 2026-11-15: user found it hard to read. Don't reintroduce pixel fonts.
   Fallback for missing glyphs: Noto Sans CJK JP subset (fallback.ttf) instead of Fusion Pixel (already had it, OFL).
-  Source TTFs: github.com/google/fonts (ofl/zenmarugothic, ofl/pixelifysans). Licences ship in app/data/licenses/.
+  Source TTFs: github.com/google/fonts (ofl/zenmarugothic). Licences ship in app/data/licenses/.
   Text is rendered per run (main.cpp renderMixed/pickFont): kana -> kana.ttf, Latin -> ui.ttf, else fallback.ttf.
 - Theme: Dark and Light (DONE M1: `set theme` in progress.txt, toggle on Settings top row; palettes in main.cpp Theme). On light, yellow is fill only; yellow-on-light text needs a darker shade.
 - Icon: "Cartridge" design, rendered to launcher/media/box/Banana Kana.png (512x512; shelf size still unverified).
