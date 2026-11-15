@@ -60,6 +60,7 @@ struct Progress {
   std::map<std::string, Stat> stats;
   Settings settings;
   int session = 0;                       // incremented at the start of every practice session
+  int lastScore = -1, lastLen = 0;       // most recent finished session
   std::array<int, 2> unlocked{{1, 0}};   // stages unlocked per script (katakana starts at 0 = locked)
   std::array<int, 2> lessons{{0, 0}};    // stage lessons completed per script
   bool migrated = false;                 // set when an older progress file was upgraded on load

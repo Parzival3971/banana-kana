@@ -47,12 +47,23 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
 - `src/core.{h,cpp}`: data loading, stages (Data::stages, stageOfKana), progress v2 (steps, session cap, unlocked/lessons per
   script, checkUnlocks, v1 migration), question generation (unlocked kana only, current stage weighted, review setting,
   words only when every char is unlocked and >= 6 such words; 4 options when the pool is small), stroke scoring.
-- `src/main.cpp`: two SDL windows, screens (Home/Settings/Drill/Result), input (mouse=touch, gamepad, keyboard), `--selftest`.
+- `src/gfx.{h,cpp}`: themes/palettes, fonts + mixed-script text (per run; spaces always UI font), wrapping, rounded shapes
+  (rows overlap 1px: avoids seams at non-integer scale), pixel icons, glyph stroke drawing, windows, screenshots.
+  Text is rasterised at the panel's real scale (Win::scale, 1.6 on device) for sharpness.
+- `src/app.{h,cpp}`: all screens + navigation + input mapping per screen: Home (stage card, 4 cartridges: Practice/Lesson,
+  Stages, Kana chart, Settings), Stages (14-tile map, replay lessons), Lesson (hint, stroke-order frames, practice trace),
+  Unlocked, Drill (choice/typing/writing + feedback banner with hint), Pause, Result, Chart (Basic/Voiced/Combos tabs,
+  scroll, tap twice / A = 5-question drill of one kana), Settings (9 rows incl. theme, session length), Credits.
+- `src/selftest.cpp`: `--selftest` drives every screen and flow (lesson -> sessions -> unlock -> lesson, wrong answer, pause,
+  map, chart focus drill, settings, light theme, katakana unlock); `--shots DIR` saves top/bottom BMPs of each screen.
+- `src/main.cpp`: start-up, event loop, gamepad label swap, F/SELECT pause + F+START quit, evdev touch, backlight keeper.
 - Drill types: ReadKana, RecallKana, Meaning, Write (stylus trace vs KanjiVG), Type (on-screen romaji keys).
 - No audio / Listening drill: removed on purpose (no clips available). Re-add only if real recordings exist.
 
 ## Known gaps / to verify on device
-- Device test 2026-11-15 passed: touch + tracing land correctly, A/B correct, F + START quits, bottom screen survives sleep.
+- Device test 2026-11-15 passed (old UI): touch + tracing land correctly, A/B correct, F + START quits, bottom survives sleep.
+- New UI (M3/M4) not yet seen on device: check text sharpness at 1.6x, Pixelify readability at F_MICRO (17px logical),
+  L/R shoulder buttons (Stages script switch, Chart tabs) and that GUIDE really is the F key.
 - Yoon kana (きゃ etc.) have no Write drill (two glyphs). Typing has no Japanese-keyboard mode (romaji only).
 - Kana count is 104 per script (Maru shows 105).
 
@@ -96,5 +107,5 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
   on hints. Credits screen still needs KanjiVG (CC BY-SA 3.0) + font OFL notices.
 - Screens: Home, Stage map, Lesson, Stage unlocked, Drill (reading/meanings/writing/typing), Feedback, Pause menu,
   Kana chart (locked/learning/known/weak), Practice mix/settings (incl. theme), Results.
-- Milestones: 1 fonts+theme, 2 stages+progress migration (keep v1 progress), 3 mockup screens, lessons, unlock,
-  4 chart + settings, 5 device test, then first release 0.1.0 via VERSION bump.
+- Milestones: 1 fonts+theme DONE, 2 stages+progress migration DONE, 3 mockup screens/lessons/unlock DONE,
+  4 chart + settings DONE (2026-11-15), 5 device test (NEEDS USER), then first release 0.1.0 via VERSION bump.

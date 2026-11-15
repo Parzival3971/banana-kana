@@ -2,8 +2,12 @@
 
 Hiragana/katakana drills and stylus tracing for the Anbernic RG DS Plus (BananaOS).
 
-Status: scaffolding. Releases are built by GitHub Actions when `VERSION` changes on `main`.
-Stroke data: [KanjiVG](https://kanjivg.tagaini.net/) (CC BY-SA 3.0).
+Learn hiragana then katakana in 14 stages each: a short lesson per stage (hint, stroke order, tracing), then practice
+(reading, word meanings, writing with the stylus, typing). A kana is known after 4 steps spread over at least two
+sessions; knowing a whole stage unlocks the next. Dark and light themes.
+
+Releases are built by GitHub Actions when `VERSION` changes on `main`.
+Stroke data: [KanjiVG](https://kanjivg.tagaini.net/) (CC BY-SA 3.0). Fonts: Zen Maru Gothic, Pixelify Sans, Noto Sans CJK JP (SIL OFL 1.1).
 
 ## Install (BananaOS on RG DS Plus)
 1. Unzip `BananaKana-<version>-aarch64.zip` into `roms/ports` on the SD card. You should end up with

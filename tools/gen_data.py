@@ -412,7 +412,7 @@ def build_fonts(rows):
     subprocess.run([sys.executable, "-m", "fontTools.subset", inst, f"--text={latin}", "--layout-features=*",
                     f"--output-file={os.path.join(DATA, 'ui.ttf')}"], check=True)
     noto = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
-    fb = "".join(kana) + jp_extra + latin + "✓✗"
+    fb = "".join(kana) + jp_extra + latin + "✓✗▲▼◀▶✛"
     subprocess.run([sys.executable, "-m", "fontTools.subset", noto, "--font-number=0", f"--text={fb}",
                     "--layout-features=*", f"--output-file={os.path.join(DATA, 'fallback.ttf')}"], check=True)
     old = os.path.join(DATA, "font.ttf")

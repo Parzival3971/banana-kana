@@ -223,6 +223,8 @@ bool Progress::load(const std::string& path, const Data* d) {
       else if (k == "script") settings.script = v ? Script::Katakana : Script::Hiragana;
       else if (k == "theme") settings.light = v != 0;
       else if (k == "session") session = std::max(0, v);
+      else if (k == "last_score") lastScore = v;
+      else if (k == "last_len") lastLen = std::max(0, v);
       else if (k == "unlocked_h") unlocked[0] = std::clamp(v, 1, STAGE_COUNT);
       else if (k == "unlocked_k") unlocked[1] = std::clamp(v, 0, STAGE_COUNT);
       else if (k == "lessons_h") lessons[0] = std::clamp(v, 0, STAGE_COUNT);
@@ -252,7 +254,7 @@ bool Progress::save(const std::string& path) const {
     f << "set review " << settings.review << "\nset reading " << settings.reading << "\nset meanings " << settings.meanings
       << "\nset writing " << settings.writing << "\nset typing " << settings.typing << "\nset session_len " << settings.sessionLen
       << "\nset script " << (settings.script == Script::Katakana) << "\nset theme " << settings.light
-      << "\nset session " << session << "\nset unlocked_h " << unlocked[0] << "\nset unlocked_k " << unlocked[1]
+      << "\nset session " << session << "\nset last_score " << lastScore << "\nset last_len " << lastLen << "\nset unlocked_h " << unlocked[0] << "\nset unlocked_k " << unlocked[1]
       << "\nset lessons_h " << lessons[0] << "\nset lessons_k " << lessons[1] << "\n";
     for (const auto& [k, s] : stats)
       f << "stat " << k << ' ' << s.seen << ' ' << s.correct << ' ' << s.wrong << ' ' << s.streak << ' ' << s.step << ' '
