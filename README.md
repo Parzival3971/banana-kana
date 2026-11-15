@@ -96,7 +96,7 @@ You need an Anbernic RG DS Plus running BananaOS.
 | **Y** | Hint while writing, guide in free writing. On Home and stats: switch hiragana / katakana |
 | **START** | Show me (stroke-order animation) when writing; in the chart, write the practice set freely |
 | **L / R** | Switch tabs, scripts or settings groups |
-| **F** (or **SELECT**) | Pause during practice: resume, back to menu or quit |
+| **F** (or **SELECT**) | Pause during practice: resume, back to menu or quit. Tapping the Pause hint works too |
 | **F + START** | Quit from anywhere (BananaOS's F + SELECT works too) |
 
 ## How learning works

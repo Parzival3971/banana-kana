@@ -38,4 +38,5 @@ First release for BananaOS on the Anbernic RG DS Plus.
 - Settings modelled on BananaOS Settings, with dark and light themes. Hint chips draw the d-pad as a cross.
 - Animated credits for BananaOS, KanjiVG, the fonts and Banana Player.
 - Zen Maru Gothic fonts, rendered at the panel's real resolution.
-- Progress is saved after every answer and on power-off. F + START quits; F or SELECT pauses during practice.
+- Progress is saved after every answer and on power-off. F + START quits; F or SELECT pauses during practice
+  (or tap the Pause hint). F is detected even when the controller mapping doesn't name it.

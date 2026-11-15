@@ -80,6 +80,8 @@ int App::selfTest(const std::string& shotDir) {
       if (!pauseDone && i == 2) {
         togglePause(); CHECK(paused, "paused"); shot("pause");
         CHECK(click(B_RESUME), "resume"); CHECK(!paused && screen == Screen::Drill, "resumed");
+        frame(); CHECK(click(B_PAUSE), "tap the Pause chip"); CHECK(paused, "paused by tapping the chip");
+        CHECK(click(B_RESUME), "resume again");
         pauseDone = true;
       }
       if (!wrongDone && i == 3 && !q.options.empty() && !q.isWord) {

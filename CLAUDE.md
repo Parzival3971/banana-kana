@@ -123,6 +123,13 @@ README has an AI disclosure section (user asked 2026-11-15): keep it accurate wh
   Chips: F+START Quit, F Pause. Log now includes joysticks, controller mapping and raw SDL_JOYBUTTONDOWN indices
   (SDL_GetError had said "Unexpected controller element crc"; buttons work, so probably harmless).
 
+## Device test 3 (2026-11-15)
+- F + START quits (probably BananaOS's own hotkey). F alone did NOT pause; F + SELECT opened the pause menu = SELECT alone,
+  so F never reached us as GUIDE. Fix: any raw joystick button the controller mapping doesn't use counts as F (log line
+  "raw buttons used by the mapping" + "(taken as F)"; override KT_MENU_BUTTON=<raw index>); two menu keys together = combo
+  (F + SELECT left to BananaOS); the "F Pause" chip is tappable (B_PAUSE). If F still doesn't pause, BananaOS grabs it:
+  ask for launch.log.
+
 ## Banana Player lessons applied (pre-emptive, 2026-11-14)
 - Quit anywhere: F + START (confirmed working on device; SELECT + START also quits).
 - Pause menu: F (or SELECT) pressed and released alone during practice -> Resume / Back to menu / Quit. Tab on PC.

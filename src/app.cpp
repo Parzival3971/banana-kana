@@ -358,6 +358,7 @@ void App::togglePause() {
 // ================================================================== input
 void App::press(int id) {
   Script sc = prog.settings.script;
+  if (id == B_PAUSE) { togglePause(); return; }
   if (paused) {
     if (id == B_RESUME) paused = false;
     else if (id == B_MENU) { paused = false; go(Screen::Home); }
@@ -709,6 +710,9 @@ void App::chips(const std::vector<std::pair<std::string, std::string>>& items) {
       fillRound(bot, SDL_Rect{cx - 9, cy - 3, 18, 6}, 2, BG); fillRound(bot, SDL_Rect{cx - 3, cy - 9, 6, 18}, 2, BG);
     } else drawText(bot, k, SDL_Rect{x + 3, 441, kw, 28}, BG, F_MICRO);
     drawText(bot, label, SDL_Rect{x + 4 + kw + 8, 438, lw + 4, 34}, FG, F_MICRO, A_LEFT);
+    if (label == "Pause" && screen == Screen::Drill && !paused) {  // tap the hint to pause, too (in case F never reaches us)
+      addBtn(SDL_Rect{x - 4, 432, w + 8, 46}, B_PAUSE, ""); lastBtn().hidden = true;
+    }
     x += w + 8;
   }
 }

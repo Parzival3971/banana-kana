@@ -24,7 +24,7 @@ enum BtnId {
   // drill
   B_TILE0 = 30, B_CHECK = 40, B_CONTINUE, B_UNDO, B_CLEAR, B_HINT, B_BKSP,
   // pause
-  B_RESUME = 50, B_MENU,
+  B_RESUME = 50, B_MENU, B_PAUSE = 58,
   // results / unlock
   B_AGAIN = 60, B_LATER, B_START_LESSON,
   // stages

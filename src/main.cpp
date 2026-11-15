@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <set>
 #include <string>
 #include <sys/stat.h>
 
@@ -161,7 +162,9 @@ int main(int argc, char** argv) {
   fprintf(stderr, "  sdl touch devices: %d, joysticks: %d\n", SDL_GetNumTouchDevices(), SDL_NumJoysticks());
   for (int i = 0; i < SDL_NumJoysticks(); i++)
     fprintf(stderr, "  joystick %d: %s gamecontroller=%d\n", i, SDL_JoystickNameForIndex(i) ? SDL_JoystickNameForIndex(i) : "?", SDL_IsGameController(i));
-  EvTouch touch; touch.open(); int sdlTouchLogged = 0, buttonsLogged = 0, rawLogged = 0; bool menuKeyDown = false, menuCombo = false; fflush(stderr);
+  EvTouch touch; touch.open(); int sdlTouchLogged = 0, buttonsLogged = 0, rawLogged = 0; bool menuKeyDown = false, menuCombo = false;
+  // F on the RG DS Plus may not be mapped as GUIDE: a raw joystick button the controller mapping doesn't use is taken as F.
+  std::set<int> mappedRaw; int menuRaw = getenv("KT_MENU_BUTTON") ? atoi(getenv("KT_MENU_BUTTON")) : -1; bool rawMenuDown = false; fflush(stderr);
   std::signal(SIGTERM, onSignal); std::signal(SIGINT, onSignal); std::signal(SIGHUP, onSignal);
   // Keep the bottom backlight on: BananaOS can switch it off again after sleep (/run/banana/panel-off).
   std::string blPower;
@@ -181,11 +184,27 @@ int main(int argc, char** argv) {
           fprintf(stderr, "  controller added: index %d %s (%s)\n", e.cdevice.which, gc ? SDL_GameControllerName(gc) : "?",
                   gc ? "opened" : SDL_GetError());
           if (gc) { char* m = SDL_GameControllerMapping(gc); fprintf(stderr, "  mapping: %s\n", m ? m : "none"); if (m) SDL_free(m); }
+          if (gc) {
+            std::string list;
+            for (int cb = 0; cb < SDL_CONTROLLER_BUTTON_MAX; cb++) {
+              SDL_GameControllerButtonBind bd = SDL_GameControllerGetBindForButton(gc, (SDL_GameControllerButton)cb);
+              if (bd.bindType == SDL_CONTROLLER_BINDTYPE_BUTTON) { mappedRaw.insert(bd.value.button); list += " " + std::to_string(bd.value.button); }
+            }
+            fprintf(stderr, "  raw buttons used by the mapping:%s (any other raw button counts as F)\n", list.c_str());
+          }
           fflush(stderr); break; }
-        case SDL_JOYBUTTONDOWN:
+        case SDL_JOYBUTTONDOWN: {
           // Raw joystick buttons, logged even when SDL has no controller mapping: tells us what F, SELECT etc. are.
-          if (rawLogged < 40) { rawLogged++; fprintf(stderr, "  raw joystick %d button %d down\n", e.jbutton.which, e.jbutton.button); fflush(stderr); }
-          break;
+          int rb = e.jbutton.button;
+          bool isMenu = menuRaw >= 0 ? rb == menuRaw : (!mappedRaw.empty() && !mappedRaw.count(rb));
+          if (rawLogged < 40) { rawLogged++; fprintf(stderr, "  raw joystick %d button %d down%s\n", e.jbutton.which, rb, isMenu ? " (taken as F)" : ""); fflush(stderr); }
+          if (isMenu) { rawMenuDown = true; if (menuKeyDown) menuCombo = true; else { menuKeyDown = true; menuCombo = false; } }
+          break; }
+        case SDL_JOYBUTTONUP: {
+          int rb = e.jbutton.button;
+          bool isMenu = menuRaw >= 0 ? rb == menuRaw : (!mappedRaw.empty() && !mappedRaw.count(rb));
+          if (isMenu && rawMenuDown) { rawMenuDown = false; if (menuKeyDown) { menuKeyDown = false; if (!menuCombo) app.togglePause(); } }
+          break; }
         case SDL_CONTROLLERBUTTONDOWN: {
           // SDL names face buttons by position (A = south). The RG DS Plus is labelled Nintendo-style
           // (A = east, B = south, X = north, Y = west), so translate to the printed labels. KT_POSITIONAL=1 disables.
@@ -194,11 +213,13 @@ int main(int argc, char** argv) {
           if (buttonsLogged < 30) { buttonsLogged++; const char* bn = SDL_GameControllerGetStringForButton(b);
             fprintf(stderr, "  button %d (%s)\n", (int)b, bn ? bn : "?"); fflush(stderr); }
           // Quit to the BananaOS menu from anywhere: F + START (F is assumed to be GUIDE; SELECT + START also works).
-          if (b == SDL_CONTROLLER_BUTTON_START && gc &&
-              (SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_GUIDE) || SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_BACK))) {
+          if (b == SDL_CONTROLLER_BUTTON_START && gc && (rawMenuDown ||
+              SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_GUIDE) || SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_BACK))) {
             app.running = false; break; }
           // F (or SELECT) pressed and released on its own toggles the pause menu; with another button it is a combo.
-          if (b == SDL_CONTROLLER_BUTTON_GUIDE || b == SDL_CONTROLLER_BUTTON_BACK) { menuKeyDown = true; menuCombo = false; break; }
+          if (b == SDL_CONTROLLER_BUTTON_GUIDE || b == SDL_CONTROLLER_BUTTON_BACK) {  // F + SELECT together is BananaOS's, not a pause
+            if (menuKeyDown) menuCombo = true; else { menuKeyDown = true; menuCombo = false; }
+            break; }
           if (menuKeyDown) menuCombo = true;
           if (!getenv("KT_POSITIONAL")) {
             if (b == SDL_CONTROLLER_BUTTON_A) b = SDL_CONTROLLER_BUTTON_B;
