@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <csignal>
 #include <cstdio>
+#include <fstream>
 #include <cstdlib>
 #include <cstring>
 #include <vector>
@@ -193,6 +194,15 @@ int main(int argc, char** argv) {
   App app; app.dataDir = dataDir; std::string err; applyTheme(false);
   if (!app.data.load(dataDir, &err)) { fprintf(stderr, "cannot load data from '%s': %s\n", dataDir.c_str(), err.c_str()); return 2; }
   mkdirs(stateDir); app.statePath = stateDir + "/progress.txt";
+  // SD-card backup next to the app (packaged layout only: BananaKana/VERSION beside data/). KT_BACKUP=0 turns it off.
+  { struct stat vs; if (stat((dataDir + "/../VERSION").c_str(), &vs) == 0 && !(getenv("KT_BACKUP") && !strcmp(getenv("KT_BACKUP"), "0")))
+      app.backupPath = dataDir + "/../progress-backup.txt";
+    if (getenv("KT_BACKUP_PATH")) app.backupPath = getenv("KT_BACKUP_PATH"); }
+  { struct stat ps, bs;  // fresh install or reflash: bring progress back from the SD card
+    if (stat(app.statePath.c_str(), &ps) != 0 && !app.backupPath.empty() && stat(app.backupPath.c_str(), &bs) == 0) {
+      std::ifstream in(app.backupPath, std::ios::binary); std::ofstream out(app.statePath, std::ios::binary); out << in.rdbuf();
+      fprintf(stderr, "  progress restored from backup %s\n", app.backupPath.c_str());
+    } }
   { FILE* pf = fopen(app.statePath.c_str(), "r"); app.firstRun = !pf; if (pf) fclose(pf); }
   if (app.prog.load(app.statePath, &app.data) && app.prog.migrated) { fprintf(stderr, "  progress upgraded to v2\n"); app.prog.save(app.statePath); }
   applyTheme(app.prog.settings.light);
@@ -221,7 +231,7 @@ int main(int argc, char** argv) {
   SDL_ShowCursor(SDL_ENABLE);
   if (!loadFonts(dataDir, app.top.scale, &err)) { fprintf(stderr, "font: %s\n", err.c_str()); return 3; }
   setKanaHand(app.prog.settings.kanaHand);
-  snd::setVolume(app.prog.settings.sound);
+  snd::setVolume(app.prog.settings.sound); snd::setRumble(app.prog.settings.rumble);
 
   if (self) { int rc = app.selfTest(shotDir); SDL_Quit(); return rc; }
 
@@ -254,6 +264,7 @@ int main(int argc, char** argv) {
           SDL_GameController* gc = SDL_GameControllerOpen(e.cdevice.which);
           fprintf(stderr, "  controller added: index %d %s (%s)\n", e.cdevice.which, gc ? SDL_GameControllerName(gc) : "?",
                   gc ? "opened" : SDL_GetError());
+          if (gc) { snd::setController(gc); fprintf(stderr, "  rumble: %s\n", snd::canRumble() ? "yes" : "no"); }
           if (gc) { char* m = SDL_GameControllerMapping(gc); fprintf(stderr, "  mapping: %s\n", m ? m : "none"); if (m) SDL_free(m); }
           if (gc) {
             std::string list;
@@ -362,7 +373,7 @@ int main(int argc, char** argv) {
               SDL_GetWindowFlags(app.top.w), SDL_GetWindowFlags(app.bot.w), SDL_GetError());
     }
   }
-  app.prog.save(app.statePath);
+  app.prog.save(app.statePath); app.backup(true);
   fprintf(stderr, "  exit (%s)\n", gStop ? "signal" : "quit");
   snd::quit(); TTF_Quit(); SDL_Quit(); return 0;
 }

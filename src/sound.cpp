@@ -1,6 +1,7 @@
 #include "sound.h"
 
 #include <SDL.h>
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <vector>
@@ -10,6 +11,8 @@ namespace {
 const int RATE = 22050;
 SDL_AudioDeviceID dev = 0;
 int volume = 2;
+SDL_GameController* pad = nullptr;
+int rumbleLevel = 1;
 std::vector<int16_t> clips[int(Sfx::Count)];
 
 // One note: a soft sine with a little second harmonic, quick attack, exponential fade.
@@ -60,6 +63,7 @@ bool init() {
 void setVolume(int v) { volume = std::max(0, std::min(3, v)); }
 
 void play(Sfx s) {
+  rumble(s);
   if (!dev || volume == 0) return;
   const auto& c = clips[int(s)]; if (c.empty()) return;
   static const float GAIN[4] = {0.f, 0.35f, 0.7f, 1.f};
@@ -69,5 +73,23 @@ void play(Sfx s) {
   SDL_QueueAudio(dev, out.data(), Uint32(out.size() * sizeof(int16_t)));
 }
 
+void setController(void* gc) { pad = static_cast<SDL_GameController*>(gc); }
+void setRumble(int level) { rumbleLevel = std::max(0, std::min(2, level)); }
+bool canRumble() { return pad && SDL_GameControllerHasRumble(pad); }
+void rumble(Sfx s) {
+  if (!pad || rumbleLevel == 0) return;
+  // {low-frequency motor, high-frequency motor, ms}: a tick for right, a firm buzz for wrong, longer for big moments
+  struct B { int lo, hi, ms; };
+  B b{0, 0, 0};
+  switch (s) {
+    case Sfx::Right:  b = {0x2000, 0x6000, 45}; break;
+    case Sfx::Wrong:  b = {0xA000, 0x8000, 160}; break;
+    case Sfx::Known:  b = {0x5000, 0x8000, 110}; break;
+    case Sfx::Unlock: case Sfx::Goal: b = {0x9000, 0xC000, 320}; break;
+    default: return;
+  }
+  float k = rumbleLevel == 1 ? 0.55f : 1.f;
+  SDL_GameControllerRumble(pad, Uint16(std::min(0xFFFF, int(b.lo * k))), Uint16(std::min(0xFFFF, int(b.hi * k))), Uint32(b.ms));
+}
 void quit() { if (dev) SDL_CloseAudioDevice(dev); dev = 0; }
 }  // namespace snd

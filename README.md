@@ -30,7 +30,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 
 ### 🎮 Practise
 - 🧩 **Four kinds of drill:**
-  - 👀 reading, from kana to sound and back;
+  - 👀 reading, from kana to sound and back, and matching hiragana with katakana (あ → ア) once both are open;
   - 💬 word meanings, using only words made of kana you've unlocked;
   - ✍️ writing, traced with the stylus and scored stroke by stroke (combination kana are traced in two parts);
   - ⌨️ typing, in romaji or on a kana keyboard.
@@ -58,6 +58,8 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
   timed best.
 - 🔊 **Sound effects.** Little chimes for right answers, newly known kana, unlocks and your daily goal (made in code,
   no audio files). Off, quiet, normal or loud.
+- 📳 **Rumble.** A tiny buzz for a right answer, a firmer one for a wrong answer and a long one for unlocks. Off, light
+  or strong.
 
 ### 🍌 Made for the RG DS Plus
 - 🖥️ Prompts on the top screen; answers, keyboards and the tracing canvas on the touch screen.
@@ -65,6 +67,8 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 - 🌗 Dark and light themes, with text rendered at the panels' real resolution.
 - 🔆 Volume and F + volume (brightness) work as usual, with a level bar across the top screen.
 - 💾 Progress is saved after every answer, so closing the lid or powering off loses nothing.
+- 🛟 A backup copy of your progress sits next to the app on the SD card (`roms/ports/BananaKana/progress-backup.txt`)
+  and comes back by itself after a reinstall or a BananaOS reflash.
 
 <details>
 <summary><b>📸 More screenshots</b></summary>
@@ -80,6 +84,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 | <img src="docs/img/welcome.png" width="250"><br>First launch | <img src="docs/img/practice-set.png" width="250"><br>Practice set | <img src="docs/img/free-write.png" width="250"><br>Free writing |
 | <img src="docs/img/skip.png" width="250"><br>Skipping ahead | <img src="docs/img/guided.png" width="250"><br>Guided writing | <img src="docs/img/credits.png" width="250"><br>Credits |
 | <img src="docs/img/draw-any.png" width="250"><br>Draw any kana | <img src="docs/img/extras.png" width="250"><br>Extras stage | <img src="docs/img/handwriting.png" width="250"><br>Handwriting font and grid |
+| <img src="docs/img/match.png" width="250"><br>Hiragana ↔ katakana | <img src="docs/img/mixup.png" width="250"><br>Mix-ups | |
 
 </details>
 
@@ -98,7 +103,8 @@ You need an Anbernic RG DS Plus running BananaOS.
 3. Put the card back, open the **Ports** shelf and choose **Banana Kana**.
 
 🔄 **Updating:** unzip the new version over the old one. Your progress lives in `home/.config/banana-kana/` and is kept.
-🗑️ **Uninstalling:** delete the three items above. Delete `home/.config/banana-kana/` too if you want your progress gone.
+A backup copy is also kept in `roms/ports/BananaKana/progress-backup.txt`: copy it somewhere safe now and then.
+🗑️ **Uninstalling:** delete the three items above (this removes the backup too). Delete `home/.config/banana-kana/` as well if you want your progress gone.
 
 ## 🎮 Controls
 
@@ -142,8 +148,8 @@ Six groups, laid out like BananaOS's own Settings app:
 | 🧩 **Practice** | How often each drill appears, and whether typing uses a romaji or kana keyboard |
 | ⏳ **Sessions** | Session length, how much older stages come back, the daily goal and how strict the writing check is |
 | あ **Script** | Which script you practise, and skipping ahead to a later stage (or unlocking katakana early) |
-| 🎨 **Display** | Dark or light theme, kana font (rounded or handwriting), canvas lines, ink and sound effects |
-| 📊 **Progress** | Your stats, and resetting progress (press twice; settings are kept) |
+| 🎨 **Display** | Dark or light theme, kana font (rounded or handwriting), canvas lines, ink, sound effects and rumble |
+| 📊 **Progress** | Your stats, resetting progress (press twice; settings are kept) and where the backup lives |
 | ℹ️ **About** | Version and credits |
 
 ## 🛠️ Troubleshooting
@@ -151,6 +157,7 @@ Six groups, laid out like BananaOS's own Settings app:
 - 🌑 **The bottom screen stays dark.** The launcher switches the bottom backlight on, and the app keeps it on.
   If it's still dark after waking from sleep, quit and start the app again.
 - 🔇 **No sound.** Check Settings > Display > Sound, and the volume on BananaOS itself.
+- 📴 **No rumble.** Check Settings > Display > Rumble. The launch log's `rumble:` line says whether the joypad reported it.
 - 🔙 **The Back key does nothing.** Send the launch log below: its `back key:` line shows which input device was found.
 - 🐛 **Something else is wrong.** Every launch writes `home/.config/banana-kana/launch.log` on the SD card. It lists the
   screens, touch device and controller it found. Please attach it when you

@@ -77,6 +77,7 @@ struct Settings {
   int ink = 1;            // 0 thin, 1 normal, 2 thick
   int strict = 1;         // stroke checking: 0 relaxed, 1 normal, 2 strict
   int sound = 2;          // sound effects: 0 off, 1 quiet, 2 normal, 3 loud
+  int rumble = 1;         // gamepad rumble on answers: 0 off, 1 light, 2 strong
   Script script = Script::Hiragana;
   bool light = false;  // UI theme
 };
@@ -144,6 +145,7 @@ struct Question {
   int writeLevel = WRITE_MEMORY;  // Write: 0 full guide, 1 faint outline, 2 from memory
   std::string meaning;  // the English meaning, shown under word prompts (empty when it would give the answer away)
   bool mixup = false; std::string note;  // mix-up questions carry the set's difference note
+  bool match = false;              // RecallKana shown with the twin from the other script (あ -> ア)
   int kanaIdx = -1;                // for kana questions
 };
 
@@ -156,6 +158,8 @@ Question makeQuestion(const Data& d, const Progress& p, std::mt19937& rng);
 Question makeKanaQuestion(const Data& d, const Progress& p, std::mt19937& rng, int kanaIdx, QType t);
 Question makeQuestionOfType(const Data& d, const Progress& p, std::mt19937& rng, QType t);
 bool typeAllowed(const Data& d, const Progress& p, int kanaIdx, QType t);  // the staging above
+int twinKana(const Data& d, const Progress& p, int kanaIdx);  // same sound in the other script, unlocked; -1 if none
+Question makeMatchQuestion(const Data& d, const Progress& p, std::mt19937& rng, int kanaIdx);
 Question makeReviewQuestion(const Data& d, const Progress& p, std::mt19937& rng);  // due kana only
 std::vector<MixSet> mixupSets(const Data& d, const Progress& p, Script s);       // built-in + learned, unlocked only
 Question makeMixupQuestion(const Data& d, const Progress& p, std::mt19937& rng);

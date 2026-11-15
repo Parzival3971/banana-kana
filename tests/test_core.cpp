@@ -376,5 +376,30 @@ int main(int argc, char** argv) {
     CHECK(got.size() == n);
     printf("stick: %zu presses, no jitter\n", got.size());
   }
+  {  // hiragana <-> katakana matching
+    Progress p; p.skipTo(d, Script::Hiragana, 5);
+    int a = d.findKana(Script::Hiragana, "あ");
+    CHECK(twinKana(d, p, a) < 0);                       // katakana still locked: no matching yet
+    p.skipTo(d, Script::Katakana, SKIP_ALL); p.skipTo(d, Script::Hiragana, SKIP_ALL);
+    CHECK(twinKana(d, p, a) == d.findKana(Script::Katakana, "ア"));
+    CHECK(twinKana(d, p, d.findKana(Script::Katakana, "ー")) < 0);
+    CHECK(twinKana(d, p, d.findKana(Script::Katakana, "ティ")) < 0);   // no hiragana twin
+    CHECK(twinKana(d, p, d.findKana(Script::Katakana, "ッ")) == d.findKana(Script::Hiragana, "っ"));
+    std::mt19937 rng(7); int matches = 0;
+    for (Script sc : {Script::Hiragana, Script::Katakana}) {
+      p.settings.script = sc;
+      for (int n = 0; n < 600; n++) {
+        Question q = makeQuestion(d, p, rng); if (!q.match) continue;
+        matches++;
+        const Kana& k = d.kana[q.kanaIdx];
+        CHECK(k.script == sc && q.optionsAreKana && q.options[q.correct] == k.glyph);
+        int tp = -1; for (size_t i = 0; i < d.kana.size(); i++) if (d.kana[i].glyph == q.prompt) tp = int(i);
+        CHECK(tp >= 0 && d.kana[tp].script != sc && d.kana[tp].romaji == k.romaji);
+        for (auto& o : q.options) { int oi = d.findKana(sc, o); CHECK(oi >= 0); }   // every option is in the script you're learning
+      }
+    }
+    CHECK(matches > 20);
+    printf("match: %d hiragana/katakana questions\n", matches);
+  }
   printf(fails ? "%d FAILURES\n" : "all core tests passed\n", fails); return fails != 0;
 }

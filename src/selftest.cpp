@@ -357,6 +357,16 @@ int App::selfTest(const std::string& shotDir) {
       answer(true, false);
     }
     CHECK(wordQ, "saw a ー word question");
+    { bool seen = false;  // hiragana <-> katakana matching shows up once both scripts are open
+      for (int i = 0; i < 300 && !seen; i++) {
+        if (screen != Screen::Drill) { go(Screen::Home); startSession(); continue; }
+        if (q.match) {
+          seen = true; CHECK(q.optionsAreKana && data.findKana(Script::Hiragana, q.prompt) >= 0, "match: hiragana prompt, katakana tiles");
+          shot("q_match"); click(B_TILE0 + q.correct); click(B_CHECK); CHECK(checked && correct, "match answered"); shot("q_match_checked");
+          click(B_CONTINUE);
+        } else answer(true, false);
+      }
+      CHECK(seen, "saw a matching question"); }
     go(Screen::Stats); shot("stats_katakana");
     prog = keep; setScript(Script::Hiragana); go(Screen::Home); }
 

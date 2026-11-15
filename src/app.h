@@ -114,7 +114,11 @@ struct App {
   void finishLesson();
   void togglePause();
   void setScript(Script s);
-  void save() { prog.save(statePath); }
+  // Progress lives in ~/.config/banana-kana (hidden). A copy goes next to the app on the SD card
+  // (roms/ports/BananaKana/progress-backup.txt) at most once a minute, after sessions, unlocks and on exit.
+  std::string backupPath; unsigned lastBackup = 0;
+  void backup(bool force);
+  void save() { prog.save(statePath); backup(false); }
 
   // input
   void press(int id);

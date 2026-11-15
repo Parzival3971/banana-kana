@@ -3,6 +3,17 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
+## 0.2.0 - 2026-11-15
+
+- Hiragana ↔ katakana matching: once both scripts are open, some reading questions show a kana in one script and ask
+  for its twin in the other (あ → ア). Counts towards the kana you're learning.
+- Rumble: a tiny buzz for right answers, a firmer one for wrong answers, and a long one for unlocks and your daily goal.
+  Settings > Display > Rumble (off, light, strong).
+- Progress backup on the SD card: a copy is kept in `roms/ports/BananaKana/progress-backup.txt` (after sessions,
+  unlocks, on exit and at most once a minute) and restored automatically if the main progress file is missing, e.g.
+  after a reflash. Settings > Progress shows where it is.
+- Settings groups with six rows now fit above the footer buttons.
+
 ## 0.1.4 - 2026-11-15
 
 - Fix: the stick still made the selector jump. The RG DS Plus reports a phantom second stick that moves along with the

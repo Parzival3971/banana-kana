@@ -147,6 +147,12 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   120 ms at centre (kills spring-back), rest point calibrated, repeat 400/140 ms. Phantom right stick: SDL mapping has rightx:a2/righty:a3 which move WITH the real stick in other directions
   (launch.log 2026-11-15) -> right stick ignored by default (KT_STICKS=both re-enables). KT_STICKS=0 disables; launch.log
   logs the first 30 stick presses with raw values. Triggers ignored.
+- 0.2.0 (user picked 2026-11-15 from my suggestions): Question.match = RecallKana with the twin from the other script as
+  prompt (twinKana: same romaji + same stage, both unlocked; not ー / foreign-sound extras), a third of normal recall
+  questions once both scripts are open. Rumble in sound.cpp (snd::rumble per Sfx, Settings.rumble 0/1/2, joypad has
+  FF_RUMBLE; log "rumble: yes/no"). Backup: App::backup -> BananaKana/progress-backup.txt (packaged layout only, i.e.
+  data/../VERSION exists; KT_BACKUP=0 off, KT_BACKUP_PATH override), restored in main.cpp when progress.txt is missing.
+  Settings rows squeeze when a group has 6+ rows. Next idea the user agreed to: topic word packs (open-licence list).
 - On-screen keyboards (kana + romaji) have a d-pad cursor (keyRow/keyCol, kbMove skips gaps), A types, X checks, B deletes.
 - Sound effects (src/sound.cpp): synthesised at start-up (Tap, Right, Wrong, Known, Unlock, Goal, Tick), SDL queue audio,
   Settings > Display > Sound (off/quiet/normal/loud). Not yet heard on device.

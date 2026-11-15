@@ -401,6 +401,7 @@ bool Progress::load(const std::string& path, const Data* d) {
       else if (k == "ink") settings.ink = std::clamp(v, 0, 2);
       else if (k == "strict") settings.strict = std::clamp(v, 0, 2);
       else if (k == "sound") settings.sound = std::clamp(v, 0, 3);
+      else if (k == "rumble") settings.rumble = std::clamp(v, 0, 2);
       else if (k == "timed_best_h") timedBest[0] = std::max(0, v);
       else if (k == "timed_best_k") timedBest[1] = std::max(0, v);
       else if (k == "script") settings.script = v ? Script::Katakana : Script::Hiragana;
@@ -449,7 +450,7 @@ bool Progress::save(const std::string& path) const {
       << "\nset script " << (settings.script == Script::Katakana) << "\nset theme " << settings.light
       << "\nset daily_goal " << settings.dailyGoal << "\nset today " << today << "\nset today_count " << todayCount
       << "\nset kana_keys " << int(settings.kanaKeys) << "\nset kana_hand " << int(settings.kanaHand)
-      << "\nset guide_lines " << settings.guideLines << "\nset ink " << settings.ink << "\nset strict " << settings.strict << "\nset sound " << settings.sound << "\nset timed_best_h " << timedBest[0] << "\nset timed_best_k " << timedBest[1]
+      << "\nset guide_lines " << settings.guideLines << "\nset ink " << settings.ink << "\nset strict " << settings.strict << "\nset sound " << settings.sound << "\nset rumble " << settings.rumble << "\nset timed_best_h " << timedBest[0] << "\nset timed_best_k " << timedBest[1]
       << "\nset streak " << streak << "\nset best_streak " << bestStreak << "\nset last_goal_day " << lastGoalDay
       << "\nset session " << session << "\nset last_score " << lastScore << "\nset last_len " << lastLen << "\nset unlocked_h " << unlocked[0] << "\nset unlocked_k " << unlocked[1]
       << "\nset lessons_h " << lessons[0] << "\nset lessons_k " << lessons[1] << "\n";
@@ -687,10 +688,36 @@ Question makeQuestion(const Data& d, const Progress& p, std::mt19937& rng) {
   if (o.word) return makeWordQuestion(d, p, rng, o.t, o.t == QType::Type ? typeWords : words);
   int ki = pickKana(d, p, rng, s, o.t);
   if (ki < 0) return makeKanaQuestion(d, p, rng, pickKana(d, p, rng, s, QType::ReadKana), QType::ReadKana);  // nothing far enough along yet
+  if (o.t == QType::RecallKana && twinKana(d, p, ki) >= 0 && std::uniform_int_distribution<int>(0, 2)(rng) == 0)
+    return makeMatchQuestion(d, p, rng, ki);  // a third of recall questions link the two scripts once both are unlocked
   return makeKanaQuestion(d, p, rng, ki, o.t);
 }
 
 bool typeAllowed(const Data& d, const Progress& p, int ki, QType t) { return allowedType(d, p, ki, t); }
+
+// ---------------------------------------------------------------- hiragana <-> katakana matching
+int twinKana(const Data& d, const Progress& p, int ki) {
+  if (ki < 0) return -1;
+  const Kana& k = d.kana[ki];
+  if (k.glyph == "ー") return -1;  // no hiragana twin
+  Script other = k.script == Script::Hiragana ? Script::Katakana : Script::Hiragana;
+  for (size_t i = 0; i < d.kana.size(); i++) {
+    const Kana& o = d.kana[i];
+    if (o.script != other || o.romaji != k.romaji || o.special != k.special) continue;
+    if (d.stageOfKana[i] != d.stageOfKana[ki]) continue;  // same chart cell only (no ヴ/ゔ or extras look-alikes)
+    return p.isUnlocked(d, int(i)) && p.isUnlocked(d, ki) ? int(i) : -1;
+  }
+  return -1;
+}
+
+Question makeMatchQuestion(const Data& d, const Progress& p, std::mt19937& rng, int ki) {
+  int tw = twinKana(d, p, ki);
+  Question q = makeKanaQuestion(d, p, rng, ki, QType::RecallKana);
+  if (tw < 0 || q.type != QType::RecallKana || q.isWord) return q;
+  q.match = true; q.prompt = d.kana[tw].glyph;
+  q.hint = d.kana[ki].script == Script::Katakana ? "Same sound in katakana?" : "Same sound in hiragana?";
+  return q;
+}
 
 // ---------------------------------------------------------------- reviews and mix-ups
 Question makeReviewQuestion(const Data& d, const Progress& p, std::mt19937& rng) {

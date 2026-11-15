@@ -74,6 +74,7 @@ bool isKataText(const std::string& s) { auto c = utf8Codepoints(s); return !c.em
 void App::go(Screen s) {
   screen = s; pressedId = -1; drawing = false; cur.clear(); paused = false; animStart = 0;
   if (s == Screen::Unlocked) { snd::play(snd::Sfx::Unlock); celebrate(3200, true); }
+  if (s == Screen::Result || s == Screen::Unlocked) backup(true);
   if (s == Screen::Result && mode == Mode::Timed && timedNewBest) celebrate(2400, true);
   if (s == Screen::Stages) { mapScript = prog.settings.script; mapSel = prog.currentStage(mapScript); }
   if (s == Screen::Chart) {
@@ -705,6 +706,13 @@ void App::drawButtons() {
     if (b.icon == 1) iconLock(bot, b.r.x + b.r.w - 20, b.r.y + 8, 2, sub);
     if (b.icon == 2) iconCheck(bot, b.r.x + b.r.w - 22, b.r.y + 9, 2, txt);
   }
+}
+
+void App::backup(bool force) {
+  if (backupPath.empty()) return;
+  unsigned now = SDL_GetTicks();
+  if (!force && lastBackup && now - lastBackup < 60000) return;
+  if (prog.save(backupPath)) lastBackup = now ? now : 1;
 }
 
 void App::header(const std::string& right) {
@@ -1705,6 +1713,8 @@ std::vector<App::SRow> App::settingRows(int g) const {
       choice("Ink", st.ink, 3, IN[st.ink], "How thick your strokes are drawn.");
       const char* SO[4] = {"Off", "Quiet", "Normal", "Loud"};
       choice("Sound", st.sound, 4, SO[st.sound], "Sound effects for taps, right and wrong answers, unlocks and your daily goal.");
+      const char* RU[3] = {"Off", "Light", "Strong"};
+      choice("Rumble", st.rumble, 3, RU[st.rumble], "A little buzz for right answers, a firmer one for wrong answers, and a long one for unlocks.");
       break; }
     case 4:
       info("Sessions played", std::to_string(prog.session), "Every practice session you've started.");
@@ -1716,6 +1726,9 @@ std::vector<App::SRow> App::settingRows(int g) const {
            "Best 60-second challenge score for each script.");
       action("Reset progress", resetArmed ? "Press A again to confirm" : "Reset",
              "Forget every answer, streak and best, and lock all stages again. Your settings stay. This can't be undone.");
+      info("Backup", backupPath.empty() ? "Off" : "On the SD card",
+           backupPath.empty() ? "No backup copy is kept (only in the installed app)."
+                              : "A copy of your progress is kept in roms/ports/BananaKana/progress-backup.txt. It's restored automatically after a reinstall or reflash.");
       break;
     case 5:
       info("Version", version, "Banana Kana for BananaOS on the Anbernic RG DS Plus.");
@@ -1734,7 +1747,7 @@ std::string App::groupSummary(int g) const {
               return on.empty() ? "all off" : on.size() == 4 ? "all four on" : join(on, ", "); }
     case 1: return std::to_string(st.sessionLen) + " questions, goal " + std::to_string(st.dailyGoal) + " a day";
     case 2: { std::string s = scriptName(st.script); s[0] = char(std::tolower(s[0])); return s; }
-    case 3: return std::string(st.light ? "light" : "dark") + (st.kanaHand ? ", handwriting" : ", rounded") + (st.sound ? ", sound on" : ", sound off");
+    case 3: return std::string(st.light ? "light" : "dark") + (st.kanaHand ? ", handwriting" : ", rounded") + (st.sound ? ", sound on" : ", sound off") + (st.rumble ? ", rumble" : "");
     case 4: return std::to_string(prog.knownCount(data, Script::Hiragana) + prog.knownCount(data, Script::Katakana)) + " kana known";
     default: return "version, credits";
   }
@@ -1761,7 +1774,8 @@ void App::changeSetting(int g, int r, int dir) {
       else if (r == 1) { st.kanaHand = dir > 0; setKanaHand(st.kanaHand); }
       else if (r == 2) st.guideLines = std::clamp(st.guideLines + dir, 0, 2);
       else if (r == 3) st.ink = std::clamp(st.ink + dir, 0, 2);
-      else { st.sound = std::clamp(st.sound + dir, 0, 3); snd::setVolume(st.sound); snd::play(snd::Sfx::Right); }
+      else if (r == 4) { st.sound = std::clamp(st.sound + dir, 0, 3); snd::setVolume(st.sound); snd::play(snd::Sfx::Right); }
+      else { st.rumble = std::clamp(st.rumble + dir, 0, 2); snd::setRumble(st.rumble); snd::rumble(snd::Sfx::Wrong); }
       break;
     case 4:
       if (r == 4) {
@@ -1845,7 +1859,8 @@ void App::drawSettingsGroup() {
   drawText(bot, "L / R: other groups", SDL_Rect{300, 10, 306, 48}, DIM, F_MICRO, A_RIGHT);
   for (int i = 0; i < int(rows.size()); i++) {
     const SRow& row = rows[i];
-    SDL_Rect r{16, 70 + i * 68, 608, 58};
+    int pitch = rows.size() <= 5 ? 68 : 350 / int(rows.size());  // 6+ rows squeeze up to stay clear of the footer pills
+    SDL_Rect r{16, 70 + i * pitch, 608, pitch - 10};
     bool on = i == setRow;
     Col fill = on ? ACCENT : PANEL; if (pressedId == B_SROW0 + i) fill = mix(fill, FG, 0.2f);
     if (on) fillRound(bot, r, 12, fill); else boxRound(bot, r, 12, fill, mix(BG, FG, 0.55f), 2);
