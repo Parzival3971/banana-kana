@@ -9,7 +9,7 @@
 
 namespace kt {
 
-enum class Screen { Home, Stages, Lesson, Unlocked, Drill, Result, Chart, Settings, Credits };
+enum class Screen { Home, Stages, Lesson, Unlocked, Drill, Result, Chart, Settings, SettingsGroup, Credits };
 
 enum BtnId {
   B_NONE = 0,
@@ -29,8 +29,8 @@ enum BtnId {
   B_LESSON_NEXT = 95, B_LESSON_PREV, B_LESSON_CLEAR,
   // chart
   B_TAB0 = 100, B_SCROLL_UP = 110, B_SCROLL_DOWN, B_CELL0 = 1000,
-  // settings
-  B_ROW0 = 200, B_OPT0 = 220, B_CREDITS = 240,
+  // settings (BananaOS style: group tiles -> rows with < value >)
+  B_GROUP0 = 200, B_SROW0 = 220, B_SDEC0 = 240, B_SINC0 = 260, B_FOOT_L = 280, B_FOOT_R,
   // keyboard
   B_KEY0 = 300,
 };
@@ -53,7 +53,8 @@ struct App {
   std::vector<Button> buttons; int pressedId = -1;
 
   // home / stage map / settings / chart selections
-  int homeSel = 0, mapSel = -1, setSel = 0, chartTab = 0, chartSel = -1, chartScroll = 0;
+  int homeSel = 0, mapSel = -1, chartTab = 0, chartSel = -1, chartScroll = 0;
+  int setGroup = 0, setRow = 0; bool resetArmed = false; std::string version = "dev";
   Script mapScript = Script::Hiragana;
   // lesson
   Script lessonScript = Script::Hiragana; int lessonStage = 0, lessonIdx = 0; bool lessonReplay = false;
@@ -98,7 +99,16 @@ struct App {
   int currentLessonKana() const;
 
   void drawHome(); void drawStages(); void drawLesson(); void drawUnlocked(); void drawDrill(); void drawResult();
-  void drawChart(); void drawSettings(); void drawCredits(); void drawPause();
+  void drawChart(); void drawSettings(); void drawSettingsGroup(); void drawCredits(); void drawPause();
+  // settings model
+  struct SRow { std::string label, value, help; int kind = 0; bool canDec = false, canInc = false; };  // kind 0 choice, 1 action, 2 info
+  static const int GROUPS = 6;
+  std::vector<SRow> settingRows(int g) const;
+  std::string groupName(int g) const; std::string groupSummary(int g) const;
+  void changeSetting(int g, int r, int dir);  // dir +1/-1 for choices; any for actions
+  void settingIcon(Win& w, int g, int x, int y, int px, Col a, Col b);
+  void settingsPanel(int g, const std::string& label, const std::string& title, const std::string& accentLine, const std::string& body);
+  void footer(const std::string& lk, const std::string& ll, const std::string& rk, const std::string& rl);
   void drawCanvas(SDL_Rect c, const Glyph* g, bool guide, bool checkedState);
 
   // chart helpers

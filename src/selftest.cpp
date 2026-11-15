@@ -138,21 +138,37 @@ int App::selfTest(const std::string& shotDir) {
   CHECK(click(B_SCROLL_DOWN), "scroll"); CHECK(chartScroll == 1, "scrolled");
   padButton(SDL_CONTROLLER_BUTTON_B);
 
-  // ---- 6. settings
+  // ---- 6. settings: BananaOS-style groups -> rows
   CHECK(click(B_CART0 + 3), "settings cart"); CHECK(screen == Screen::Settings, "settings");
-  shot("settings");
-  CHECK(click(B_ROW0 + 2), "reading row"); CHECK(click(B_OPT0 + 0), "reading off"); CHECK(prog.settings.reading == 0, "reading off saved");
-  CHECK(click(B_OPT0 + 2), "reading often");
-  CHECK(click(B_ROW0 + 6), "length row"); CHECK(click(B_OPT0 + 0), "length 5"); CHECK(prog.settings.sessionLen == 5, "length 5");
+  setGroup = 0; shot("settings");
+  CHECK(click(B_GROUP0 + 0), "open Practice (tap selected tile)"); CHECK(screen == Screen::SettingsGroup && setGroup == 0, "practice group");
+  shot("settings_practice");
+  CHECK(click(B_SDEC0 + 0), "reading <"); CHECK(prog.settings.reading == 1, "reading sometimes");
+  CHECK(click(B_SINC0 + 0), "reading >"); CHECK(prog.settings.reading == 2, "reading often");
+  padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); CHECK(setRow == 1, "row down");
+  int m0 = prog.settings.meanings; padButton(SDL_CONTROLLER_BUTTON_DPAD_LEFT); CHECK(prog.settings.meanings == std::max(0, m0 - 1), "meanings via d-pad");
+  padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); CHECK(prog.settings.meanings == std::min(2, std::max(0, m0 - 1) + 1), "meanings back");
+  prog.settings.meanings = 2;
+  padButton(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER); CHECK(setGroup == 1 && screen == Screen::SettingsGroup, "R: next group");
+  shot("settings_sessions");
+  CHECK(click(B_SDEC0 + 0), "length <"); CHECK(prog.settings.sessionLen == 5, "length 5");
   padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); CHECK(prog.settings.sessionLen == 10, "length via d-pad");
-  CHECK(click(B_ROW0 + 0), "script row"); { const Button* k = find(B_OPT0 + 1); CHECK(k && !k->enabled, "katakana option locked"); }
-  CHECK(click(B_ROW0 + 8), "credits row"); CHECK(click(B_CREDITS), "open credits"); CHECK(screen == Screen::Credits, "credits");
-  shot("credits"); CHECK(click(B_BACK), "credits back");
+  padButton(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER); CHECK(setGroup == 2, "script group");
+  CHECK(click(B_SINC0 + 0), "script >"); CHECK(prog.settings.script == Script::Hiragana, "katakana stays locked");
+  shot("settings_script");
+  padButton(SDL_CONTROLLER_BUTTON_B); CHECK(screen == Screen::Settings, "B: back to groups");
+  CHECK(click(B_GROUP0 + 5), "select About"); CHECK(setGroup == 5 && screen == Screen::Settings, "tile selected, not opened");
+  CHECK(click(B_GROUP0 + 5), "open About"); CHECK(screen == Screen::SettingsGroup, "about open");
+  CHECK(click(B_SROW0 + 1), "select credits"); CHECK(click(B_SROW0 + 1), "open credits"); CHECK(screen == Screen::Credits, "credits");
+  shot("credits"); CHECK(click(B_BACK), "credits back"); CHECK(screen == Screen::SettingsGroup, "back to about");
+  CHECK(click(B_FOOT_L), "footer back"); CHECK(screen == Screen::Settings, "groups again");
   { Progress re; re.load(statePath, &data); CHECK(re.settings.sessionLen == 10 && re.settings.reading == 2, "settings persisted"); }
 
   // ---- 7. light theme: every screen once more
-  CHECK(click(B_ROW0 + 7), "theme row"); CHECK(click(B_OPT0 + 1), "light"); CHECK(prog.settings.light && sameCol(BG, LIGHT_THEME.bg), "light applied");
-  shot("light_settings");
+  setGroup = 3; CHECK(click(B_FOOT_R), "open Display"); CHECK(click(B_SINC0 + 0), "light");
+  CHECK(prog.settings.light && sameCol(BG, LIGHT_THEME.bg), "light applied");
+  shot("light_settings_display");
+  go(Screen::Settings); shot("light_settings");
   go(Screen::Home); shot("light_home");
   go(Screen::Stages); shot("light_stages");
   go(Screen::Chart); shot("light_chart");
@@ -185,6 +201,12 @@ int App::selfTest(const std::string& shotDir) {
 
   CHECK(prog.save(statePath), "save");
   { Progress re; CHECK(re.load(statePath, &data), "reload"); CHECK(re.unlocked[1] == 1 && re.lessons[1] >= 1, "katakana state persisted"); }
+  // ---- 9. reset progress needs two presses and keeps settings
+  go(Screen::Settings); setGroup = 4; CHECK(click(B_FOOT_R), "open Progress"); shot("settings_progress");
+  CHECK(click(B_SROW0 + 2), "select reset"); CHECK(click(B_SROW0 + 2), "reset once"); CHECK(resetArmed && prog.unlocked[1] == 1, "first press only arms");
+  shot("settings_reset_armed");
+  CHECK(click(B_FOOT_R), "confirm reset"); CHECK(prog.unlocked[0] == 1 && prog.unlocked[1] == 0 && prog.stats.empty(), "progress reset");
+  CHECK(prog.settings.sessionLen == 10, "settings kept after reset");
   printf(fails ? "SELFTEST: %d failure(s)\n" : "SELFTEST: all passed (sessions %d, question types %zu)\n", fails ? fails : prog.session, typesSeen.size());
   return fails ? 1 : 0;
 }

@@ -11,21 +11,6 @@ namespace {
 const char* WEIGHT_NAMES[3] = {"Off", "Sometimes", "Often"};
 const char* REVIEW_NAMES[3] = {"Off", "Some", "Lots"};
 const int SESSION_LENS[4] = {5, 10, 15, 20};
-const char* ROW_NAMES[9] = {"Script", "Review older stages", "Reading", "Word meanings", "Writing", "Typing",
-                            "Session length", "Theme", "Credits"};
-const char* ROW_TILE_KANA[9] = {"もじ", "ふくしゅう", "よむ", "いみ", "かく", "うつ", "ながさ", "いろ", "ありがとう"};
-const char* ROW_TILE_EN[9] = {"Script", "Review", "Reading", "Meanings", "Writing", "Typing", "Length", "Theme", "Credits"};
-const char* ROW_HELP[9] = {
-    "Which kana you practise. Katakana unlocks after hiragana stage 10.",
-    "How often kana from stages you've passed come back. Weak kana always come back.",
-    "See a kana and pick its sound, or see a sound and pick the kana.",
-    "Read a word and pick its meaning. Words only use kana you've unlocked.",
-    "Trace the kana with the stylus, stroke by stroke.",
-    "Type the romaji on the on-screen keyboard.",
-    "How many questions in each practice session.",
-    "Dark or light colours.",
-    "Who made the data and fonts in this app."};
-
 int vowelCol(const std::string& romaji) {
   const std::string v = "aiueo";
   size_t p = v.find(romaji.back());
@@ -46,6 +31,7 @@ void App::go(Screen s) {
     if (!cells.empty()) chartSel = cells[0].kana;
   }
   if (s == Screen::Home) homeSel = std::clamp(homeSel, 0, 3);
+  if (s == Screen::SettingsGroup) { resetArmed = false; setRow = std::clamp(setRow, 0, std::max(0, int(settingRows(setGroup).size()) - 1)); }
 }
 
 void App::setScript(Script s) {
@@ -219,27 +205,25 @@ void App::press(int id) {
       else if (id == B_SCROLL_DOWN) chartScroll++;
       else if (id == B_BACK) go(Screen::Home);
       break;
-    case Screen::Settings: {
-      Settings& st = prog.settings;
-      if (id >= B_ROW0 && id < B_ROW0 + 9) setSel = id - B_ROW0;
-      else if (id >= B_OPT0 && id < B_OPT0 + 4) {
-        int j = id - B_OPT0;
-        switch (setSel) {
-          case 0: setScript(j ? Script::Katakana : Script::Hiragana); break;
-          case 1: st.review = j; break;
-          case 2: st.reading = j; break;
-          case 3: st.meanings = j; break;
-          case 4: st.writing = j; break;
-          case 5: st.typing = j; break;
-          case 6: st.sessionLen = SESSION_LENS[j]; break;
-          case 7: st.light = j == 1; applyTheme(st.light); break;
-        }
-        save();
-      } else if (id == B_CREDITS) go(Screen::Credits);
-      else if (id == B_BACK) go(Screen::Home);
+    case Screen::Settings:
+      if (id >= B_GROUP0 && id < B_GROUP0 + GROUPS) {
+        int g = id - B_GROUP0;
+        if (g == setGroup) { setRow = 0; go(Screen::SettingsGroup); } else setGroup = g;  // tap to select, tap again to open
+      } else if (id == B_FOOT_L) go(Screen::Home);
+      else if (id == B_FOOT_R) { setRow = 0; go(Screen::SettingsGroup); }
+      break;
+    case Screen::SettingsGroup: {
+      int n = int(settingRows(setGroup).size());
+      if (id >= B_SROW0 && id < B_SROW0 + n) {
+        int r = id - B_SROW0;
+        if (r == setRow) changeSetting(setGroup, r, +1); else { setRow = r; resetArmed = false; }
+      } else if (id >= B_SDEC0 && id < B_SDEC0 + n) { setRow = id - B_SDEC0; changeSetting(setGroup, setRow, -1); }
+      else if (id >= B_SINC0 && id < B_SINC0 + n) { setRow = id - B_SINC0; changeSetting(setGroup, setRow, +1); }
+      else if (id == B_FOOT_L) go(Screen::Settings);
+      else if (id == B_FOOT_R) changeSetting(setGroup, setRow, +1);
       break; }
     case Screen::Credits:
-      if (id == B_BACK) go(Screen::Settings);
+      if (id == B_BACK) go(Screen::SettingsGroup);
       break;
   }
 }
@@ -341,18 +325,19 @@ void App::padButton(SDL_GameControllerButton b) {
         if (best->row >= chartScroll + 5) chartScroll = best->row - 4;
       }
       break; }
-    case Screen::Settings: {
-      if (b == U) setSel = (setSel + 8) % 9; else if (b == D) setSel = (setSel + 1) % 9;
-      else if (b == B) press(B_BACK);
-      else if (setSel == 8 && b == A) press(B_CREDITS);
-      else if (b == L || b == R) {
-        Settings& st = prog.settings; int dir = b == R ? 1 : -1;
-        int curv = setSel == 0 ? si(st.script) : setSel == 1 ? st.review : setSel == 2 ? st.reading : setSel == 3 ? st.meanings
-                 : setSel == 4 ? st.writing : setSel == 5 ? st.typing : setSel == 7 ? (st.light ? 1 : 0) : 0;
-        int nopt = setSel == 0 || setSel == 7 ? 2 : setSel == 6 ? 4 : 3;
-        if (setSel == 6) for (int i = 0; i < 4; i++) if (SESSION_LENS[i] == st.sessionLen) curv = i;
-        if (setSel < 8) press(B_OPT0 + std::clamp(curv + dir, 0, nopt - 1));
-      }
+    case Screen::Settings:
+      if (b == L) setGroup = (setGroup + GROUPS - 1) % GROUPS; else if (b == R) setGroup = (setGroup + 1) % GROUPS;
+      else if (b == U || b == D) setGroup = (setGroup + 3) % GROUPS;
+      else if (b == A) press(B_FOOT_R); else if (b == B) press(B_FOOT_L);
+      break;
+    case Screen::SettingsGroup: {
+      int n = int(settingRows(setGroup).size());
+      if (b == U) { setRow = (setRow + n - 1) % n; resetArmed = false; }
+      else if (b == D) { setRow = (setRow + 1) % n; resetArmed = false; }
+      else if (b == L) changeSetting(setGroup, setRow, -1);
+      else if (b == R || b == A) changeSetting(setGroup, setRow, +1);
+      else if (b == B) press(B_FOOT_L);
+      else if (b == LS || b == RS) { setGroup = (setGroup + (b == RS ? 1 : GROUPS - 1)) % GROUPS; setRow = 0; go(Screen::SettingsGroup); }
       break; }
     case Screen::Credits:
       if (b == B || b == A) press(B_BACK);
@@ -485,6 +470,7 @@ void App::render() {
     case Screen::Result: drawResult(); break;
     case Screen::Chart: drawChart(); break;
     case Screen::Settings: drawSettings(); break;
+    case Screen::SettingsGroup: drawSettingsGroup(); break;
     case Screen::Credits: drawCredits(); break;
   }
   drawButtons();
@@ -957,62 +943,197 @@ void App::drawChart() {
   chips({{"+", "Move"}, {"A", "Drill this"}, {"L/R", "Tab"}, {"Y", "Script"}, {"B", "Back"}});
 }
 
-void App::drawSettings() {
-  const Settings& st = prog.settings;
-  auto value = [&](int row) -> std::string {
-    switch (row) {
-      case 0: return scriptName(st.script);
-      case 1: return REVIEW_NAMES[st.review];
-      case 2: return WEIGHT_NAMES[st.reading];
-      case 3: return WEIGHT_NAMES[st.meanings];
-      case 4: return WEIGHT_NAMES[st.writing];
-      case 5: return WEIGHT_NAMES[st.typing];
-      case 6: return std::to_string(st.sessionLen) + " questions";
-      case 7: return st.light ? "Light" : "Dark";
-      default: return "";
-    }
-  };
-  header("Settings");
-  for (int i = 0; i < 9; i++) {
-    SDL_Rect r{24, 54 + i * 40, 592, 38};
-    bool on = i == setSel;
-    if (on) fillRound(top, r, 10, ACCENT);
-    Col t = on ? ON_ACCENT : FG, v = on ? ON_ACCENT : DIM;
-    drawText(top, ROW_NAMES[i], SDL_Rect{r.x + 16, r.y, 330, r.h}, t, F_TINY, A_LEFT);
-    std::string val = value(i);
-    drawText(top, i == 8 ? ">" : "<  " + val + "  >", SDL_Rect{r.x + 300, r.y, 276, r.h}, v, F_TINY, A_RIGHT);
-  }
-  drawWrapped(top, ROW_HELP[setSel], SDL_Rect{24, 420, 592, 50}, DIM, F_MICRO);
+// ------------------------------------------------------------------ settings (modelled on BananaOS Settings)
+std::string App::groupName(int g) const {
+  static const char* N[GROUPS] = {"Practice", "Sessions", "Script", "Display", "Progress", "About"};
+  return N[g];
+}
 
-  drawText(bot, std::string(ROW_NAMES[setSel]), SDL_Rect{16, 8, 608, 26}, DIM, F_MICRO, A_LEFT);
-  std::vector<std::string> opts; int curv = 0; std::vector<bool> en;
-  switch (setSel) {
-    case 0: opts = {"Hiragana", "Katakana"}; curv = si(st.script); en = {true, prog.scriptUnlocked(Script::Katakana)}; break;
-    case 1: opts = {"Off", "Some", "Lots"}; curv = st.review; break;
-    case 2: case 3: case 4: case 5: opts = {"Off", "Sometimes", "Often"};
-      curv = setSel == 2 ? st.reading : setSel == 3 ? st.meanings : setSel == 4 ? st.writing : st.typing; break;
-    case 6: opts = {"5", "10", "15", "20"}; for (int i = 0; i < 4; i++) if (SESSION_LENS[i] == st.sessionLen) curv = i; break;
-    case 7: opts = {"Dark", "Light"}; curv = st.light ? 1 : 0; break;
-    default: break;
+std::vector<App::SRow> App::settingRows(int g) const {
+  const Settings& st = prog.settings; std::vector<SRow> r;
+  auto choice = [&](const std::string& label, int cur, int n, const std::string& value, const std::string& help) {
+    SRow x; x.label = label; x.value = value; x.help = help; x.kind = 0; x.canDec = cur > 0; x.canInc = cur < n - 1; r.push_back(x);
+  };
+  auto info = [&](const std::string& label, const std::string& value, const std::string& help) {
+    SRow x; x.label = label; x.value = value; x.help = help; x.kind = 2; r.push_back(x);
+  };
+  auto action = [&](const std::string& label, const std::string& value, const std::string& help) {
+    SRow x; x.label = label; x.value = value; x.help = help; x.kind = 1; r.push_back(x);
+  };
+  switch (g) {
+    case 0:
+      choice("Reading", st.reading, 3, WEIGHT_NAMES[st.reading], "See a kana and pick its sound, or see a sound and pick the kana.");
+      choice("Word meanings", st.meanings, 3, WEIGHT_NAMES[st.meanings], "Read a word and pick its meaning. Words only use kana you've unlocked.");
+      choice("Writing", st.writing, 3, WEIGHT_NAMES[st.writing], "Trace the kana with the stylus, stroke by stroke.");
+      choice("Typing", st.typing, 3, WEIGHT_NAMES[st.typing], "Type the romaji on the on-screen keyboard.");
+      break;
+    case 1: {
+      int li = 1; for (int i = 0; i < 4; i++) if (SESSION_LENS[i] == st.sessionLen) li = i;
+      choice("Session length", li, 4, std::to_string(st.sessionLen) + " questions", "How many questions in each practice session.");
+      choice("Review older stages", st.review, 3, REVIEW_NAMES[st.review],
+             "How often kana from stages you've passed come back. Weak kana always come back.");
+      break; }
+    case 2: {
+      bool kat = prog.scriptUnlocked(Script::Katakana);
+      SRow x; x.label = "Practise"; x.value = scriptName(st.script); x.kind = 0;
+      x.help = kat ? "Which kana your practice sessions use." : "Katakana unlocks after hiragana stage 10.";
+      x.canDec = kat && st.script == Script::Katakana; x.canInc = kat && st.script == Script::Hiragana; r.push_back(x);
+      for (Script sc : {Script::Hiragana, Script::Katakana}) {
+        std::string v = prog.scriptUnlocked(sc) ? std::to_string(prog.knownCount(data, sc)) + " / 104 known · stage " +
+                                                  std::to_string(prog.currentStage(sc) + 1)
+                                                : std::string("Locked");
+        info(scriptName(sc), v, std::string(scriptName(sc)) + " progress. The stage map has the details.");
+      }
+      break; }
+    case 3:
+      choice("Theme", st.light ? 1 : 0, 2, st.light ? "Light" : "Dark", "Dark or light colours, like BananaOS's own themes.");
+      break;
+    case 4:
+      info("Sessions played", std::to_string(prog.session), "Every practice session you've started.");
+      info("Last session", prog.lastScore >= 0 ? std::to_string(prog.lastScore) + " / " + std::to_string(prog.lastLen) : "-",
+           "Score from your most recent session.");
+      action("Reset progress", resetArmed ? "Press A again to confirm" : "Reset",
+             "Forget every answer and lock all stages again. Your settings stay. This can't be undone.");
+      break;
+    case 5:
+      info("Version", version, "Banana Kana for BananaOS on the Anbernic RG DS Plus.");
+      action("Credits", "Open", "Stroke data, fonts and licences.");
+      break;
   }
-  if (setSel == 8) { addBtn(SDL_Rect{16, 36, 608, 68}, B_CREDITS, "Open credits", F_TINY); accent(lastBtn()); }
-  else {
-    fillRound(bot, SDL_Rect{16, 36, 608, 68}, 12, PANEL);
-    int n = int(opts.size()), w = (600 - (n - 1) * 4) / n;
-    for (int i = 0; i < n; i++) {
-      bool e = en.empty() || en[i];
-      addBtn(SDL_Rect{20 + i * (w + 4), 40, w, 60}, B_OPT0 + i, opts[i], F_TINY, e);
-      Button& b = lastBtn(); b.radius = 10;
-      if (i == curv) accent(b); else { b.fill = PANEL; b.line = PANEL; }
-      if (!e) b.icon = 1;
+  return r;
+}
+
+std::string App::groupSummary(int g) const {
+  const Settings& st = prog.settings;
+  switch (g) {
+    case 0: { std::vector<std::string> on; const char* n[4] = {"reading", "meanings", "writing", "typing"};
+              int w[4] = {st.reading, st.meanings, st.writing, st.typing};
+              for (int i = 0; i < 4; i++) if (w[i] > 0) on.push_back(n[i]);
+              return on.empty() ? "all off" : on.size() == 4 ? "all four on" : join(on, ", "); }
+    case 1: { std::string r = REVIEW_NAMES[st.review]; r[0] = char(std::tolower(r[0])); return std::to_string(st.sessionLen) + " questions, review " + r; }
+    case 2: { std::string s = scriptName(st.script); s[0] = char(std::tolower(s[0])); return s; }
+    case 3: return st.light ? "light theme" : "dark theme";
+    case 4: return std::to_string(prog.knownCount(data, Script::Hiragana) + prog.knownCount(data, Script::Katakana)) + " kana known";
+    default: return "version, credits";
+  }
+}
+
+void App::changeSetting(int g, int r, int dir) {
+  Settings& st = prog.settings;
+  auto step3 = [&](int& v) { v = std::clamp(v + dir, 0, 2); };
+  switch (g) {
+    case 0: { int* w[4] = {&st.reading, &st.meanings, &st.writing, &st.typing}; if (r < 4) step3(*w[r]); break; }
+    case 1:
+      if (r == 0) { int li = 1; for (int i = 0; i < 4; i++) if (SESSION_LENS[i] == st.sessionLen) li = i; st.sessionLen = SESSION_LENS[std::clamp(li + dir, 0, 3)]; }
+      else step3(st.review);
+      break;
+    case 2: if (r == 0) setScript(dir > 0 ? Script::Katakana : Script::Hiragana); break;
+    case 3: st.light = dir > 0; applyTheme(st.light); break;
+    case 4:
+      if (r == 2) {
+        if (!resetArmed) { resetArmed = true; return; }
+        Settings keep = prog.settings; prog = Progress{}; prog.settings = keep; prog.settings.script = Script::Hiragana;
+        pendingUnlocks.clear(); resetArmed = false;
+      }
+      break;
+    case 5: if (r == 1) { go(Screen::Credits); return; } break;
+  }
+  save();
+}
+
+void App::settingIcon(Win& w, int g, int x, int y, int px, Col a, Col b) {
+  static const std::vector<const char*> ICONS[GROUPS] = {
+    {"........##..", ".......#BB#.", "......#BB#..", ".....#BB#...", "....#BB#....", "...#BB#.....", "..#BB#......", ".#BB#.......", ".##.#.......", ".###........"},  // pencil
+    {"...######...", "..#......#..", ".#...BB...#.", "#....BB....#", "#....BB....#", "#....BBBB..#", "#..........#", ".#........#.", "..#......#..", "...######..."},  // clock
+    {},  // script: drawn as a kana
+    {"....####....", "..###.......", ".###........", ".##.........", "###.........", "###......B..", "###.....BBB.", ".###.....B..", "..#######...", "....####...."},  // moon
+    {"..........##", "..........##", "......##..##", "......##..##", "..##..##..##", "..##..##..##", "..##..##..##", "BBBBBBBBBBBB"},  // chart
+    {"...######...", "..#......#..", ".#...BB...#.", "#..........#", "#....BB....#", "#....BB....#", "#....BB....#", ".#...BB...#.", "..#......#..", "...######..."},  // info
+  };
+  if (g == 2) { drawText(w, prog.settings.script == Script::Katakana ? "ア" : "あ", SDL_Rect{x, y - px, 12 * px, 12 * px}, a, px >= 6 ? F_BIG : F_MID); return; }
+  pixIcon(w, ICONS[g], x, y, px, a, b);
+}
+
+void App::footer(const std::string& lk, const std::string& ll, const std::string& rk, const std::string& rl) {
+  auto pill = [&](int x, int w, const std::string& k, const std::string& l, int id) {
+    SDL_Rect r{x, 420, w, 46};
+    boxRound(bot, r, 12, pressedId == id ? mix(BG, FG, 0.2f) : BG, mix(BG, FG, 0.7f), 2);
+    int kw = std::max(30, textWidth(bot, F_MICRO, k) + 14);
+    fillRound(bot, SDL_Rect{r.x + 9, r.y + 9, kw, 28}, 7, FG);
+    drawText(bot, k, SDL_Rect{r.x + 9, r.y + 9, kw, 28}, BG, F_MICRO);
+    drawText(bot, l, SDL_Rect{r.x + 18 + kw, r.y, r.w - kw - 24, r.h}, FG, F_TINY, A_LEFT);
+    addBtn(r, id, ""); lastBtn().hidden = true;
+  };
+  int lw = textWidth(bot, F_TINY, ll) + 80, rw = textWidth(bot, F_TINY, rl) + 80;
+  pill(16, lw, lk, ll, B_FOOT_L);
+  if (!rl.empty()) pill(624 - rw, rw, rk, rl, B_FOOT_R);
+}
+
+void App::settingsPanel(int g, const std::string& label, const std::string& title, const std::string& accentLine, const std::string& body) {
+  SDL_Rect p{28, 24, 584, 432};
+  boxRound(top, p, 18, PANEL, mix(BG, FG, 0.7f), 3);
+  settingIcon(top, g, 56, 64, 7, FG, ACCENT);
+  drawText(top, label, SDL_Rect{170, 54, 420, 24}, DIM, F_MICRO, A_LEFT);
+  drawText(top, title, SDL_Rect{170, 78, 420, 56}, FG, F_MID, A_LEFT);
+  drawText(top, accentLine, SDL_Rect{170, 136, 420, 34}, ACCENT_TXT, F_TINY, A_LEFT);
+  drawWrapped(top, body, SDL_Rect{56, 204, 528, 230}, DIM, F_TINY);
+}
+
+void App::drawSettings() {
+  auto rows = settingRows(setGroup);
+  std::vector<std::string> names; for (auto& r : rows) names.push_back(r.label);
+  settingsPanel(setGroup, "SETTINGS", groupName(setGroup), std::to_string(rows.size()) + (rows.size() == 1 ? " setting" : " settings"),
+                join(names, ", ") + ".");
+  boxRound(bot, SDL_Rect{16, 10, 608, 48}, 12, PANEL, mix(BG, FG, 0.55f), 2);
+  drawText(bot, "Settings", SDL_Rect{34, 10, 300, 48}, FG, F_TINY, A_LEFT);
+  drawText(bot, "Choose a group", SDL_Rect{300, 10, 306, 48}, DIM, F_MICRO, A_RIGHT);
+  for (int g = 0; g < GROUPS; g++) {
+    SDL_Rect r{16 + (g % 3) * 206, 70 + (g / 3) * 170, 196, 160};
+    bool on = g == setGroup;
+    Col fill = on ? ACCENT : PANEL; if (pressedId == B_GROUP0 + g) fill = mix(fill, FG, 0.2f);
+    if (on) fillRound(bot, r, 14, fill); else boxRound(bot, r, 14, fill, mix(BG, FG, 0.55f), 2);
+    settingIcon(bot, g, r.x + (r.w - 48) / 2, r.y + 18, 4, on ? ON_ACCENT : FG, on ? ON_ACCENT : ACCENT);
+    drawText(bot, groupName(g), SDL_Rect{r.x + 8, r.y + 84, r.w - 16, 34}, on ? ON_ACCENT : FG, F_TINY);
+    drawText(bot, groupSummary(g), SDL_Rect{r.x + 8, r.y + 120, r.w - 16, 26}, on ? ON_ACCENT : DIM, F_MICRO);
+    addBtn(r, B_GROUP0 + g, ""); lastBtn().hidden = true;
+  }
+  footer("B", "Close", "A", "Open");
+}
+
+void App::drawSettingsGroup() {
+  auto rows = settingRows(setGroup);
+  setRow = std::clamp(setRow, 0, int(rows.size()) - 1);
+  const SRow& cur = rows[setRow];
+  std::string upper = groupName(setGroup); for (auto& c : upper) c = char(std::toupper(c));
+  settingsPanel(setGroup, upper, cur.label, cur.value, cur.help);
+  boxRound(bot, SDL_Rect{16, 10, 608, 48}, 12, PANEL, mix(BG, FG, 0.55f), 2);
+  drawText(bot, groupName(setGroup), SDL_Rect{34, 10, 300, 48}, FG, F_TINY, A_LEFT);
+  drawText(bot, "L / R: other groups", SDL_Rect{300, 10, 306, 48}, DIM, F_MICRO, A_RIGHT);
+  for (int i = 0; i < int(rows.size()); i++) {
+    const SRow& row = rows[i];
+    SDL_Rect r{16, 70 + i * 68, 608, 58};
+    bool on = i == setRow;
+    Col fill = on ? ACCENT : PANEL; if (pressedId == B_SROW0 + i) fill = mix(fill, FG, 0.2f);
+    if (on) fillRound(bot, r, 12, fill); else boxRound(bot, r, 12, fill, mix(BG, FG, 0.55f), 2);
+    Col t = on ? ON_ACCENT : FG, v = on ? ON_ACCENT : (row.kind == 2 ? DIM : FG);
+    drawText(bot, row.label, SDL_Rect{r.x + 18, r.y, 250, r.h}, t, F_TINY, A_LEFT);
+    if (row.kind == 0) {
+      Col ad = row.canDec ? t : (on ? mix(ACCENT, ON_ACCENT, 0.35f) : DIS_TXT), ai = row.canInc ? t : (on ? mix(ACCENT, ON_ACCENT, 0.35f) : DIS_TXT);
+      drawText(bot, "◀", SDL_Rect{r.x + r.w - 300, r.y, 36, r.h}, ad, F_MICRO);
+      drawText(bot, row.value, SDL_Rect{r.x + r.w - 264, r.y, 220, r.h}, v, F_TINY);
+      drawText(bot, "▶", SDL_Rect{r.x + r.w - 44, r.y, 36, r.h}, ai, F_MICRO);
+      addBtn(SDL_Rect{r.x + r.w - 310, r.y, 70, r.h}, B_SDEC0 + i, ""); lastBtn().hidden = true;
+      addBtn(SDL_Rect{r.x + r.w - 70, r.y, 70, r.h}, B_SINC0 + i, ""); lastBtn().hidden = true;
+    } else if (row.kind == 1) {
+      drawText(bot, row.value, SDL_Rect{r.x + r.w - 330, r.y, 280, r.h}, row.label == "Reset progress" && resetArmed ? (on ? ON_ACCENT : BAD) : v, F_TINY, A_RIGHT);
+      drawText(bot, "▶", SDL_Rect{r.x + r.w - 44, r.y, 36, r.h}, t, F_MICRO);
+    } else {
+      drawText(bot, row.value, SDL_Rect{r.x + r.w - 350, r.y, 332, r.h}, v, F_TINY, A_RIGHT);
     }
+    addBtn(r, B_SROW0 + i, ""); lastBtn().hidden = true;
   }
-  for (int i = 0; i < 9; i++) {
-    SDL_Rect r{16 + (i % 3) * 206, 118 + (i / 3) * 102, 196, 94};
-    addBtn(r, B_ROW0 + i, ROW_TILE_KANA[i], F_TINY); Button& b = lastBtn(); b.sub = ROW_TILE_EN[i]; b.subFont = F_MICRO;
-    if (i == setSel) { b.fill = PANEL2; b.line = ACCENT; b.text = ACCENT_TXT; }
-  }
-  chips({{"▲▼", "Choose"}, {"◀▶", "Change"}, {"B", "Back"}});
+  std::string act = cur.kind == 0 ? "Change" : cur.kind == 1 ? (cur.label == "Reset progress" ? "Reset" : "Open") : "";
+  footer("B", "Back", "A", act);
 }
 
 void App::drawCredits() {

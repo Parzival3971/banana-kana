@@ -53,7 +53,12 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
 - `src/app.{h,cpp}`: all screens + navigation + input mapping per screen: Home (stage card, 4 cartridges: Practice/Lesson,
   Stages, Kana chart, Settings), Stages (14-tile map, replay lessons), Lesson (hint, stroke-order frames, practice trace),
   Unlocked, Drill (choice/typing/writing + feedback banner with hint), Pause, Result, Chart (Basic/Voiced/Combos tabs,
-  scroll, tap twice / A = 5-question drill of one kana), Settings (9 rows incl. theme, session length), Credits.
+  scroll, tap twice / A = 5-question drill of one kana), Settings, Credits.
+- Settings copy BananaOS's Settings (user asked, 2026-11-15; reference shot: BananaLinux docs/img/readme/shot-settings.png):
+  6 group tiles on the bottom (Practice, Sessions, Script, Display, Progress, About; selected = yellow; tap selected / A opens),
+  top panel = icon + group + "N settings" + list. Group = outlined rows "label  < value >" (tap arrows, d-pad L/R, A = next),
+  top panel shows row name, value (yellow) and help. Footer pills "B Close/Back", "A Open/Change". L/R = other group.
+  Progress > Reset progress needs two presses, keeps settings. About > Version reads BananaKana/VERSION.
 - `src/selftest.cpp`: `--selftest` drives every screen and flow (lesson -> sessions -> unlock -> lesson, wrong answer, pause,
   map, chart focus drill, settings, light theme, katakana unlock); `--shots DIR` saves top/bottom BMPs of each screen.
 - `src/main.cpp`: start-up, event loop, gamepad label swap, F/SELECT pause + F+START quit, evdev touch, backlight keeper.
