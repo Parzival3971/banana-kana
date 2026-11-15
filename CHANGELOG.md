@@ -5,8 +5,8 @@ the release notes come from the matching section below.
 
 ## 0.1.3 - 2026-11-15
 
-- Fix: the analogue sticks no longer make the selector jump around. Wobbling near a diagonal, the stick springing back
-  past centre when let go, and sticks that rest slightly off centre no longer count as extra presses.
+- Fix: the analogue stick no longer makes the selector jump around. Wobbling near a diagonal, the stick springing back
+  past centre when let go, and a stick that rests slightly off centre no longer count as extra presses.
 
 ## 0.1.2 - 2026-11-15
 
@@ -14,7 +14,7 @@ the release notes come from the matching section below.
 
 ## 0.1.1 - 2026-11-15
 
-- Both analogue sticks move like the d-pad (hold to repeat).
+- The analogue stick moves like the d-pad (hold to repeat).
 - Fix: the X and Y buttons were swapped on the device (X now checks, Y now shows hints).
 - Word questions (reading a word, spelling it in kana or romaji, っ/ー words) show the English meaning under the word,
   whether or not the Word meanings drill is on.
