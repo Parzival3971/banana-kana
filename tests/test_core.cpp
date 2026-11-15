@@ -52,8 +52,8 @@ int main(int argc, char** argv) {
   int hits = 0; for (int i = 0; i < 1000; i++) { Question q = makeQuestionOfType(d, w, rng, QType::ReadKana); if (q.key == "h:あ") hits++; }
   printf("weak-spot hits for あ: %d/1000 (uniform would be ~10)\n", hits); CHECK(hits > 60);
   // save/load roundtrip
-  Progress a; a.settings.kanaPct = 30; a.settings.script = Script::Katakana; a.record("h:あ", true); a.record("h:あ", false);
+  Progress a; a.settings.kanaPct = 30; a.settings.script = Script::Katakana; a.settings.light = true; a.record("h:あ", true); a.record("h:あ", false);
   CHECK(a.save("/tmp/kt_prog.txt")); Progress b; CHECK(b.load("/tmp/kt_prog.txt"));
-  CHECK(b.settings.kanaPct == 30 && b.settings.script == Script::Katakana && b.stats["h:あ"].seen == 2 && b.stats["h:あ"].wrong == 1);
+  CHECK(b.settings.light && b.settings.kanaPct == 30 && b.settings.script == Script::Katakana && b.stats["h:あ"].seen == 2 && b.stats["h:あ"].wrong == 1);
   printf(fails ? "%d FAILURES\n" : "all core tests passed\n", fails); return fails != 0;
 }

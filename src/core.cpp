@@ -102,6 +102,7 @@ bool Progress::load(const std::string& path) {
       else if (k == "writing") settings.writing = std::clamp(v, 0, 2);
       else if (k == "typing") settings.typing = std::clamp(v, 0, 2);
       else if (k == "script") settings.script = v ? Script::Katakana : Script::Hiragana;
+      else if (k == "theme") settings.light = v != 0;
     } else if (tag == "stat") {
       std::string key; Stat s; is >> key >> s.seen >> s.correct >> s.wrong >> s.streak; stats[key] = s;
     }
@@ -114,7 +115,7 @@ bool Progress::save(const std::string& path) const {
   { std::ofstream f(tmp); if (!f) return false;
     f << "# banana-kana progress v1\n";
     f << "set kana_pct " << settings.kanaPct << "\nset reading " << settings.reading << "\nset meanings " << settings.meanings << "\nset writing " << settings.writing << "\nset typing " << settings.typing
-      << "\nset script " << (settings.script == Script::Katakana) << "\n";
+      << "\nset script " << (settings.script == Script::Katakana) << "\nset theme " << settings.light << "\n";
     for (const auto& [k, s] : stats) f << "stat " << k << ' ' << s.seen << ' ' << s.correct << ' ' << s.wrong << ' ' << s.streak << '\n';
     if (!f) return false; }
   return std::rename(tmp.c_str(), path.c_str()) == 0;

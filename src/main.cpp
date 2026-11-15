@@ -35,7 +35,27 @@ constexpr int LW = 640, LH = 480;
 constexpr int SESSION_LEN = 10;
 
 struct Col { Uint8 r, g, b, a = 255; };
-const Col BG{0, 0, 0}, FG{245, 245, 245}, DIM{140, 140, 145}, PANEL{40, 40, 44}, ACCENT{236, 64, 64}, GOOD{60, 190, 100}, BAD{230, 70, 70}, SEL{70, 120, 230};
+bool sameCol(Col a, Col b) { return a.r == b.r && a.g == b.g && a.b == b.b; }
+constexpr Col hex(unsigned v) { return Col{Uint8(v >> 16), Uint8(v >> 8), Uint8(v)}; }
+
+// BananaOS-style palettes: banana yellow on warm neutrals. ACCENT is a fill; ACCENT_TXT is yellow used as text
+// (a dark gold on the light theme, where yellow text would be unreadable). ON_ACCENT is text placed on ACCENT.
+struct Theme { Col bg, panel, panel2, line, fg, dim, accent, accentTxt, onAccent, good, goodFill, bad, badFill,
+               canvas, ghost, ghostOk, disLine, disTxt, track; };
+const Theme DARK_THEME{hex(0x1D1B17), hex(0x2B2722), hex(0x383229), hex(0x4D463D), hex(0xF5F0E6), hex(0xBDB3A3),
+  hex(0xFFD23F), hex(0xFFD23F), hex(0x1D1B17), hex(0x7BD88F), hex(0x1F3526), hex(0xF07A4F), hex(0x3A221A),
+  hex(0x15130F), hex(0x5A5246), hex(0x3E5A45), hex(0x3A342C), hex(0x6E655A), hex(0x383229)};
+const Theme LIGHT_THEME{hex(0xF7F2E8), hex(0xEDE5D6), hex(0xE0D6C3), hex(0xC9BBA3), hex(0x241F18), hex(0x6B6152),
+  hex(0xFFD23F), hex(0x7A5A00), hex(0x241F18), hex(0x2E7D46), hex(0xD7EEDC), hex(0xB8432A), hex(0xF6DBD2),
+  hex(0xFFFDF8), hex(0xD6CCBB), hex(0xBFD9C4), hex(0xDDD3C2), hex(0xA39885), hex(0xE0D6C3)};
+Col BG, PANEL, PANEL2, LINE, FG, DIM, ACCENT, ACCENT_TXT, ON_ACCENT, GOOD, GOOD_FILL, BAD, BAD_FILL, CANVAS, GHOST, GHOST_OK,
+    DIS_LINE, DIS_TXT, TRACK, SEL;
+void applyTheme(bool light) {
+  const Theme& t = light ? LIGHT_THEME : DARK_THEME;
+  BG = t.bg; PANEL = t.panel; PANEL2 = t.panel2; LINE = t.line; FG = t.fg; DIM = t.dim; ACCENT = t.accent; ACCENT_TXT = t.accentTxt;
+  ON_ACCENT = t.onAccent; GOOD = t.good; GOOD_FILL = t.goodFill; BAD = t.bad; BAD_FILL = t.badFill; CANVAS = t.canvas;
+  GHOST = t.ghost; GHOST_OK = t.ghostOk; DIS_LINE = t.disLine; DIS_TXT = t.disTxt; TRACK = t.track; SEL = t.accent;
+}
 
 struct Win {
   SDL_Window* w = nullptr; SDL_Renderer* r = nullptr; Uint32 id = 0;
@@ -44,14 +64,66 @@ struct Win {
 
 enum FontId { F_HUGE, F_BIG, F_MID, F_SMALL, F_TINY, F_COUNT };
 const int FONT_PX[F_COUNT] = {170, 100, 52, 30, 22};
-TTF_Font* fonts[F_COUNT];
+TTF_Font* kanaF[F_COUNT];  // Zen Maru Gothic: kana
+TTF_Font* uiF[F_COUNT];    // Pixelify Sans: English / UI
+TTF_Font* fbF[F_COUNT];    // Noto subset: anything the others lack
 
-void fillRect(Win& w, SDL_Rect r, Col c) { SDL_SetRenderDrawColor(w.r, c.r, c.g, c.b, c.a); SDL_RenderFillRect(w.r, &r); }
-void frameRect(Win& w, SDL_Rect r, Col c, int t = 3) {
-  SDL_SetRenderDrawColor(w.r, c.r, c.g, c.b, c.a);
-  for (int i = 0; i < t; i++) { SDL_Rect q{r.x + i, r.y + i, r.w - 2 * i, r.h - 2 * i}; SDL_RenderDrawRect(w.r, &q); }
-}
 void clearWin(Win& w, Col c) { SDL_SetRenderDrawColor(w.r, c.r, c.g, c.b, 255); SDL_RenderClear(w.r); }
+void fillRound(Win& w, SDL_Rect r, int rad, Col c) {
+  if (r.w <= 0 || r.h <= 0) return;
+  rad = std::max(0, std::min({rad, r.w / 2, r.h / 2}));
+  SDL_SetRenderDrawColor(w.r, c.r, c.g, c.b, c.a);
+  for (int y = 0; y < r.h; y++) {
+    int dy = y < rad ? rad - y : (y >= r.h - rad ? y - (r.h - rad - 1) : 0);
+    int inset = dy ? rad - int(std::sqrt(float(rad * rad - (dy - 0.5f) * (dy - 0.5f))) + 0.5f) : 0;
+    SDL_RenderDrawLine(w.r, r.x + inset, r.y + y, r.x + r.w - 1 - inset, r.y + y);
+  }
+}
+void boxRound(Win& w, SDL_Rect r, int rad, Col fill, Col line, int t = 3) {
+  fillRound(w, r, rad, line); fillRound(w, SDL_Rect{r.x + t, r.y + t, r.w - 2 * t, r.h - 2 * t}, std::max(0, rad - t), fill);
+}
+
+std::string utf8Encode(uint32_t cp) {
+  std::string o;
+  if (cp < 0x80) o += char(cp);
+  else if (cp < 0x800) { o += char(0xC0 | (cp >> 6)); o += char(0x80 | (cp & 0x3F)); }
+  else if (cp < 0x10000) { o += char(0xE0 | (cp >> 12)); o += char(0x80 | ((cp >> 6) & 0x3F)); o += char(0x80 | (cp & 0x3F)); }
+  else { o += char(0xF0 | (cp >> 18)); o += char(0x80 | ((cp >> 12) & 0x3F)); o += char(0x80 | ((cp >> 6) & 0x3F)); o += char(0x80 | (cp & 0x3F)); }
+  return o;
+}
+TTF_Font* pickFont(int size, uint32_t cp) {
+  bool jp = (cp >= 0x3000 && cp <= 0x30FF) || (cp >= 0x4E00 && cp <= 0x9FFF) || (cp >= 0xFF00 && cp <= 0xFFEF);
+  if (jp && TTF_GlyphIsProvided32(kanaF[size], cp)) return kanaF[size];
+  if (!jp && TTF_GlyphIsProvided32(uiF[size], cp)) return uiF[size];
+  if (TTF_GlyphIsProvided32(kanaF[size], cp)) return kanaF[size];
+  return fbF[size];
+}
+// Renders mixed kana/English text: each run uses the font that has its glyphs, aligned on a shared baseline.
+SDL_Surface* renderMixed(int size, const std::string& s, SDL_Color col) {
+  std::vector<std::pair<TTF_Font*, std::string>> runs;
+  for (uint32_t cp : utf8Codepoints(s)) {
+    TTF_Font* f = (cp == ' ' && !runs.empty()) ? runs.back().first : pickFont(size, cp);
+    if (runs.empty() || runs.back().first != f) runs.push_back({f, ""});
+    runs.back().second += utf8Encode(cp);
+  }
+  std::vector<SDL_Surface*> parts; int w = 0, asc = 0, desc = 0;
+  for (auto& [f, txt] : runs) {
+    SDL_Surface* p = TTF_RenderUTF8_Blended(f, txt.c_str(), col); parts.push_back(p);
+    if (!p) continue;
+    w += p->w; asc = std::max(asc, TTF_FontAscent(f)); desc = std::max(desc, p->h - TTF_FontAscent(f));
+  }
+  if (w <= 0) { for (auto* p : parts) if (p) SDL_FreeSurface(p); return nullptr; }
+  SDL_Surface* out = SDL_CreateRGBSurfaceWithFormat(0, w, asc + desc, 32, SDL_PIXELFORMAT_ARGB8888);
+  SDL_FillRect(out, nullptr, 0);
+  int x = 0;
+  for (size_t i = 0; i < parts.size(); i++) {
+    SDL_Surface* p = parts[i]; if (!p) continue;
+    SDL_SetSurfaceBlendMode(p, SDL_BLENDMODE_NONE);
+    SDL_Rect d{x, asc - TTF_FontAscent(runs[i].first), p->w, p->h}; SDL_BlitSurface(p, nullptr, out, &d);
+    x += p->w; SDL_FreeSurface(p);
+  }
+  return out;
+}
 
 SDL_Texture* textTex(Win& w, int font, const std::string& s, Col c, int* tw, int* th) {
   char key[64]; snprintf(key, sizeof key, "%d|%02x%02x%02x|", font, c.r, c.g, c.b);
@@ -59,7 +131,7 @@ SDL_Texture* textTex(Win& w, int font, const std::string& s, Col c, int* tw, int
   auto it = w.cache.find(k);
   if (it == w.cache.end()) {
     if (w.cache.size() > 400) { for (auto& [_, t] : w.cache) SDL_DestroyTexture(t); w.cache.clear(); }
-    SDL_Surface* sf = TTF_RenderUTF8_Blended(fonts[font], s.c_str(), SDL_Color{c.r, c.g, c.b, 255});
+    SDL_Surface* sf = renderMixed(font, s, SDL_Color{c.r, c.g, c.b, 255});
     if (!sf) return nullptr;
     SDL_Texture* t = SDL_CreateTextureFromSurface(w.r, sf); SDL_FreeSurface(sf);
     it = w.cache.emplace(k, t).first;
@@ -81,13 +153,13 @@ void drawText(Win& w, const std::string& s, SDL_Rect box, Col c, int maxFont = F
   }
 }
 
-struct Button { SDL_Rect r; int id; std::string label; bool enabled = true; int font = F_SMALL; Col fill = PANEL; Col line = FG; };
+struct Button { SDL_Rect r; int id; std::string label; bool enabled = true; int font = F_SMALL; Col fill; Col line; Col text; };
 bool inRect(const SDL_Rect& r, int x, int y) { return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h; }
 
 enum BtnId {
   B_START = 1, B_SCRIPT, B_SETTINGS, B_QUIT, B_BACK, B_RESET, B_AGAIN, B_HOME,
   B_TILE0 = 10, B_CHECK = 20, B_CONTINUE, B_UNDO, B_CLEAR, B_HINT, B_BKSP = 30, B_RATIO_M, B_RATIO_P,
-  B_RESUME = 40, B_MENU,
+  B_RESUME = 40, B_MENU, B_THEME,
   B_KEY0 = 100, B_SEG0 = 200
 };
 
@@ -149,6 +221,7 @@ struct App {
       case B_HOME: case B_BACK: screen = Screen::Home; prog.save(statePath); break;
       case B_QUIT: running = false; break;
       case B_RESUME: paused = false; break;
+      case B_THEME: prog.settings.light = !prog.settings.light; applyTheme(prog.settings.light); prog.save(statePath); break;
       case B_MENU: paused = false; screen = Screen::Home; prog.save(statePath); break;
       case B_RESET: prog.settings = Settings{.script = prog.settings.script}; break;
       case B_RATIO_M: prog.settings.kanaPct = std::max(0, prog.settings.kanaPct - 10); break;
@@ -235,20 +308,27 @@ struct App {
   }
 
   // ---------------------------------------------------------- drawing
-  void addBtn(SDL_Rect r, int id, const std::string& label, int font = F_SMALL, bool enabled = true, Col fill = PANEL, Col line = FG) {
-    bottomButtons.push_back({r, id, label, enabled, font, fill, line});
+  void addBtn(SDL_Rect r, int id, const std::string& label, int font = F_SMALL, bool enabled = true, Col fill = Col{}, Col line = Col{}, bool useDefaults = true) {
+    (void)useDefaults;
+    if (sameCol(fill, Col{})) fill = PANEL;           // unset fill: panel
+    if (sameCol(line, Col{})) line = LINE;            // unset line: theme line
+    if (sameCol(fill, ACCENT)) line = ACCENT;         // yellow buttons have no outline
+    Col text = sameCol(fill, ACCENT) ? ON_ACCENT : FG;
+    bottomButtons.push_back({r, id, label, enabled, font, fill, line, text});
   }
   void drawButtons() {
     for (auto& b : bottomButtons) {
-      Col line = b.enabled ? b.line : Col{70, 70, 74}, txt = b.enabled ? FG : Col{90, 90, 94};
-      Col fill = b.fill; if (b.id == pressedId) fill = Col{Uint8(std::min(255, fill.r + 50)), Uint8(std::min(255, fill.g + 50)), Uint8(std::min(255, fill.b + 50))};
-      fillRect(bot, b.r, fill); frameRect(bot, b.r, line, 3);
+      Col line = b.enabled ? b.line : DIS_LINE, txt = b.enabled ? b.text : DIS_TXT;
+      Col fill = b.fill;
+      if (b.id == pressedId)  // pressed: blend 25% towards the text colour
+        fill = Col{Uint8((fill.r * 3 + FG.r) / 4), Uint8((fill.g * 3 + FG.g) / 4), Uint8((fill.b * 3 + FG.b) / 4)};
+      if (sameCol(line, fill)) fillRound(bot, b.r, 12, fill); else boxRound(bot, b.r, 12, fill, line, 3);
       drawText(bot, b.label, SDL_Rect{b.r.x + 6, b.r.y + 2, b.r.w - 12, b.r.h - 4}, txt, b.font);
     }
   }
 
   void progressBar(Win& w, SDL_Rect r, float frac) {
-    fillRect(w, r, Col{60, 60, 64}); fillRect(w, SDL_Rect{r.x, r.y, int(r.w * std::clamp(frac, 0.f, 1.f)), r.h}, ACCENT);
+    fillRound(w, r, r.h / 2, TRACK); int fw = int(r.w * std::clamp(frac, 0.f, 1.f)); if (fw > 0) fillRound(w, SDL_Rect{r.x, r.y, std::max(fw, r.h), r.h}, r.h / 2, ACCENT);
   }
 
   void render() {
@@ -289,7 +369,7 @@ struct App {
       drawText(top, std::to_string(n) + "/" + std::to_string(total), SDL_Rect{460, y, 140, 36}, DIM, F_SMALL, false);
       progressBar(top, SDL_Rect{40, y + 44, 560, 18}, float(n) / total); y += 110;
     }
-    addBtn(SDL_Rect{60, 40, 520, 110}, B_START, "Start practice", F_MID, true, ACCENT, FG);
+    addBtn(SDL_Rect{60, 40, 520, 110}, B_START, "Start practice", F_MID, true, ACCENT);
     addBtn(SDL_Rect{60, 175, 520, 80}, B_SCRIPT, std::string("Script: ") + scriptName(prog.settings.script) + "  (tap to switch)", F_SMALL);
     addBtn(SDL_Rect{60, 275, 250, 80}, B_SETTINGS, "Practice mix", F_SMALL);
     addBtn(SDL_Rect{330, 275, 250, 80}, B_QUIT, "Quit", F_SMALL);
@@ -306,6 +386,7 @@ struct App {
     progressBar(top, SDL_Rect{40, 320, 560, 18}, s.kanaPct / 100.f);
     addBtn(SDL_Rect{20, 14, 90, 52}, B_RATIO_M, "Kana-", F_TINY); addBtn(SDL_Rect{120, 14, 90, 52}, B_RATIO_P, "Kana+", F_TINY);
     addBtn(SDL_Rect{430, 14, 190, 52}, B_BACK, "Back", F_SMALL);
+    addBtn(SDL_Rect{220, 14, 200, 52}, B_THEME, prog.settings.light ? "Theme: Light" : "Theme: Dark", F_TINY);
     const char* names[4] = {"Reading", "Word meanings", "Writing", "Typing"};
     const int vals[4] = {s.reading, s.meanings, s.writing, s.typing};
     for (int i = 0; i < 4; i++) {
@@ -320,9 +401,9 @@ struct App {
   void drawTiles() {
     for (int i = 0; i < (int)q.options.size(); i++) {
       SDL_Rect r{20 + (i % 2) * 310, 14 + (i / 2) * 112, 290, 100};
-      Col fill = PANEL, line = FG;
-      if (checked) { if (i == q.correct) { fill = Col{25, 80, 45}; line = GOOD; } else if (i == sel) { fill = Col{90, 30, 30}; line = BAD; } }
-      else if (i == sel) { fill = Col{35, 55, 110}; line = SEL; }
+      Col fill = PANEL, line = LINE;
+      if (checked) { if (i == q.correct) { fill = GOOD_FILL; line = GOOD; } else if (i == sel) { fill = BAD_FILL; line = BAD; } }
+      else if (i == sel) { fill = ACCENT; line = ACCENT; }
       bool isCursor = !checked && i == cursor && sel != i;
       addBtn(r, B_TILE0 + i, q.options[i], q.optionsAreKana ? F_BIG : F_MID, true, fill, isCursor ? DIM : line);
     }
@@ -349,7 +430,7 @@ struct App {
     std::string prompt = q.prompt;
     if (q.type == QType::Type) {
       drawText(top, prompt, SDL_Rect{20, 90, 600, 200}, FG, F_HUGE);
-      drawText(top, typed.empty() ? "..." : typed, SDL_Rect{20, 310, 600, 80}, checked ? pc : ACCENT, F_BIG);
+      drawText(top, typed.empty() ? "..." : typed, SDL_Rect{20, 310, 600, 80}, checked ? pc : ACCENT_TXT, F_BIG);
     } else if (q.type == QType::Write) {
       drawText(top, checked ? q.answer : prompt, SDL_Rect{20, 90, 600, 200}, pc, F_HUGE);
     } else {
@@ -392,16 +473,16 @@ struct App {
 
   void drawWritingExtras() {
     SDL_Rect c = canvas();
-    fillRect(bot, c, Col{18, 18, 22}); frameRect(bot, c, FG, 3);
-    SDL_SetRenderDrawColor(bot.r, 70, 70, 76, 255);
+    boxRound(bot, SDL_Rect{c.x - 3, c.y - 3, c.w + 6, c.h + 6}, 14, CANVAS, LINE, 3);
+    SDL_SetRenderDrawColor(bot.r, LINE.r, LINE.g, LINE.b, 255);
     SDL_RenderDrawLine(bot.r, c.x + c.w / 2, c.y + 6, c.x + c.w / 2, c.y + c.h - 6); SDL_RenderDrawLine(bot.r, c.x + 6, c.y + c.h / 2, c.x + c.w - 6, c.y + c.h / 2);
     const Glyph* g = glyph();
-    if (g && (showHint || checked)) for (auto& s : g->strokes) drawStroke(s, checked ? Col{60, 90, 70} : Col{60, 60, 70}, 9);
+    if (g && (showHint || checked)) for (auto& s : g->strokes) drawStroke(s, checked ? GHOST_OK : GHOST, 9);
     for (size_t i = 0; i < strokes.size(); i++) {
       Col col = checked ? (i < strokeOk.size() && strokeOk[i] ? GOOD : BAD) : FG;
       drawStroke(strokes[i], col, 6);
     }
-    if (drawing) drawStroke(cur, ACCENT, 6);
+    if (drawing) drawStroke(cur, ACCENT_TXT, 6);
   }
 
   void drawResult() {
@@ -573,6 +654,13 @@ static int selfTest(App& app, const std::string& shotDir) {
   int wrong = (app.q.correct + 1) % 6; CHECK(click(B_TILE0 + wrong), "wrong tile"); CHECK(click(B_CHECK), "check wrong");
   CHECK(app.checked && !app.correct, "wrong answer must be marked wrong"); CHECK(app.prog.stats[app.q.key].wrong >= 1, "wrong recorded");
   shot("q_wrong");
+  // theme: toggle to light from settings, screens still render, setting persists
+  app.paused = false; app.screen = Screen::Home; frame();
+  CHECK(click(B_SETTINGS), "settings for theme"); CHECK(click(B_THEME), "toggle theme");
+  CHECK(app.prog.settings.light && sameCol(BG, LIGHT_THEME.bg), "light theme applied"); shot("light_settings");
+  CHECK(click(B_BACK), "back"); shot("light_home"); CHECK(click(B_START), "start light"); shot("light_drill");
+  { Progress re; re.load(app.statePath); CHECK(re.settings.light, "theme saved"); }
+  app.screen = Screen::Settings; frame(); CHECK(click(B_THEME), "toggle back"); CHECK(!app.prog.settings.light, "dark again");
   CHECK(app.prog.save(app.statePath), "save progress");
   printf(fails ? "SELFTEST: %d failure(s)\n" : "SELFTEST: all passed (types seen: read=%d recall=%d meaning=%d write=%d type=%d)\n", fails ? fails : seen[0], seen[1], seen[2], seen[3], seen[4]);
   return fails ? 1 : 0;
@@ -596,16 +684,18 @@ int main(int argc, char** argv) {
     const char* x = getenv("XDG_CONFIG_HOME"); const char* h = getenv("HOME");
     stateDir = x ? std::string(x) + "/banana-kana" : std::string(h ? h : ".") + "/.config/banana-kana";
   }
-  App app; app.dataDir = dataDir; std::string err;
+  App app; app.dataDir = dataDir; std::string err; applyTheme(false);
   if (!app.data.load(dataDir, &err)) { fprintf(stderr, "cannot load data from '%s': %s\n", dataDir.c_str(), err.c_str()); return 2; }
-  mkdirs(stateDir); app.statePath = stateDir + "/progress.txt"; app.prog.load(app.statePath);
+  mkdirs(stateDir); app.statePath = stateDir + "/progress.txt"; app.prog.load(app.statePath); applyTheme(app.prog.settings.light);
 
   SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0) { fprintf(stderr, "SDL_Init: %s\n", SDL_GetError()); return 3; }
   if (TTF_Init() != 0) { fprintf(stderr, "TTF_Init: %s\n", TTF_GetError()); return 3; }
   for (int i = 0; i < F_COUNT; i++) {
-    fonts[i] = TTF_OpenFont((dataDir + "/font.ttf").c_str(), FONT_PX[i]);
-    if (!fonts[i]) { fprintf(stderr, "font: %s\n", TTF_GetError()); return 3; }
+    kanaF[i] = TTF_OpenFont((dataDir + "/kana.ttf").c_str(), FONT_PX[i]);
+    uiF[i] = TTF_OpenFont((dataDir + "/ui.ttf").c_str(), FONT_PX[i]);
+    fbF[i] = TTF_OpenFont((dataDir + "/fallback.ttf").c_str(), FONT_PX[i]);
+    if (!kanaF[i] || !uiF[i] || !fbF[i]) { fprintf(stderr, "font: %s\n", TTF_GetError()); return 3; }
   }
 
   int displays = SDL_GetNumVideoDisplays();

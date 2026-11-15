@@ -1,0 +1,1 @@
+fallback.ttf is a subset of Noto Sans CJK JP (c) Google / Adobe, SIL Open Font License 1.1.

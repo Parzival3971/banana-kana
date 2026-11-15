@@ -41,7 +41,7 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
 - `cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure` (core logic tests)
 - UI self-test (scripted clicks through every drill type, dummy displays):
   `SDL_VIDEODRIVER=dummy KT_SOFTWARE=1 build/banana_kana --selftest --shots /tmp/shots --state-dir /tmp/kt`
-- Regenerate assets: `python3 tools/gen_data.py` (kana.tsv, words.tsv, KanjiVG strokes.txt, subset font).
+- Regenerate assets: `python3 tools/gen_data.py` (kana.tsv, words.tsv, KanjiVG strokes.txt, kana/ui/fallback fonts).
 
 ## Code map
 - `src/core.{h,cpp}`: data loading, progress/weak-spot weighting, question generation, stroke scoring (no SDL).
@@ -77,8 +77,10 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
 ## v1 spec (decided 2026-11-15; mockups: https://claude.ai/artifact/AHzvzZCbRSnBpttUyaXq6z)
 - Look: BananaOS palette (banana yellow #FFD23F on warm neutrals), button-hint chips, cartridge tiles.
   Fonts: kana in Zen Maru Gothic (OFL), English/UI/keyboard in Pixelify Sans (OFL, Banana Player's UI font),
-  Fusion Pixel as fallback for missing glyphs. Source TTFs: github.com/google/fonts (ofl/zenmarugothic, ofl/pixelifysans).
-- Theme: Dark and Light, user can switch in settings. On light, yellow is fill only; yellow-on-light text needs a darker shade.
+  Fallback for missing glyphs: Noto Sans CJK JP subset (fallback.ttf) instead of Fusion Pixel (already had it, OFL).
+  Source TTFs: github.com/google/fonts (ofl/zenmarugothic, ofl/pixelifysans). Licences ship in app/data/licenses/.
+  Text is rendered per run (main.cpp renderMixed/pickFont): kana -> kana.ttf, Latin -> ui.ttf, else fallback.ttf.
+- Theme: Dark and Light (DONE M1: `set theme` in progress.txt, toggle on Settings top row; palettes in main.cpp Theme). On light, yellow is fill only; yellow-on-light text needs a darker shade.
 - Icon: "Cartridge" design, rendered to launcher/media/box/Banana Kana.png (512x512; shelf size still unverified).
 - Stages: 14 per script (10 basic rows, が-ざ-だ, ば-ぱ, 2 yōon). Katakana unlocks after hiragana stage 10.
   Each stage starts with a lesson (stroke order + hint + untimed tracing). Drills only use unlocked kana;

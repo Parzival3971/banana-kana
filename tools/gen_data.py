@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Generates app/data/*: kana.tsv, words.tsv, strokes.txt (KanjiVG, CC BY-SA 3.0),
-and a subset font.
+and fonts (kana.ttf, ui.ttf, fallback.ttf + licences).
 Run from repo root:  python3 tools/gen_data.py"""
 import os, re, subprocess, sys, urllib.request, concurrent.futures as cf, math
 
@@ -205,12 +205,41 @@ def main():
             for s in strokes: f.write(" ".join(f"{px:.1f},{py:.1f}" for px, py in s) + "\n")
     print("strokes: ok", len(res) - len(miss), "missing", miss)
 
-    # subset font (kana + ASCII + a few symbols) from system Noto Sans CJK JP
-    chars = "".join(sorted({c for _, g, _, _ in rows for c in g} | {c for w in WORDS for c in w.split("|")[0]}))
-    chars += "".join(chr(c) for c in range(0x20, 0x7f)) + "ー・…。、？！→←✓✗"
-    src = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
-    subprocess.run([sys.executable, "-m", "fontTools.subset", src, "--font-number=0",
-                    f"--text={chars}", "--layout-features=*",
-                    f"--output-file={os.path.join(DATA, 'font.ttf')}"], check=True)
+    build_fonts(rows)
+
+GF = "https://raw.githubusercontent.com/google/fonts/main/"
+def fetch(url, name):
+    os.makedirs("/tmp/gf", exist_ok=True); path = os.path.join("/tmp/gf", name)
+    if not os.path.exists(path): urllib.request.urlretrieve(url, path)
+    return path
+
+def build_fonts(rows):
+    """kana.ttf  : Zen Maru Gothic Bold, subset to kana + Japanese punctuation (OFL)
+       ui.ttf    : Pixelify Sans at weight 500, Latin (OFL; Banana Player's UI font)
+       fallback.ttf: Noto Sans CJK JP subset, for any glyph the other two lack (OFL)"""
+    lic = os.path.join(DATA, "licenses"); os.makedirs(lic, exist_ok=True)
+    kana = sorted({c for _, g, _, _ in rows for c in g} | {c for w in WORDS for c in w.split("|")[0]})
+    jp_extra = "ー・…。、「」？！〜（）"
+    zen = fetch(GF + "ofl/zenmarugothic/ZenMaruGothic-Bold.ttf", "ZenMaruGothic-Bold.ttf")
+    subprocess.run([sys.executable, "-m", "fontTools.subset", zen, f"--text={''.join(kana)}{jp_extra}",
+                    "--layout-features=*", f"--output-file={os.path.join(DATA, 'kana.ttf')}"], check=True)
+    pix = fetch(GF + "ofl/pixelifysans/PixelifySans%5Bwght%5D.ttf", "PixelifySans-VF.ttf")
+    inst = "/tmp/gf/PixelifySans-500.ttf"
+    subprocess.run([sys.executable, "-m", "fontTools.varLib.instancer", pix, "wght=500", "-o", inst], check=True)
+    latin = "".join(chr(c) for c in range(0x20, 0x7f)) + "".join(chr(c) for c in range(0xa0, 0x180)) + "‹›–—‘’“”…•·×←→↑↓"
+    subprocess.run([sys.executable, "-m", "fontTools.subset", inst, f"--text={latin}", "--layout-features=*",
+                    f"--output-file={os.path.join(DATA, 'ui.ttf')}"], check=True)
+    noto = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
+    fb = "".join(kana) + jp_extra + latin + "✓✗"
+    subprocess.run([sys.executable, "-m", "fontTools.subset", noto, "--font-number=0", f"--text={fb}",
+                    "--layout-features=*", f"--output-file={os.path.join(DATA, 'fallback.ttf')}"], check=True)
+    old = os.path.join(DATA, "font.ttf")
+    if os.path.exists(old): os.remove(old)
+    for url, name in [(GF + "ofl/zenmarugothic/OFL.txt", "ZenMaruGothic-OFL.txt"),
+                      (GF + "ofl/pixelifysans/OFL.txt", "PixelifySans-OFL.txt")]:
+        open(os.path.join(lic, name), "w").write(open(fetch(url, name)).read())
+    open(os.path.join(lic, "NotoSansCJK.txt"), "w").write(
+        "fallback.ttf is a subset of Noto Sans CJK JP (c) Google / Adobe, SIL Open Font License 1.1.\n")
+    print("fonts: kana.ttf ui.ttf fallback.ttf")
 
 if __name__ == "__main__": main()

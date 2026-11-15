@@ -35,6 +35,7 @@ struct Settings {
   int kanaPct = 60;  // % kana questions vs word questions
   int reading = 2, meanings = 1, writing = 1, typing = 1;  // weight 0..2
   Script script = Script::Hiragana;
+  bool light = false;  // UI theme: false = dark, true = light
 };
 
 struct Progress {
