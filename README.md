@@ -15,45 +15,56 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 
 </div>
 
-## Features
+## ✨ Features
 
-- **Stages, not a wall of kana.** 15 stages per script: the 10 basic rows, voiced kana (が, ぱ...), combinations (きゃ...),
-  and an Extras stage for small っ, the long-vowel ー and katakana made for foreign words (ティ, ファ, ヴ...).
+### 🎓 Learn
+- 🗺️ **Stages, not a wall of kana.** 15 stages per script: the 10 basic rows, voiced kana (が, ぱ...), combinations
+  (きゃ...), and an Extras stage for small っ, the long-vowel ー and katakana made for foreign words (ティ, ファ, ヴ...).
   That's 105 hiragana and 119 katakana. Katakana opens up once you've finished hiragana stage 10.
-- **A lesson for every stage.** Each new kana gets a memory hint, stroke-order frames and a practice trace before it's tested.
-- **Four kinds of drill:**
-  - reading, from kana to sound and back;
-  - word meanings, using only words made of kana you've unlocked;
-  - writing, traced with the stylus and scored stroke by stroke (combination kana are traced in two parts);
-  - typing, in romaji or on a kana keyboard.
-- **One step at a time.** A brand-new kana is only asked as multiple choice. Typing comes once you've got it right,
+- 📖 **A lesson for every stage.** Each new kana gets a memory hint, an animated stroke order and a practice trace
+  before it's tested.
+- 🪜 **One step at a time.** A brand-new kana is only asked as multiple choice. Typing comes once you've got it right,
   then writing: first over the full guide, then over a faint outline, then from memory, one level per session.
-- **Already know some?** On first launch, say how much you know, or skip ahead later in Settings > Script.
+- ⏩ **Already know some?** On first launch, say how much you know, or skip ahead later in Settings > Script.
   Skipped kana count as known, with a quick review in a day or two to check.
-- **Progress that sticks.** A kana is *known* after 4 right answers spread over at least two sessions.
-  Known kana then come back for **spaced review** after 1, 3, 7, 14, 30 and 90 days.
-- **Mix-ups.** Short drills on look-alikes such as さ/き, ね/れ/わ, シ/ツ and ソ/ン, with a note on how to tell them apart.
-  Pairs you've confused yourself are added too.
-- **Timed challenge.** One-tap answers for 60 seconds, with a personal best for each script.
-- **Practice sets and free writing.** Pick kana in the chart and drill just those (a single kana is mixed with its
-  look-alikes), or write them freely with a full guide, an outline or none, without touching your progress.
-- **Draw any kana.** Write whatever you like from memory and Banana Kana works out which kana it is, then checks your
-  stroke order against it. Good for practising on your own.
-- **See the stroke order.** Show me (or START) animates each stroke in turn. Arrows on the guide show which way each
-  stroke goes.
-- **Your kind of writing.** Kana in rounded print or a textbook handwriting font, canvas guide lines (cross, grid or
+
+### 🎮 Practise
+- 🧩 **Four kinds of drill:**
+  - 👀 reading, from kana to sound and back;
+  - 💬 word meanings, using only words made of kana you've unlocked;
+  - ✍️ writing, traced with the stylus and scored stroke by stroke (combination kana are traced in two parts);
+  - ⌨️ typing, in romaji or on a kana keyboard.
+- 🔁 **Spaced review.** A kana is *known* after 4 right answers spread over at least two sessions. Known kana then
+  come back after 1, 3, 7, 14, 30 and 90 days.
+- 🔀 **Mix-ups.** Short drills on look-alikes such as さ/き, ね/れ/わ, シ/ツ and ソ/ン, with a note on how to tell them
+  apart. Pairs you've confused yourself are added too.
+- ⏱️ **Timed challenge.** One-tap answers for 60 seconds, with a personal best for each script.
+- 🎯 **Practice sets.** Pick kana in the chart and drill just those. A single kana is mixed with its look-alikes, so
+  the answer isn't always the same.
+
+### ✍️ Write
+- 🎬 **See the stroke order.** Show me (or START) animates each stroke in turn, and arrows on the guide show which way
+  each stroke goes.
+- 🖌️ **Free writing.** Write any kana with a full guide, an outline or none, without touching your progress.
+- 🔮 **Draw any kana.** Write whatever you like from memory and Banana Kana works out which kana it is, then checks
+  your stroke order against it. Good for practising on your own.
+- 🎨 **Your kind of writing.** Kana in rounded print or a textbook handwriting font, canvas guide lines (cross, grid or
   none), ink thickness, and how strictly strokes are checked (relaxed, normal or strict).
-- **Sound effects.** Little chimes for right answers, newly known kana, unlocks and your daily goal (made in code, no
-  audio files). Off, quiet, normal or loud.
-- **Daily goal and streak**, plus a stats screen with your last 14 days and an accuracy heatmap of every kana.
-- **Made for the device.**
-  - Prompts on the top screen, answers and the tracing canvas on the touch screen.
-  - Everything except the on-screen keyboards works with the d-pad and buttons too.
-  - Dark and light themes, with text rendered at the panels' real resolution.
-- **Safe to switch off.** Progress is saved after every answer, so closing the lid or powering off loses nothing.
+
+### 📈 Keep going
+- 🔥 **Daily goal and streak**, from 5 to 30 answers a day.
+- 📊 **Stats.** Your last 14 days and an accuracy heatmap of every kana. Tap one to see it in the chart.
+- 🔊 **Sound effects.** Little chimes for right answers, newly known kana, unlocks and your daily goal (made in code,
+  no audio files). Off, quiet, normal or loud.
+
+### 🍌 Made for the RG DS Plus
+- 🖥️ Prompts on the top screen; answers, keyboards and the tracing canvas on the touch screen.
+- 🕹️ Everything works with the d-pad and buttons too, including the on-screen keyboards.
+- 🌗 Dark and light themes, with text rendered at the panels' real resolution.
+- 💾 Progress is saved after every answer, so closing the lid or powering off loses nothing.
 
 <details>
-<summary><b>More screenshots</b></summary>
+<summary><b>📸 More screenshots</b></summary>
 <br>
 
 | | | |
@@ -69,7 +80,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 
 </details>
 
-## Install
+## 📦 Install
 
 You need an Anbernic RG DS Plus running BananaOS.
 
@@ -83,64 +94,66 @@ You need an Anbernic RG DS Plus running BananaOS.
    > **On a Mac**, the zip may open into a folder of its own. Move the *contents* of that folder into `roms/ports`.
 3. Put the card back, open the **Ports** shelf and choose **Banana Kana**.
 
-**Updating:** unzip the new version over the old one. Your progress lives in `home/.config/banana-kana/` and is kept.
-**Uninstalling:** delete the three items above. Delete `home/.config/banana-kana/` too if you want your progress gone.
+🔄 **Updating:** unzip the new version over the old one. Your progress lives in `home/.config/banana-kana/` and is kept.
+🗑️ **Uninstalling:** delete the three items above. Delete `home/.config/banana-kana/` too if you want your progress gone.
 
-## Controls
+## 🎮 Controls
 
 | | |
 |---|---|
-| **Stylus / touch** (bottom screen) | Tap answers, keys and buttons. Buttons act when you lift, so slide off to cancel. Trace on the canvas. |
-| **D-pad** (shown as ✛ in the hint chips) | Move between tiles, cartridges, stages, chart cells, settings and keyboard keys |
+| ✏️ **Stylus / touch** (bottom screen) | Tap answers, keys and buttons. Buttons act when you lift, so slide off to cancel. Trace on the canvas. |
+| ✛ **D-pad** (shown as a cross in the hint chips) | Move between tiles, cartridges, stages, chart cells, settings and keyboard keys |
 | **A** | Choose / confirm (press again on a chosen answer to check it) |
 | **B** | Back. In drills: undo a stroke or delete a letter |
 | **X** | Check the answer |
 | **Y** | Hint while writing, guide in free writing. On Home and stats: switch hiragana / katakana |
-| **START** | Show me (stroke-order animation) when writing; in the chart, write the practice set freely |
+| ▶️ **START** | Show me (stroke-order animation) when writing; in the chart, write the practice set freely |
 | **L / R** | Switch tabs, scripts or settings groups |
-| **F** (or **SELECT**) | Pause during practice, lessons and free writing: resume, back to menu or quit. Tapping the Pause hint works too |
-| **Back** (right of F) | Same as B |
-| **F + START** | Quit from the menus; during practice it opens the pause menu instead |
+| ⏸️ **F** (or **SELECT**) | Pause during practice, lessons and free writing: resume, back to menu or quit. Tapping the Pause hint works too |
+| ↩️ **Back** (right of F) | Same as B |
+| 🚪 **F + START** | Quit from the menus; during practice it opens the pause menu instead |
 
-## How learning works
+## 🧠 How learning works
 
-- **Steps.** Every kana has 4 steps. A right answer adds one, a wrong answer takes one away, and you can gain at most
+- 🪜 **Steps.** Every kana has 4 steps. A right answer adds one, a wrong answer takes one away, and you can gain at most
   2 steps per kana in one session. Reaching step 4 means a kana is *known*, so it takes at least two sessions:
   that tests memory, not short-term recall.
-- **Stages.** A stage unlocks when every kana in the stage before it is known. Practice mostly draws on your current
+- 🗺️ **Stages.** A stage unlocks when every kana in the stage before it is known. Practice mostly draws on your current
   stage, and older stages come back as review (you can turn this down in Settings > Sessions).
-- **Spaced review.** A known kana is due again 1 day later, then 3, 7, 14, 30 and 90 days. Each right answer moves it
+- 🔁 **Spaced review.** A known kana is due again 1 day later, then 3, 7, 14, 30 and 90 days. Each right answer moves it
   to the next interval; a miss moves it back one and costs it a step, so it has to be re-learnt.
-- **っ and ー.** These have no sound of their own, so they're practised by reading words that use them (きって = kitte,
+- 🔤 **っ and ー.** These have no sound of their own, so they're practised by reading words that use them (きって = kitte,
   コーヒー = koohii), with near-miss answers that ignore the mark.
-- **Mix-ups.** When you pick the wrong kana, the pair is remembered. Mix-up drills show only the look-alikes as options.
-- **Staging.** Step 0: multiple choice only. Step 1: romaji typing too. Step 2: the kana keyboard and writing.
+- 🔀 **Mix-ups.** When you pick the wrong kana, the pair is remembered. Mix-up drills show only the look-alikes as options.
+- ✍️ **Staging.** Step 0: multiple choice only. Step 1: romaji typing too. Step 2: the kana keyboard and writing.
   Writing has its own three levels (full guide, outline, memory) and moves up one level per session. Guided writing
   is practice: it never costs a step. Writing from memory counts like any other answer, and a miss sends you back to
   the outline for a while.
 
-## Settings
+## ⚙️ Settings
 
 Six groups, laid out like BananaOS's own Settings app:
 
 | Group | Settings |
 |---|---|
-| **Practice** | How often each drill appears, and whether typing uses a romaji or kana keyboard |
-| **Sessions** | Session length, how much older stages come back, the daily goal and how strict the writing check is |
-| **Script** | Which script you practise, and skipping ahead to a later stage (or unlocking katakana early) |
-| **Display** | Dark or light theme, kana font (rounded or handwriting), canvas lines, ink and sound effects |
-| **Progress** | Your stats, and resetting progress (press twice; settings are kept) |
-| **About** | Version and credits |
+| 🧩 **Practice** | How often each drill appears, and whether typing uses a romaji or kana keyboard |
+| ⏳ **Sessions** | Session length, how much older stages come back, the daily goal and how strict the writing check is |
+| あ **Script** | Which script you practise, and skipping ahead to a later stage (or unlocking katakana early) |
+| 🎨 **Display** | Dark or light theme, kana font (rounded or handwriting), canvas lines, ink and sound effects |
+| 📊 **Progress** | Your stats, and resetting progress (press twice; settings are kept) |
+| ℹ️ **About** | Version and credits |
 
-## Troubleshooting
+## 🛠️ Troubleshooting
 
-- **The bottom screen stays dark.** The launcher switches the bottom backlight on, and the app keeps it on.
+- 🌑 **The bottom screen stays dark.** The launcher switches the bottom backlight on, and the app keeps it on.
   If it's still dark after waking from sleep, quit and start the app again.
-- **Something else is wrong.** Every launch writes `home/.config/banana-kana/launch.log` on the SD card. It lists the
+- 🔇 **No sound.** Check Settings > Display > Sound, and the volume on BananaOS itself.
+- 🔙 **The Back key does nothing.** Send the launch log below: it lists the buttons you pressed, so the key can be set.
+- 🐛 **Something else is wrong.** Every launch writes `home/.config/banana-kana/launch.log` on the SD card. It lists the
   screens, touch device and controller it found. Please attach it when you
   [open an issue](https://github.com/Parzival3971/banana-kana/issues/new?template=bug_report.md).
 
-## Building from source
+## 🧑‍💻 Building from source
 
 Banana Kana is C++17 with SDL2 and SDL2_ttf, built with CMake. On a PC it opens the two screens as two windows,
 and the mouse acts as the stylus.
@@ -161,7 +174,8 @@ On a PC, the keyboard stands in for the buttons:
 |---|---|
 | Arrow keys | D-pad |
 | Enter | A |
-| Esc / Backspace | B |
+| Backspace | B |
+| Esc | Pause during practice, otherwise B |
 | Tab | Pause |
 | Page Up / Page Down | L / R |
 | Letters | Type romaji |
@@ -177,12 +191,13 @@ container (it needs QEMU on x86). The binary links BananaOS's own SDL2 and is bu
   It needs `fonttools`.
 - `scripts/screenshots.sh` regenerates `docs/img` from the self-test. It needs Pillow.
 
-### Project layout
+### 🗂️ Project layout
 
 ```
 src/core.*       data, stages, progress (steps, spaced review, streak), question generation, stroke scoring
 src/app.*        every screen, navigation, input mapping
 src/gfx.*        themes, fonts and mixed-script text, shapes, icons, stroke drawing
+src/sound.*      synthesised sound effects
 src/main.cpp     start-up, event loop, evdev touch, gamepad, backlight keeper
 src/selftest.cpp scripted UI run used in CI (and for the screenshots)
 tests/           core logic tests
@@ -191,7 +206,7 @@ launcher/        "Banana Kana.sh" for the Ports shelf, box art
 scripts/         device build, packaging, release notes, screenshots
 ```
 
-### Releases
+### 🚀 Releases
 
 Releases are made by GitHub Actions only, never by hand:
 
@@ -203,7 +218,7 @@ publishes the release, using the changelog section as its notes. `0.0.0` in `VER
 releases. Every push also runs the [build workflow](.github/workflows/build.yml): a native build with the tests and
 self-test, plus the arm64 build and a package dry run.
 
-## Credits and licences
+## 🙏 Credits and licences
 
 - **Code:** [MIT](LICENSE).
 - **Stroke data:** [KanjiVG](https://kanjivg.tagaini.net/) © Ulrich Apel,
@@ -216,7 +231,7 @@ self-test, plus the arm64 build and a package dry run.
 - **BananaOS:** [BananaLinux](https://github.com/JorreFog/BananaLinux) by JorreFog, the OS this all runs on.
 - **Thanks:** [Banana Player](https://github.com/tonywei92/banana-player) for documenting how apps work on BananaOS.
 
-## AI disclosure
+## 🤖 AI disclosure
 
 Banana Kana is built with AI assistance. The C++ code, tests, data and build tools, CI workflows and these docs were
 written by Claude (Anthropic) in Claude Code. The same goes for the lesson hints, look-alike notes and word list. The

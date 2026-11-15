@@ -37,6 +37,7 @@ windows side by side; cross-compile to aarch64 for the release zip.
 ## Data
 Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
 README has an AI disclosure section (user asked 2026-11-15): keep it accurate when the process changes.
+README uses emojis on headings, feature bullets and table rows (user asked 2026-11-15): keep the style when editing.
 
 ## Build / test (PC)
 - Deps: `libsdl2-dev libsdl2-ttf-dev cmake g++`; asset generation needs `python3 fonttools`.
@@ -94,13 +95,13 @@ README has an AI disclosure section (user asked 2026-11-15): keep it accurate wh
   map, chart focus drill, settings, light theme, katakana unlock); `--shots DIR` saves top/bottom BMPs of each screen.
 - `src/main.cpp`: start-up, event loop, gamepad label swap, F/SELECT pause + F+START quit, evdev touch, backlight keeper.
 - Drill types: ReadKana, RecallKana, Meaning, Write (stylus trace vs KanjiVG), Type (on-screen romaji keys).
-- No audio / Listening drill: removed on purpose (no clips available). Re-add only if real recordings exist.
+- No Listening drill: removed on purpose (no voice clips available). Re-add only if real recordings exist.
+- `src/sound.{h,cpp}`: synthesised sound effects (snd::play), Settings.sound 0-3.
 
 ## Known gaps / to verify on device
 - Device test 2026-11-15 passed (old UI): touch + tracing land correctly, A/B correct, F + START quits, bottom survives sleep.
 - New UI (M3/M4) not yet seen on device: check text sharpness at 1.6x, readability at F_MICRO (17px logical),
   L/R shoulder buttons (Stages script switch, Chart tabs) and that GUIDE really is the F key.
-- Kana keyboard and romaji keyboard are touch-only (no d-pad cursor).
 - Kana count: 105 hiragana (matches Maru), 119 katakana (with Extras).
 
 ## Device findings (first on-device test, 2026-11-14)
