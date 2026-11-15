@@ -640,7 +640,7 @@ static Question makeWordQuestion(const Data&, const Progress& p, std::mt19937& r
       else { q.prompt = w.kana; q.hint = "Type the romaji"; q.answer = w.romaji; }
       break;
     default:
-      q.type = QType::ReadKana; q.prompt = w.kana; q.hint = "How do you read this word?";
+      q.type = QType::ReadKana; q.prompt = w.kana; q.hint = "How do you read this word?"; q.meaning = w.english;
       q.options = fillOptions(romajiPool, w.romaji, rng, 6, &q.correct); q.answer = w.romaji; break;
   }
   return q;

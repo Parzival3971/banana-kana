@@ -342,10 +342,13 @@ int main(int argc, char** argv) {
     Progress p; p.unlocked[0] = STAGE_COUNT; stepAll(d, p, PRODUCE_STEP); std::mt19937 rng(31); int typedWords = 0;
     for (int n = 0; n < 300; n++) {
       Question q = makeQuestion(d, p, rng);
-      if (q.type == QType::Type && q.isWord) { typedWords++; CHECK(!q.meaning.empty()); }
+      if ((q.type == QType::Type || q.type == QType::ReadKana) && q.isWord) { typedWords++; CHECK(!q.meaning.empty()); }
       if (q.type == QType::Meaning) CHECK(q.meaning.empty());
     }
     CHECK(typedWords > 0);
+    p.settings.meanings = 0; int reads = 0;  // shown even with the Word meanings drill turned off
+    for (int n = 0; n < 300; n++) { Question q = makeQuestion(d, p, rng); if (q.type == QType::ReadKana && q.isWord) { reads++; CHECK(!q.meaning.empty()); } }
+    CHECK(reads > 0);
   }
   printf(fails ? "%d FAILURES\n" : "all core tests passed\n", fails); return fails != 0;
 }

@@ -7,7 +7,8 @@ the release notes come from the matching section below.
 
 - Both analogue sticks move like the d-pad (hold to repeat).
 - Fix: the X and Y buttons were swapped on the device (X now checks, Y now shows hints).
-- Word questions (spelling a word in kana or romaji, reading っ/ー words) show the English meaning under the word.
+- Word questions (reading a word, spelling it in kana or romaji, っ/ー words) show the English meaning under the word,
+  whether or not the Word meanings drill is on.
 
 ## 0.1.0 - 2026-11-15
 
