@@ -228,7 +228,10 @@ int main(int argc, char** argv) {
   fprintf(stderr, "  sdl touch devices: %d, joysticks: %d\n", SDL_GetNumTouchDevices(), SDL_NumJoysticks());
   for (int i = 0; i < SDL_NumJoysticks(); i++)
     fprintf(stderr, "  joystick %d: %s gamecontroller=%d\n", i, SDL_JoystickNameForIndex(i) ? SDL_JoystickNameForIndex(i) : "?", SDL_IsGameController(i));
-  kt::StickPad sticks; bool sticksOn = !(getenv("KT_STICKS") && !strcmp(getenv("KT_STICKS"), "0")); int stickLogged = 0;
+  // RG DS Plus has ONE stick, but its SDL mapping also reports rightx/righty (a2/a3), which move with the real stick in
+  // other directions (launch.log 2026-11-15) -> only the left stick by default. KT_STICKS=0 off, =both both sticks.
+  kt::StickPad sticks; const char* stEnv = getenv("KT_STICKS"); int stickMode = !stEnv ? 1 : !strcmp(stEnv, "0") ? 0 : !strcmp(stEnv, "both") ? 2 : 1;
+  bool sticksOn = stickMode > 0; int stickLogged = 0;
   EvBack backKey; backKey.open(); OsdWatch osdWatch; Uint32 osdChecked = 0;
   EvTouch touch; touch.open(); int sdlTouchLogged = 0, buttonsLogged = 0, rawLogged = 0; bool menuKeyDown = false, menuCombo = false;
   // The Back key is read from evdev (EvBack). KT_BACK_BUTTON=<raw SDL joystick index> also maps one, if ever needed.
@@ -300,7 +303,8 @@ int main(int argc, char** argv) {
           app.padButton(b); break; }
         case SDL_CONTROLLERAXISMOTION: {
           int a = e.caxis.axis; if (a > SDL_CONTROLLER_AXIS_RIGHTY || !sticksOn) break;  // triggers are not sticks
-          int st = a >= SDL_CONTROLLER_AXIS_RIGHTX ? 1 : 0; bool isX = a == SDL_CONTROLLER_AXIS_LEFTX || a == SDL_CONTROLLER_AXIS_RIGHTX;
+          int st = a >= SDL_CONTROLLER_AXIS_RIGHTX ? 1 : 0; if (st == 1 && stickMode < 2) break;
+          bool isX = a == SDL_CONTROLLER_AXIS_LEFTX || a == SDL_CONTROLLER_AXIS_RIGHTX;
           sticks.axis(st, isX, e.caxis.value, SDL_GetTicks(), [&](int d) {
             if (stickLogged < 30) { stickLogged++; fprintf(stderr, "  stick %d press %s (x=%d y=%d rest %d,%d)\n", st,
                 d == kt::STICK_UP ? "up" : d == kt::STICK_DOWN ? "down" : d == kt::STICK_LEFT ? "left" : "right",

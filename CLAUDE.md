@@ -144,7 +144,8 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   tick() runs every timer each call (an early return once froze the timed clock during confetti).
 - Sticks: src/stickpad.h (tested in test_core) turns the analogue stick into d-pad presses (RG DS Plus has ONE stick; the code handles a second if SDL reports one). v0.1.1 jumped around
   (user 2026-11-15): now ON 20000 + 1.5x dominant axis, held axis only until under OFF 11000, re-arm only after
-  120 ms at centre (kills spring-back), rest point calibrated, repeat 400/140 ms. KT_STICKS=0 disables; launch.log
+  120 ms at centre (kills spring-back), rest point calibrated, repeat 400/140 ms. Phantom right stick: SDL mapping has rightx:a2/righty:a3 which move WITH the real stick in other directions
+  (launch.log 2026-11-15) -> right stick ignored by default (KT_STICKS=both re-enables). KT_STICKS=0 disables; launch.log
   logs the first 30 stick presses with raw values. Triggers ignored.
 - On-screen keyboards (kana + romaji) have a d-pad cursor (keyRow/keyCol, kbMove skips gaps), A types, X checks, B deletes.
 - Sound effects (src/sound.cpp): synthesised at start-up (Tap, Right, Wrong, Known, Unlock, Goal, Tick), SDL queue audio,
