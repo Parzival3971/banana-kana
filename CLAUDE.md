@@ -8,16 +8,17 @@ running BananaOS. Top screen: prompt and feedback. Bottom screen (touch/stylus):
 - Commit straight to `main`.
 - NEVER create tags or GitHub releases by hand. Releases come from
   `.github/workflows/release.yml`, triggered by a change to `VERSION` on main
-  (`0.0.0` = placeholder, no release). To release: bump `VERSION`, push to main.
+  (`0.0.0` = placeholder, no release). To release: add a `## <version>` section to CHANGELOG.md (release notes come
+  from it via scripts/release-notes.sh; the workflow fails without it), bump `VERSION`, push to main.
 
 ## Packaging (BananaOS Ports layout)
 - `scripts/package.sh <version>` -> `dist/BananaKana-<version>-aarch64.zip`
-- Zip holds `Banana Kana.sh` + `BananaKana/` + `media/box/Banana Kana.png`; user unzips into `roms/ports` on the SD card.
+- Zip holds `Banana Kana.sh` + `BananaKana/` (binary, data, VERSION, LICENSE, CHANGELOG) + `media/box/Banana Kana.png`; user unzips into `roms/ports`.
 - Source: `launcher/Banana Kana.sh`, `app/data/` (generated assets), aarch64 binary from `scripts/docker-build-aarch64.sh`.
 - Device build: arm64 Debian bookworm container (QEMU in CI). BananaOS ships SDL2, SDL2_ttf, FreeType and ALSA, so we link
   them dynamically and bundle nothing but libstdc++/libgcc (static). `dist/aarch64/REQUIREMENTS.txt` records the glibc/SDL
   versions the binary needs - compare with the device before releasing.
-- `.github/workflows/build.yml` builds, tests, self-tests and package-dry-runs on every push (no release).
+- `.github/workflows/build.yml` on every push: `pc` job (native build, ctest, self-test) + `aarch64` job (QEMU build, tests, package dry run). No release.
 - Launcher writes `~/.config/banana-kana/launch.log` (env + display info) - ask for it when debugging on device.
 
 ## Device facts (from tonywei92/banana-player DEVELOPMENT.md)
@@ -41,17 +42,29 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
 - `cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure` (core logic tests)
 - UI self-test (scripted clicks through every drill type, dummy displays):
   `SDL_VIDEODRIVER=dummy KT_SOFTWARE=1 build/banana_kana --selftest --shots /tmp/shots --state-dir /tmp/kt`
-- Regenerate assets: `python3 tools/gen_data.py` (kana.tsv, words.tsv, KanjiVG strokes.txt, kana/ui/fallback fonts).
+- Regenerate assets: `python3 tools/gen_data.py` (kana.tsv, words.tsv, KanjiVG strokes.txt, kana/ui/fallback fonts, licences).
+  kana.ttf covers the whole hiragana/katakana blocks (kana keyboard can type small vowels, ゔ etc.).
+- README screenshots: `scripts/screenshots.sh` (self-test at KT_WINSIZE=1024x768 -> tools/make_screenshots.py -> docs/img).
+- Repo docs: README.md (user + dev), LICENSE (MIT code; data notes), CHANGELOG.md, .github/ISSUE_TEMPLATE/bug_report.md.
 
 ## Code map
 - `src/core.{h,cpp}`: data loading, stages (Data::stages, stageOfKana), progress v2 (steps, session cap, unlocked/lessons per
   script, checkUnlocks, v1 migration), question generation (unlocked kana only, current stage weighted, review setting,
   words only when every char is unlocked and >= 6 such words; 4 options when the pool is small), stroke scoring.
+  Also (2026-11-15): spaced review (Stat.srs/due, SRS_DAYS 1/3/7/14/30/90, isDue/dueKana, makeReviewQuestion; known kana
+  without srs get scheduled 1-3 days out on load), mix-ups (MIX_DEFS look-alike sets + Progress::confusions "h:a|h:b",
+  mixupSets/makeMixupQuestion), daily goal/streak (Settings.dailyGoal, today/todayCount/streak/bestStreak/lastGoalDay,
+  goalJustMet, days history 90 days), timedBest[2] + makeTimedQuestion, kana keyboard (Settings.kanaKeys, Question.kanaInput,
+  kanaTypedMatches accepts じ/ぢ for "ji"), Data::writeParts (combos traced as 2 glyphs, small kana use the full-size glyph).
+  Progress.clock = fake time for tests (0 = real). Progress file: `stat ... step gainSession gain srs due`, `day`, `mix`.
 - `src/gfx.{h,cpp}`: themes/palettes, fonts + mixed-script text (per run; spaces always UI font), wrapping, rounded shapes
   (rows overlap 1px: avoids seams at non-integer scale), pixel icons, glyph stroke drawing, windows, screenshots.
   Text is rasterised at the panel's real scale (Win::scale, 1.6 on device) for sharpness.
 - `src/app.{h,cpp}`: all screens + navigation + input mapping per screen: Home (stage card, 4 cartridges: Practice/Lesson,
-  Stages, Kana chart, Settings), Stages (14-tile map, replay lessons), Lesson (hint, stroke-order frames, practice trace),
+  Stages, Kana chart, Settings; mode row Review/Mix-ups/Timed/Stats = homeSel 4-7, U/D switches rows; top stats
+  Today/Streak/Reviews due/Next unlock), Mode enum (Normal/Focus/Review/Mixup/Timed; startMode, tick() runs the 60 s clock,
+  pause stops it), Stats (14-day chart, accuracy heatmap -> chart), kana keyboard (gojuon grid + dakuten/handakuten/small/long),
+  Write parts (part/partStrokes/partOk; Undo/Back returns to part 1), Stages (14-tile map, replay lessons), Lesson (hint, stroke-order frames, practice trace),
   Unlocked, Drill (choice/typing/writing + feedback banner with hint), Pause, Result, Chart (Basic/Voiced/Combos tabs,
   scroll, tap twice / A = 5-question drill of one kana), Settings, Credits.
 - Settings copy BananaOS's Settings (user asked, 2026-11-15; reference shot: BananaLinux docs/img/readme/shot-settings.png):
@@ -69,7 +82,7 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
 - Device test 2026-11-15 passed (old UI): touch + tracing land correctly, A/B correct, F + START quits, bottom survives sleep.
 - New UI (M3/M4) not yet seen on device: check text sharpness at 1.6x, readability at F_MICRO (17px logical),
   L/R shoulder buttons (Stages script switch, Chart tabs) and that GUIDE really is the F key.
-- Yoon kana (きゃ etc.) have no Write drill (two glyphs). Typing has no Japanese-keyboard mode (romaji only).
+- Kana keyboard and romaji keyboard are touch-only (no d-pad cursor).
 - Kana count is 104 per script (Maru shows 105).
 
 ## Device findings (first on-device test, 2026-11-14)
@@ -81,7 +94,8 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
 - Touch: SDL touch did nothing on device. Now read via evdev (device whose sysfs path has fe5e0000.i2c), SDL finger events
   as fallback; touch-synthesised mouse events are ignored. Env: KT_TOUCH=sdl, KT_TOUCH_DEV, KT_TOUCH_SWAPXY/FLIPX/FLIPY.
   Launch log prints input devices, the chosen device, axis ranges and the first raw->logical touches.
-- Env switches: `KT_NOFS=1` (borderless instead of fullscreen), `KT_VSYNC=1` (vsync per window), `KT_SOFTWARE=1`.
+- Env switches: `KT_NOFS=1` (borderless instead of fullscreen), `KT_VSYNC=1` (vsync per window), `KT_SOFTWARE=1`,
+  `KT_WINSIZE=WxH` (PC window size, e.g. 1024x768 for device-scale screenshots).
 
 ## Device test 2 (new UI, 2026-11-15)
 - Bottom screen showed half-drawn frames mixed with the previous screen during tracing: stroke drawing used dozens of
@@ -121,5 +135,7 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
   on hints. Credits screen still needs KanjiVG (CC BY-SA 3.0) + font OFL notices.
 - Screens: Home, Stage map, Lesson, Stage unlocked, Drill (reading/meanings/writing/typing), Feedback, Pause menu,
   Kana chart (locked/learning/known/weak), Practice mix/settings (incl. theme), Results.
+- Post-M4 features (2026-11-15, user asked "do 1-7"): spaced review, mix-ups, daily goal + streak, combo writing,
+  timed challenge, kana keyboard, stats screen. Not yet seen on device.
 - Milestones: 1 fonts+theme DONE, 2 stages+progress migration DONE, 3 mockup screens/lessons/unlock DONE,
   4 chart + settings DONE (2026-11-15), 5 device test (NEEDS USER), then first release 0.1.0 via VERSION bump.

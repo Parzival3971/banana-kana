@@ -1,0 +1,10 @@
+strokes.txt - kana stroke data from KanjiVG
+
+KanjiVG is copyright (C) 2009-2024 Ulrich Apel, http://kanjivg.tagaini.net
+It is released under the Creative Commons Attribution-Share Alike 3.0 licence:
+https://creativecommons.org/licenses/by-sa/3.0/  (full legal code:
+https://creativecommons.org/licenses/by-sa/3.0/legalcode)
+
+Banana Kana's strokes.txt is an adaptation: the SVG paths of the kana were sampled into
+point lists by tools/gen_data.py. That adapted file is shared under the same licence
+(CC BY-SA 3.0). The rest of Banana Kana is under its own licence (see LICENSE).

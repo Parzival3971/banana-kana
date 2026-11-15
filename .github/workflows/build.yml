@@ -8,6 +8,24 @@ on:
   workflow_dispatch:
 
 jobs:
+  pc:
+    # Fast feedback: native build, core tests and the UI self-test with dummy video.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake g++ libsdl2-dev libsdl2-ttf-dev
+      - name: Build
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j
+      - name: Core tests
+        run: ctest --test-dir build --output-on-failure
+      - name: UI self-test
+        run: SDL_VIDEODRIVER=dummy KT_SOFTWARE=1 build/banana_kana --selftest --state-dir "$RUNNER_TEMP/kt" --data app/data
+      - name: Release notes for VERSION
+        run: |
+          v="$(tr -d '[:space:]' < VERSION)"
+          if [ "$v" != "0.0.0" ]; then ./scripts/release-notes.sh "$v" /dev/null; else echo "VERSION is the 0.0.0 placeholder"; fi
+
   aarch64:
     runs-on: ubuntu-latest
     steps:

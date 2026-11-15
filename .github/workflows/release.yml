@@ -35,6 +35,10 @@ jobs:
           fi
           echo "go=true" >> "$GITHUB_OUTPUT"
 
+      - name: Check CHANGELOG has notes for this version
+        if: steps.gate.outputs.go == 'true'
+        run: ./scripts/release-notes.sh "${{ steps.v.outputs.version }}" /dev/null > /dev/null
+
       - uses: docker/setup-qemu-action@v3
         if: steps.gate.outputs.go == 'true'
         with:
@@ -54,6 +58,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.v.outputs.version }}
         run: |
+          ./scripts/release-notes.sh "$VERSION" > dist/notes.md
           gh release create "v$VERSION" "dist/BananaKana-$VERSION-aarch64.zip" \
-            --target "$GITHUB_SHA" --title "Banana Kana v$VERSION" --generate-notes \
-            --notes-file dist/aarch64/REQUIREMENTS.txt
+            --target "$GITHUB_SHA" --title "Banana Kana v$VERSION" --notes-file dist/notes.md

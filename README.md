@@ -1,22 +1,192 @@
-# banana-kana
+<div align="center">
 
-Hiragana/katakana drills and stylus tracing for the Anbernic RG DS Plus (BananaOS).
+<img src="launcher/media/box/Banana%20Kana.png" width="140" alt="Banana Kana icon">
 
-Learn hiragana then katakana in 14 stages each: a short lesson per stage (hint, stroke order, tracing), then practice
-(reading, word meanings, writing with the stylus, typing). A kana is known after 4 steps spread over at least two
-sessions; knowing a whole stage unlocks the next. Dark and light themes.
+# Banana Kana
 
-Releases are built by GitHub Actions when `VERSION` changes on `main`.
-Stroke data: [KanjiVG](https://kanjivg.tagaini.net/) (CC BY-SA 3.0). Fonts: Zen Maru Gothic, Noto Sans CJK JP (SIL OFL 1.1).
+**Learn hiragana and katakana on your Anbernic RG DS Plus.**
+Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/bananalinux), using both screens.
 
-## Install (BananaOS on RG DS Plus)
-1. Unzip `BananaKana-<version>-aarch64.zip` into `roms/ports` on the SD card. You should end up with
-   `roms/ports/Banana Kana.sh`, `roms/ports/BananaKana/` and `roms/ports/media/box/Banana Kana.png`.
-   On a Mac the zip may open into a folder of its own: move its contents out into `roms/ports`.
-2. Open the Ports shelf and choose **Banana Kana**.
+[![Build](https://github.com/Parzival3971/banana-kana/actions/workflows/build.yml/badge.svg)](https://github.com/Parzival3971/banana-kana/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/Parzival3971/banana-kana?include_prereleases&label=release)](https://github.com/Parzival3971/banana-kana/releases)
+[![Licence: MIT](https://img.shields.io/badge/licence-MIT-ffd23f)](LICENSE)
 
-Controls: touch/stylus on the bottom screen (buttons act when you lift), D-pad + A to choose, B back,
-F + START (or SELECT + START) quits to the menu. Progress is saved after every answer.
-Problems? Send `home/.config/banana-kana/launch.log` from the card.
+<img src="docs/img/home.png" width="240" alt="Home screen"> <img src="docs/img/write.png" width="240" alt="Writing drill"> <img src="docs/img/mixup.png" width="240" alt="Mix-up drill">
 
-Uninstall: delete `Banana Kana.sh`, `BananaKana/` and `media/box/Banana Kana.png` from `roms/ports`.
+</div>
+
+## Features
+
+- **Stages, not a wall of kana.** 14 stages per script: the 10 basic rows, voiced kana (が, ぱ...) and combinations (きゃ...).
+  Katakana opens up once you've finished hiragana stage 10.
+- **A lesson for every stage.** Each new kana gets a memory hint, stroke-order frames and a practice trace before it's tested.
+- **Four kinds of drill:**
+  - reading, from kana to sound and back;
+  - word meanings, using only words made of kana you've unlocked;
+  - writing, traced with the stylus and scored stroke by stroke (combination kana are traced in two parts);
+  - typing, in romaji or on a kana keyboard.
+- **Progress that sticks.** A kana is *known* after 4 right answers spread over at least two sessions.
+  Known kana then come back for **spaced review** after 1, 3, 7, 14, 30 and 90 days.
+- **Mix-ups.** Short drills on look-alikes such as さ/き, ね/れ/わ, シ/ツ and ソ/ン, with a note on how to tell them apart.
+  Pairs you've confused yourself are added too.
+- **Timed challenge.** One-tap answers for 60 seconds, with a personal best for each script.
+- **Daily goal and streak**, plus a stats screen with your last 14 days and an accuracy heatmap of every kana.
+- **Made for the device.**
+  - Prompts on the top screen, answers and the tracing canvas on the touch screen.
+  - Everything except the on-screen keyboards works with the d-pad and buttons too.
+  - Dark and light themes, with text rendered at the panels' real resolution.
+- **Safe to switch off.** Progress is saved after every answer, so closing the lid or powering off loses nothing.
+
+<details>
+<summary><b>More screenshots</b></summary>
+<br>
+
+| | | |
+|:-:|:-:|:-:|
+| <img src="docs/img/lesson.png" width="250"><br>Lesson | <img src="docs/img/read.png" width="250"><br>Reading | <img src="docs/img/meaning.png" width="250"><br>Word meanings |
+| <img src="docs/img/write-combo.png" width="250"><br>Writing a combination | <img src="docs/img/type-kana.png" width="250"><br>Kana keyboard | <img src="docs/img/review.png" width="250"><br>Spaced review |
+| <img src="docs/img/timed.png" width="250"><br>Timed challenge | <img src="docs/img/result.png" width="250"><br>Results | <img src="docs/img/unlocked.png" width="250"><br>Stage unlocked |
+| <img src="docs/img/stages.png" width="250"><br>Stage map | <img src="docs/img/chart.png" width="250"><br>Kana chart | <img src="docs/img/stats.png" width="250"><br>Stats |
+| <img src="docs/img/settings.png" width="250"><br>Settings | <img src="docs/img/light-home.png" width="250"><br>Light theme | <img src="docs/img/light-stats.png" width="250"><br>Light theme stats |
+
+</details>
+
+## Install
+
+You need an Anbernic RG DS Plus running BananaOS.
+
+1. Download `BananaKana-<version>-aarch64.zip` from the [latest release](https://github.com/Parzival3971/banana-kana/releases).
+2. Unzip it into `roms/ports` on the SD card. You should end up with:
+   ```
+   roms/ports/Banana Kana.sh
+   roms/ports/BananaKana/
+   roms/ports/media/box/Banana Kana.png
+   ```
+   > **On a Mac**, the zip may open into a folder of its own. Move the *contents* of that folder into `roms/ports`.
+3. Put the card back, open the **Ports** shelf and choose **Banana Kana**.
+
+**Updating:** unzip the new version over the old one. Your progress lives in `home/.config/banana-kana/` and is kept.
+**Uninstalling:** delete the three items above. Delete `home/.config/banana-kana/` too if you want your progress gone.
+
+## Controls
+
+| | |
+|---|---|
+| **Stylus / touch** (bottom screen) | Tap answers, keys and buttons. Buttons act when you lift, so slide off to cancel. Trace on the canvas. |
+| **D-pad** | Move between tiles, cartridges, stages, chart cells and settings |
+| **A** | Choose / confirm (press again on a chosen answer to check it) |
+| **B** | Back. In drills: undo a stroke or delete a letter |
+| **X** | Check the answer |
+| **Y** | Hint while writing. On Home, the chart and stats: switch hiragana / katakana |
+| **L / R** | Switch tabs, scripts or settings groups |
+| **F** (or **SELECT**) | Pause during practice: resume, back to menu or quit |
+| **F + START** | Quit from anywhere (BananaOS's F + SELECT works too) |
+
+## How learning works
+
+- **Steps.** Every kana has 4 steps. A right answer adds one, a wrong answer takes one away, and you can gain at most
+  2 steps per kana in one session. Reaching step 4 means a kana is *known*, so it takes at least two sessions:
+  that tests memory, not short-term recall.
+- **Stages.** A stage unlocks when every kana in the stage before it is known. Practice mostly draws on your current
+  stage, and older stages come back as review (you can turn this down in Settings > Sessions).
+- **Spaced review.** A known kana is due again 1 day later, then 3, 7, 14, 30 and 90 days. Each right answer moves it
+  to the next interval; a miss moves it back one and costs it a step, so it has to be re-learnt.
+- **Mix-ups.** When you pick the wrong kana, the pair is remembered. Mix-up drills show only the look-alikes as options.
+
+## Settings
+
+Six groups, laid out like BananaOS's own Settings app:
+
+| Group | Settings |
+|---|---|
+| **Practice** | How often each drill appears, and whether typing uses a romaji or kana keyboard |
+| **Sessions** | Session length, how much older stages come back, and the daily goal |
+| **Script** | Hiragana or katakana |
+| **Display** | Dark or light theme |
+| **Progress** | Your stats, and resetting progress (press twice; settings are kept) |
+| **About** | Version and credits |
+
+## Troubleshooting
+
+- **The bottom screen stays dark.** The launcher switches the bottom backlight on, and the app keeps it on.
+  If it's still dark after waking from sleep, quit and start the app again.
+- **Something else is wrong.** Every launch writes `home/.config/banana-kana/launch.log` on the SD card. It lists the
+  screens, touch device and controller it found. Please attach it when you
+  [open an issue](https://github.com/Parzival3971/banana-kana/issues/new?template=bug_report.md).
+
+## Building from source
+
+Banana Kana is C++17 with SDL2 and SDL2_ttf, built with CMake. On a PC it opens the two screens as two windows,
+and the mouse acts as the stylus.
+
+```sh
+# Debian/Ubuntu
+sudo apt install cmake g++ libsdl2-dev libsdl2-ttf-dev
+cmake -S . -B build && cmake --build build -j
+ctest --test-dir build --output-on-failure                            # core logic tests
+build/banana_kana --data app/data                                     # run it
+SDL_VIDEODRIVER=dummy KT_SOFTWARE=1 build/banana_kana --selftest \
+  --state-dir /tmp/kt --data app/data                                 # scripted run through every screen
+```
+
+On a PC, the keyboard stands in for the buttons:
+
+| Key | Does |
+|---|---|
+| Arrow keys | D-pad |
+| Enter | A |
+| Esc / Backspace | B |
+| Tab | Pause |
+| Page Up / Page Down | L / R |
+| Letters | Type romaji |
+
+Your PC's progress is kept in `~/.config/banana-kana/`.
+
+**Device build.** `scripts/docker-build-aarch64.sh` builds and tests an aarch64 binary in an arm64 Debian bookworm
+container (it needs QEMU on x86). The binary links BananaOS's own SDL2 and is built against bookworm's glibc 2.36; BananaOS ships 2.41.
+`dist/aarch64/REQUIREMENTS.txt` lists exactly what it needs. `scripts/package.sh <version>` then makes the Ports zip.
+
+**Data and screenshots.**
+- `python3 tools/gen_data.py` regenerates `app/data`: the kana, words, hints, KanjiVG strokes and font subsets.
+  It needs `fonttools`.
+- `scripts/screenshots.sh` regenerates `docs/img` from the self-test. It needs Pillow.
+
+### Project layout
+
+```
+src/core.*       data, stages, progress (steps, spaced review, streak), question generation, stroke scoring
+src/app.*        every screen, navigation, input mapping
+src/gfx.*        themes, fonts and mixed-script text, shapes, icons, stroke drawing
+src/main.cpp     start-up, event loop, evdev touch, gamepad, backlight keeper
+src/selftest.cpp scripted UI run used in CI (and for the screenshots)
+tests/           core logic tests
+tools/           data, font and screenshot generators
+launcher/        "Banana Kana.sh" for the Ports shelf, box art
+scripts/         device build, packaging, release notes, screenshots
+```
+
+### Releases
+
+Releases are made by GitHub Actions only, never by hand:
+
+1. Add a section for the new version to `CHANGELOG.md`.
+2. Bump `VERSION` on `main`.
+
+The [release workflow](.github/workflows/release.yml) builds and tests the aarch64 binary, packages the zip and
+publishes the release, using the changelog section as its notes. `0.0.0` in `VERSION` is a placeholder and never
+releases. Every push also runs the [build workflow](.github/workflows/build.yml): a native build with the tests and
+self-test, plus the arm64 build and a package dry run.
+
+## Credits and licences
+
+- **Code:** [MIT](LICENSE).
+- **Stroke data:** [KanjiVG](https://kanjivg.tagaini.net/) © Ulrich Apel,
+  [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). The sampled `app/data/strokes.txt` is shared
+  under the same licence.
+- **Fonts:** [Zen Maru Gothic](https://fonts.google.com/specimen/Zen+Maru+Gothic) and
+  [Noto Sans CJK JP](https://github.com/notofonts/noto-cjk), both under the SIL Open Font License 1.1.
+- **Text:** the lesson hints, words and look-alike notes were written for Banana Kana.
+- **Thanks:** [Banana Player](https://github.com/tonywei92/banana-player) for documenting how apps work on BananaOS.
+
+Licence texts for all bundled data are in [`app/data/licenses`](app/data/licenses) and in the app under
+Settings > About > Credits.

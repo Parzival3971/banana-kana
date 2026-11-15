@@ -143,8 +143,10 @@ int main(int argc, char** argv) {
     for (int i = 0; i < displays; i++) { SDL_Rect b{}; SDL_GetDisplayBounds(i, &b);
       const char* n = SDL_GetDisplayName(i); fprintf(stderr, "  display %d: %s %dx%d at (%d,%d)\n", i, n ? n : "?", b.w, b.h, b.x, b.y); } }
   bool dual = (displays >= 2) || forceDual;
-  if (!makeWin(app.top, "Banana Kana - top", 80, 40, 560, 420, dual && displays >= 2, 0) ||
-      !makeWin(app.bot, "Banana Kana - bottom (touch)", 80, 500, 560, 420, dual && displays >= 2, displays >= 2 ? 1 : 0)) {
+  int pcW = 560, pcH = 420;  // PC window size; KT_WINSIZE=1024x768 renders like the device panels (screenshots)
+  if (const char* ws = getenv("KT_WINSIZE")) { int a = 0, b = 0; if (sscanf(ws, "%dx%d", &a, &b) == 2 && a >= 320 && b >= 240) { pcW = a; pcH = b; } }
+  if (!makeWin(app.top, "Banana Kana - top", 80, 40, pcW, pcH, dual && displays >= 2, 0) ||
+      !makeWin(app.bot, "Banana Kana - bottom (touch)", 80, 60 + pcH, pcW, pcH, dual && displays >= 2, displays >= 2 ? 1 : 0)) {
     fprintf(stderr, "window: %s\n", SDL_GetError()); return 3;
   }
   SDL_ShowCursor(SDL_ENABLE);

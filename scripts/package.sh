@@ -18,6 +18,7 @@ mkdir -p "$stage/BananaKana"
 cp "$bin" "$stage/BananaKana/banana_kana"; chmod +x "$stage/BananaKana/banana_kana"
 cp -r "$root/app/data" "$stage/BananaKana/data"
 echo "$version" > "$stage/BananaKana/VERSION"
+cp "$root/LICENSE" "$root/CHANGELOG.md" "$stage/BananaKana/"
 
 mkdir -p "$root/dist"
 (cd "$stage" && zip -qr "$root/dist/BananaKana-$version-aarch64.zip" .)

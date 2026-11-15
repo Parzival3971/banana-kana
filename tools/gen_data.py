@@ -420,8 +420,24 @@ def build_fonts(rows):
     if os.path.exists(stale): os.remove(stale)
     for url, name in [(GF + "ofl/zenmarugothic/OFL.txt", "ZenMaruGothic-OFL.txt")]:
         open(os.path.join(lic, name), "w").write(open(fetch(url, name)).read())
-    open(os.path.join(lic, "NotoSansCJK.txt"), "w").write(
-        "fallback.ttf is a subset of Noto Sans CJK JP (c) Google / Adobe, SIL Open Font License 1.1.\n")
+    noto_lic = open(fetch("https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/LICENSE", "NotoSansCJK-LICENSE.txt")).read()
+    open(os.path.join(lic, "NotoSansCJK-OFL.txt"), "w").write(
+        "fallback.ttf is a subset of Noto Sans CJK JP, used under the SIL Open Font License 1.1:\n\n" + noto_lic)
+    stale = os.path.join(lic, "NotoSansCJK.txt")
+    if os.path.exists(stale): os.remove(stale)
+    open(os.path.join(lic, "KanjiVG-CC-BY-SA-3.0.txt"), "w").write(KANJIVG_NOTICE)
     print("fonts: kana.ttf ui.ttf fallback.ttf")
+
+KANJIVG_NOTICE = """strokes.txt - kana stroke data from KanjiVG
+
+KanjiVG is copyright (C) 2009-2024 Ulrich Apel, http://kanjivg.tagaini.net
+It is released under the Creative Commons Attribution-Share Alike 3.0 licence:
+https://creativecommons.org/licenses/by-sa/3.0/  (full legal code:
+https://creativecommons.org/licenses/by-sa/3.0/legalcode)
+
+Banana Kana's strokes.txt is an adaptation: the SVG paths of the kana were sampled into
+point lists by tools/gen_data.py. That adapted file is shared under the same licence
+(CC BY-SA 3.0). The rest of Banana Kana is under its own licence (see LICENSE).
+"""
 
 if __name__ == "__main__": main()
