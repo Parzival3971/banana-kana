@@ -1,4 +1,5 @@
 #include "app.h"
+#include "sound.h"
 
 #include <algorithm>
 #include <cmath>
@@ -72,6 +73,7 @@ bool isKataText(const std::string& s) { auto c = utf8Codepoints(s); return !c.em
 // ================================================================== flow
 void App::go(Screen s) {
   screen = s; pressedId = -1; drawing = false; cur.clear(); paused = false; animStart = 0;
+  if (s == Screen::Unlocked) snd::play(snd::Sfx::Unlock);
   if (s == Screen::Stages) { mapScript = prog.settings.script; mapSel = prog.currentStage(mapScript); }
   if (s == Screen::Chart) {
     chartScroll = 0; chartSel = -1;
@@ -179,7 +181,9 @@ bool App::tick(Uint32 now) {
   int before = (timedLeft + 999) / 1000;
   timedLeft -= int(std::min<Uint32>(dt, 1000));  // a long stall (sleep) doesn't eat the clock
   if (timedLeft <= 0) { timedLeft = 0; finishSession(); return true; }
-  return (timedLeft + 999) / 1000 != before;
+  int after = (timedLeft + 999) / 1000;
+  if (after != before && after <= 5) snd::play(snd::Sfx::Tick);  // last five seconds
+  return after != before;
 }
 
 void App::nextQuestion(bool first) {
@@ -228,7 +232,7 @@ void App::nextQuestion(bool first) {
   }
   lastKey = q.key; sel = -1; cursor = 0; checked = false; correct = false; typed.clear(); strokes.clear(); cur.clear();
   drawing = false; showHint = false; strokeOk.clear(); feedbackNote.clear(); part = 0; partStrokes.clear(); partOk.clear();
-  animStart = 0;
+  animStart = 0; keyRow = 0; keyCol = 0;
   if (q.type == QType::Write && q.writeLevel == 0) playStrokes();  // guided: show the order first
 }
 
@@ -325,7 +329,9 @@ void App::check() {
       feedbackNote = "Next review in " + std::to_string(dd) + (dd == 1 ? " day." : " days.");
     }
   }
+  snd::play(!newlyKnown.empty() && newlyKnown.back() == (k ? k->glyph : "") && ok ? snd::Sfx::Known : ok ? snd::Sfx::Right : snd::Sfx::Wrong);
   if (prog.goalJustMet) {
+    snd::play(snd::Sfx::Goal);
     goalMet = true;
     feedbackNote = "Daily goal reached! " + std::to_string(prog.streak) + "-day streak." + (feedbackNote.empty() ? "" : " " + feedbackNote);
   }
@@ -351,13 +357,14 @@ void App::finishLesson() {
 }
 
 void App::togglePause() {
-  if (screen != Screen::Drill) return;
+  if (screen == Screen::Home || screen == Screen::Welcome) return;
   paused = !paused; pauseSel = 0; pressedId = -1; drawing = false; cur.clear();
 }
 
 // ================================================================== input
 void App::press(int id) {
   Script sc = prog.settings.script;
+  snd::play(snd::Sfx::Tap);  // a later sound (right, wrong...) replaces it
   if (id == B_PAUSE) { togglePause(); return; }
   if (paused) {
     if (id == B_RESUME) paused = false;
@@ -483,10 +490,12 @@ void App::press(int id) {
             for (size_t i = 0; i < fit.size(); i++) { strokeOk[i] = i < g->strokes.size() && scoreStrokeAt(fit[i], g->strokes[i], 0).ok; okN += strokeOk[i]; }
             correct = okN == int(g->strokes.size()) && fit.size() == g->strokes.size();
           }
+          snd::play(correct ? snd::Sfx::Right : snd::Sfx::Wrong);
         }
         else if (!strokes.empty()) {
           if (part < writePartCount() - 1) { partStrokes.push_back(strokes); strokes.clear(); part++; }
           else { bool counts = true; size_t total = 0; correct = scoreWriting(data.kana[fwList[fwIdx]].glyph, &counts, &total); checked = true;
+                 snd::play(correct ? snd::Sfx::Right : snd::Sfx::Wrong);
                  feedbackNote = correct ? "" : counts ? "Right number of strokes; check the red ones." : std::to_string(total) + " strokes drawn."; }
         }
       } else if (id == B_FW_NEXT && n) { fwIdx = (fwIdx + 1) % n; reset(); if (fwGuide == 0) playStrokes(); }
@@ -575,6 +584,11 @@ void App::padButton(SDL_GameControllerButton b) {
         else if (b == U) cursor = (cursor - 2 + n) % n; else if (b == D) cursor = (cursor + 2) % n;
         if (b == A) { if (mode == Mode::Timed) press(B_TILE0 + cursor); else if (sel == cursor) check(); else sel = cursor; }
         else if (b == X && mode != Mode::Timed) check();
+      } else if (q.type == QType::Type) {  // on-screen keyboard: d-pad moves, A types the key
+        if (b == L) kbMove(-1, 0); else if (b == R) kbMove(1, 0); else if (b == U) kbMove(0, -1); else if (b == D) kbMove(0, 1);
+        else if (b == A) { int id = kbItemId(keyRow, keyCol); if (id >= 0) press(id); }
+        else if (b == X) check();
+        else if (b == B || b == LS) press(B_BKSP);
       } else {
         if (b == A || b == X) check();
         else if (b == Y) press(B_HINT);
@@ -646,7 +660,7 @@ void App::padButton(SDL_GameControllerButton b) {
 void App::key(SDL_Keycode k) {  // PC convenience
   using G = SDL_GameControllerButton;
   switch (k) {
-    case SDLK_ESCAPE: if (screen == Screen::Drill) togglePause(); else padButton(SDL_CONTROLLER_BUTTON_B); break;
+    case SDLK_ESCAPE: if (inPractice()) togglePause(); else padButton(SDL_CONTROLLER_BUTTON_B); break;
     case SDLK_TAB: togglePause(); break;
     case SDLK_RETURN: padButton(SDL_CONTROLLER_BUTTON_A); break;
     case SDLK_LEFT: padButton(SDL_CONTROLLER_BUTTON_DPAD_LEFT); break;
@@ -655,7 +669,7 @@ void App::key(SDL_Keycode k) {  // PC convenience
     case SDLK_DOWN: padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); break;
     case SDLK_PAGEUP: padButton(SDL_CONTROLLER_BUTTON_LEFTSHOULDER); break;
     case SDLK_PAGEDOWN: padButton(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER); break;
-    case SDLK_BACKSPACE: padButton(SDL_CONTROLLER_BUTTON_B); break;
+    case SDLK_BACKSPACE: case SDLK_AC_BACK: padButton(SDL_CONTROLLER_BUTTON_B); break;
     default:
       if (screen == Screen::Drill && q.type == QType::Type && !q.kanaInput && !paused && k >= SDLK_a && k <= SDLK_z) press(B_KEY0 + (k - SDLK_a));
       (void)G{};
@@ -1199,7 +1213,8 @@ void App::drawDrill() {
     addBtn(SDL_Rect{16, 236, 180, 68}, B_BKSP, "Delete", F_TINY, !checked && !typed.empty());
     if (checked) { addBtn(SDL_Rect{212, 236, 412, 68}, B_CONTINUE, "Continue", F_SMALL); accent(lastBtn()); }
     else { addBtn(SDL_Rect{212, 236, 412, 68}, B_CHECK, "Check answer", F_SMALL, !typed.empty()); if (!typed.empty()) accent(lastBtn()); }
-    chips({{"X", "Check"}, {"B", "Delete"}, {"F", "Pause"}});
+    if (!checked) { int cid = kbItemId(keyRow, keyCol); for (auto& b : buttons) if (b.id == cid) { b.line = FG; b.lineW = 4; } }
+    chips({{"A", "Type"}, {"X", "Check"}, {"B", "Delete"}, {"F", "Pause"}, {"+", "Move"}});
   } else {
     addBtn(SDL_Rect{16, 16, 120, 74}, B_UNDO, part > 0 && strokes.empty() ? "Back" : "Undo", F_TINY, !checked && (!strokes.empty() || part > 0));
     addBtn(SDL_Rect{16, 98, 120, 74}, B_CLEAR, "Clear", F_TINY, !checked && !strokes.empty());
@@ -1302,6 +1317,34 @@ void App::drawFreeWrite() {
   chips({{"A", checked ? "Again" : "Check"}, {"Y", "Guide"}, {"START", "Show me"}, {"L/R", "Kana"}, {"B", "Back"}});
 }
 
+int App::kbRows() const { return q.kanaInput ? 7 : 4; }
+int App::kbRowLen(int r) const {
+  if (q.kanaInput) return r < 5 ? 10 : r == 5 ? 5 : 1;
+  const int L[4] = {10, 9, 7, 2}; return L[std::clamp(r, 0, 3)];
+}
+int App::kbItemId(int r, int c) const {
+  if (c < 0 || c >= kbRowLen(r)) return -1;
+  if (q.kanaInput) {
+    if (r < 5) return kanaKeyAt(c * 5 + r, false).empty() ? -1 : B_KANA0 + c * 5 + r;
+    if (r == 5) { const int ids[5] = {B_DAKU, B_HANDAKU, B_SMALLK, B_CHOON, B_BKSP}; return ids[c]; }
+    return B_CHECK;
+  }
+  const char* rows[3] = {"qwertyuiop", "asdfghjkl", "zxcvbnm"};
+  if (r < 3) return B_KEY0 + (rows[r][c] - 'a');
+  return c == 0 ? B_BKSP : B_CHECK;
+}
+void App::kbMove(int dc, int dr) {
+  int r = keyRow, c = keyCol;
+  if (dr) {
+    r = std::clamp(r + dr, 0, kbRows() - 1); c = std::min(c, kbRowLen(r) - 1);
+    for (int d = 0; d < 10 && kbItemId(r, c) < 0; d++) c = (c + 1) % kbRowLen(r);  // skip gaps (the ya and wa columns)
+  } else {
+    int n = kbRowLen(r);
+    do { c = (c + dc + n) % n; } while (kbItemId(r, c) < 0);
+  }
+  keyRow = r; keyCol = c;
+}
+
 void App::drawKanaKeyboard() {
   bool kata = isKataText(q.answer);
   for (int i = 0; i < 50; i++) {
@@ -1317,7 +1360,8 @@ void App::drawKanaKeyboard() {
   addBtn(SDL_Rect{448, 286, 176, 62}, B_BKSP, "Delete", F_TINY, !checked && !typed.empty());
   if (checked) { addBtn(SDL_Rect{16, 356, 608, 72}, B_CONTINUE, "Continue", F_SMALL); accent(lastBtn()); }
   else { addBtn(SDL_Rect{16, 356, 608, 72}, B_CHECK, "Check answer", F_SMALL, !typed.empty()); if (!typed.empty()) accent(lastBtn()); }
-  chips({{"X", "Check"}, {"B", "Delete"}, {"F", "Pause"}});
+  if (!checked) { int cid = kbItemId(keyRow, keyCol); for (auto& b : buttons) if (b.id == cid) { b.line = FG; b.lineW = 4; } }
+  chips({{"A", "Type"}, {"X", "Check"}, {"B", "Delete"}, {"F", "Pause"}, {"+", "Move"}});
 }
 
 void App::drawStats() {
@@ -1433,8 +1477,9 @@ void App::drawResult() {
 
 void App::drawPause() {
   drawText(top, "Paused", SDL_Rect{20, 110, 600, 110}, FG, F_BIG);
-  drawText(top, "Question " + std::to_string(std::min(index + 1, sessionLen)) + " of " + std::to_string(sessionLen) + " · your answers are saved",
-           SDL_Rect{20, 240, 600, 40}, DIM, F_TINY);
+  drawText(top, screen == Screen::Drill && mode != Mode::Timed
+                    ? "Question " + std::to_string(std::min(index + 1, sessionLen)) + " of " + std::to_string(sessionLen) + " · your answers are saved"
+                    : std::string("Your progress is saved"), SDL_Rect{20, 240, 600, 40}, DIM, F_TINY);
   drawText(top, "Up/Down choose · A select · B resume", SDL_Rect{20, 400, 600, 36}, DIM, F_MICRO);
   const char* labels[3] = {"Resume", "Back to menu", "Quit Banana Kana"};
   const int ids[3] = {B_RESUME, B_MENU, B_QUIT};
@@ -1606,6 +1651,8 @@ std::vector<App::SRow> App::settingRows(int g) const {
       const char* GL[3] = {"Cross", "Grid", "None"}; const char* IN[3] = {"Thin", "Normal", "Thick"};
       choice("Canvas lines", st.guideLines, 3, GL[st.guideLines], "Guide lines on the writing canvas: a centre cross, a finer grid, or none.");
       choice("Ink", st.ink, 3, IN[st.ink], "How thick your strokes are drawn.");
+      const char* SO[4] = {"Off", "Quiet", "Normal", "Loud"};
+      choice("Sound", st.sound, 4, SO[st.sound], "Sound effects for taps, right and wrong answers, unlocks and your daily goal.");
       break; }
     case 4:
       info("Sessions played", std::to_string(prog.session), "Every practice session you've started.");
@@ -1635,7 +1682,7 @@ std::string App::groupSummary(int g) const {
               return on.empty() ? "all off" : on.size() == 4 ? "all four on" : join(on, ", "); }
     case 1: return std::to_string(st.sessionLen) + " questions, goal " + std::to_string(st.dailyGoal) + " a day";
     case 2: { std::string s = scriptName(st.script); s[0] = char(std::tolower(s[0])); return s; }
-    case 3: return std::string(st.light ? "light" : "dark") + (st.kanaHand ? ", handwriting" : ", rounded");
+    case 3: return std::string(st.light ? "light" : "dark") + (st.kanaHand ? ", handwriting" : ", rounded") + (st.sound ? ", sound on" : ", sound off");
     case 4: return std::to_string(prog.knownCount(data, Script::Hiragana) + prog.knownCount(data, Script::Katakana)) + " kana known";
     default: return "version, credits";
   }
@@ -1661,7 +1708,8 @@ void App::changeSetting(int g, int r, int dir) {
       if (r == 0) { st.light = dir > 0; applyTheme(st.light); }
       else if (r == 1) { st.kanaHand = dir > 0; setKanaHand(st.kanaHand); }
       else if (r == 2) st.guideLines = std::clamp(st.guideLines + dir, 0, 2);
-      else st.ink = std::clamp(st.ink + dir, 0, 2);
+      else if (r == 3) st.ink = std::clamp(st.ink + dir, 0, 2);
+      else { st.sound = std::clamp(st.sound + dir, 0, 3); snd::setVolume(st.sound); snd::play(snd::Sfx::Right); }
       break;
     case 4:
       if (r == 4) {

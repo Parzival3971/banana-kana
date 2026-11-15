@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 
 #include "app.h"
+#include "sound.h"
 
 #ifdef __linux__
 #include <cerrno>
@@ -139,6 +140,8 @@ int main(int argc, char** argv) {
 
   SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0) { fprintf(stderr, "SDL_Init: %s\n", SDL_GetError()); return 3; }
+  { const char* vd = getenv("SDL_VIDEODRIVER"); if (vd && !strcmp(vd, "dummy") && !getenv("SDL_AUDIODRIVER")) setenv("SDL_AUDIODRIVER", "dummy", 1); }
+  snd::init();
   if (TTF_Init() != 0) { fprintf(stderr, "TTF_Init: %s\n", TTF_GetError()); return 3; }
   int displays = SDL_GetNumVideoDisplays();
   { SDL_version v; SDL_GetVersion(&v);
@@ -156,6 +159,7 @@ int main(int argc, char** argv) {
   SDL_ShowCursor(SDL_ENABLE);
   if (!loadFonts(dataDir, app.top.scale, &err)) { fprintf(stderr, "font: %s\n", err.c_str()); return 3; }
   setKanaHand(app.prog.settings.kanaHand);
+  snd::setVolume(app.prog.settings.sound);
 
   if (self) { int rc = app.selfTest(shotDir); SDL_Quit(); return rc; }
 
@@ -163,8 +167,9 @@ int main(int argc, char** argv) {
   for (int i = 0; i < SDL_NumJoysticks(); i++)
     fprintf(stderr, "  joystick %d: %s gamecontroller=%d\n", i, SDL_JoystickNameForIndex(i) ? SDL_JoystickNameForIndex(i) : "?", SDL_IsGameController(i));
   EvTouch touch; touch.open(); int sdlTouchLogged = 0, buttonsLogged = 0, rawLogged = 0; bool menuKeyDown = false, menuCombo = false;
-  // F on the RG DS Plus may not be mapped as GUIDE: a raw joystick button the controller mapping doesn't use is taken as F.
-  std::set<int> mappedRaw; int menuRaw = getenv("KT_MENU_BUTTON") ? atoi(getenv("KT_MENU_BUTTON")) : -1; bool rawMenuDown = false; fflush(stderr);
+  // The RG DS Plus has a Back key to the right of F that the controller mapping doesn't name: a raw joystick button the
+  // mapping doesn't use is taken as Back (= B). KT_BACK_BUTTON=<raw index> picks one explicitly.
+  std::set<int> mappedRaw; int backRaw = getenv("KT_BACK_BUTTON") ? atoi(getenv("KT_BACK_BUTTON")) : -1; int keysLogged = 0; fflush(stderr);
   std::signal(SIGTERM, onSignal); std::signal(SIGINT, onSignal); std::signal(SIGHUP, onSignal);
   // Keep the bottom backlight on: BananaOS can switch it off again after sleep (/run/banana/panel-off).
   std::string blPower;
@@ -190,20 +195,15 @@ int main(int argc, char** argv) {
               SDL_GameControllerButtonBind bd = SDL_GameControllerGetBindForButton(gc, (SDL_GameControllerButton)cb);
               if (bd.bindType == SDL_CONTROLLER_BINDTYPE_BUTTON) { mappedRaw.insert(bd.value.button); list += " " + std::to_string(bd.value.button); }
             }
-            fprintf(stderr, "  raw buttons used by the mapping:%s (any other raw button counts as F)\n", list.c_str());
+            fprintf(stderr, "  raw buttons used by the mapping:%s (any other raw button counts as Back)\n", list.c_str());
           }
           fflush(stderr); break; }
         case SDL_JOYBUTTONDOWN: {
           // Raw joystick buttons, logged even when SDL has no controller mapping: tells us what F, SELECT etc. are.
           int rb = e.jbutton.button;
-          bool isMenu = menuRaw >= 0 ? rb == menuRaw : (!mappedRaw.empty() && !mappedRaw.count(rb));
-          if (rawLogged < 40) { rawLogged++; fprintf(stderr, "  raw joystick %d button %d down%s\n", e.jbutton.which, rb, isMenu ? " (taken as F)" : ""); fflush(stderr); }
-          if (isMenu) { rawMenuDown = true; if (menuKeyDown) menuCombo = true; else { menuKeyDown = true; menuCombo = false; } }
-          break; }
-        case SDL_JOYBUTTONUP: {
-          int rb = e.jbutton.button;
-          bool isMenu = menuRaw >= 0 ? rb == menuRaw : (!mappedRaw.empty() && !mappedRaw.count(rb));
-          if (isMenu && rawMenuDown) { rawMenuDown = false; if (menuKeyDown) { menuKeyDown = false; if (!menuCombo) app.togglePause(); } }
+          bool isBack = backRaw >= 0 ? rb == backRaw : (!mappedRaw.empty() && !mappedRaw.count(rb));
+          if (rawLogged < 40) { rawLogged++; fprintf(stderr, "  raw joystick %d button %d down%s\n", e.jbutton.which, rb, isBack ? " (taken as Back)" : ""); fflush(stderr); }
+          if (isBack) { if (menuKeyDown) menuCombo = true; app.padButton(SDL_CONTROLLER_BUTTON_B); }
           break; }
         case SDL_CONTROLLERBUTTONDOWN: {
           // SDL names face buttons by position (A = south). The RG DS Plus is labelled Nintendo-style
@@ -213,9 +213,12 @@ int main(int argc, char** argv) {
           if (buttonsLogged < 30) { buttonsLogged++; const char* bn = SDL_GameControllerGetStringForButton(b);
             fprintf(stderr, "  button %d (%s)\n", (int)b, bn ? bn : "?"); fflush(stderr); }
           // Quit to the BananaOS menu from anywhere: F + START (F is assumed to be GUIDE; SELECT + START also works).
-          if (b == SDL_CONTROLLER_BUTTON_START && gc && (rawMenuDown ||
-              SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_GUIDE) || SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_BACK))) {
-            app.running = false; break; }
+          // F + START: quits from the menus; mid-practice it opens the pause menu instead (Quit is in there).
+          if (b == SDL_CONTROLLER_BUTTON_START && gc &&
+              (SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_GUIDE) || SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_BACK))) {
+            menuCombo = true;
+            if (app.inPractice()) { if (!app.paused) app.togglePause(); } else app.running = false;
+            break; }
           // F (or SELECT) pressed and released on its own toggles the pause menu; with another button it is a combo.
           if (b == SDL_CONTROLLER_BUTTON_GUIDE || b == SDL_CONTROLLER_BUTTON_BACK) {  // F + SELECT together is BananaOS's, not a pause
             if (menuKeyDown) menuCombo = true; else { menuKeyDown = true; menuCombo = false; }
@@ -234,7 +237,9 @@ int main(int argc, char** argv) {
             menuKeyDown = false; if (!menuCombo) app.togglePause();
           }
           break; }
-        case SDL_KEYDOWN: app.key(e.key.keysym.sym); break;
+        case SDL_KEYDOWN:
+          if (keysLogged < 20) { keysLogged++; fprintf(stderr, "  key %d (%s)\n", int(e.key.keysym.sym), SDL_GetKeyName(e.key.keysym.sym)); fflush(stderr); }
+          app.key(e.key.keysym.sym); break;
         case SDL_MOUSEBUTTONDOWN: case SDL_MOUSEBUTTONUP: case SDL_MOUSEMOTION: {
           // Touch is synthesised into mouse events by SDL. Only the bottom window is interactive.
           // NOTE: on the handheld the bottom touchscreen may need an evdev reader (see CLAUDE.md).
@@ -272,5 +277,5 @@ int main(int argc, char** argv) {
   }
   app.prog.save(app.statePath);
   fprintf(stderr, "  exit (%s)\n", gStop ? "signal" : "quit");
-  TTF_Quit(); SDL_Quit(); return 0;
+  snd::quit(); TTF_Quit(); SDL_Quit(); return 0;
 }

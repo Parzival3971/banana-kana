@@ -400,6 +400,7 @@ bool Progress::load(const std::string& path, const Data* d) {
       else if (k == "guide_lines") settings.guideLines = std::clamp(v, 0, 2);
       else if (k == "ink") settings.ink = std::clamp(v, 0, 2);
       else if (k == "strict") settings.strict = std::clamp(v, 0, 2);
+      else if (k == "sound") settings.sound = std::clamp(v, 0, 3);
       else if (k == "timed_best_h") timedBest[0] = std::max(0, v);
       else if (k == "timed_best_k") timedBest[1] = std::max(0, v);
       else if (k == "script") settings.script = v ? Script::Katakana : Script::Hiragana;
@@ -448,7 +449,7 @@ bool Progress::save(const std::string& path) const {
       << "\nset script " << (settings.script == Script::Katakana) << "\nset theme " << settings.light
       << "\nset daily_goal " << settings.dailyGoal << "\nset today " << today << "\nset today_count " << todayCount
       << "\nset kana_keys " << int(settings.kanaKeys) << "\nset kana_hand " << int(settings.kanaHand)
-      << "\nset guide_lines " << settings.guideLines << "\nset ink " << settings.ink << "\nset strict " << settings.strict << "\nset timed_best_h " << timedBest[0] << "\nset timed_best_k " << timedBest[1]
+      << "\nset guide_lines " << settings.guideLines << "\nset ink " << settings.ink << "\nset strict " << settings.strict << "\nset sound " << settings.sound << "\nset timed_best_h " << timedBest[0] << "\nset timed_best_k " << timedBest[1]
       << "\nset streak " << streak << "\nset best_streak " << bestStreak << "\nset last_goal_day " << lastGoalDay
       << "\nset session " << session << "\nset last_score " << lastScore << "\nset last_len " << lastLen << "\nset unlocked_h " << unlocked[0] << "\nset unlocked_k " << unlocked[1]
       << "\nset lessons_h " << lessons[0] << "\nset lessons_k " << lessons[1] << "\n";

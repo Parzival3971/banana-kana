@@ -76,6 +76,7 @@ struct Settings {
   int guideLines = 0;     // writing canvas: 0 cross, 1 grid, 2 none
   int ink = 1;            // 0 thin, 1 normal, 2 thick
   int strict = 1;         // stroke checking: 0 relaxed, 1 normal, 2 strict
+  int sound = 2;          // sound effects: 0 off, 1 quiet, 2 normal, 3 loud
   Script script = Script::Hiragana;
   bool light = false;  // UI theme
 };

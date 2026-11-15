@@ -303,6 +303,14 @@ int App::selfTest(const std::string& shotDir) {
     click(B_DAKU); CHECK(typed == "ぎゃ" || typed == "きゃ", "dakuten leaves small ゃ"); click(B_BKSP); click(B_KANA0 + 5 * 5); click(B_HANDAKU);
     CHECK(typed == "きぱ", "handakuten"); click(B_HANDAKU); CHECK(typed == "きは", "handakuten off"); click(B_DAKU); CHECK(typed == "きば", "dakuten");
     click(B_CHOON); CHECK(typed == "きばー", "long vowel"); shot("q_type_kana_typed");
+    // d-pad cursor: A types the highlighted key, gaps in the や/わ columns are skipped
+    typed.clear(); keyRow = 0; keyCol = 0;
+    padButton(SDL_CONTROLLER_BUTTON_A); CHECK(typed == "あ", "A types あ");
+    padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); padButton(SDL_CONTROLLER_BUTTON_A); CHECK(typed == "あか", "right then A types か");
+    keyRow = 0; keyCol = 7; padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); CHECK(keyRow == 1 && kbItemId(keyRow, keyCol) >= 0, "skips the gap under や");
+    for (int i = 0; i < 6; i++) padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN);
+    CHECK(kbItemId(keyRow, keyCol) == B_CHECK, "down to Check"); shot("q_type_kana_cursor");
+    padButton(SDL_CONTROLLER_BUTTON_B); CHECK(Data::partNames(typed).size() == 1, "B deletes");
     typed = q.answer; click(B_CHECK); CHECK(checked && correct, "kana typed right"); shot("q_type_kana_checked");
     // ---- 15. writing a combination kana in two parts
     prog.settings.typing = 0; prog.settings.writing = 2; prog.settings.kanaKeys = false; prog.unlocked[0] = STAGE_COUNT;
@@ -321,6 +329,7 @@ int App::selfTest(const std::string& shotDir) {
 
   // ---- 15b. Show me in a lesson, display settings, strict checking, the extras stage
   openLesson(Script::Hiragana, 0, true); CHECK(animStart != 0, "lesson plays the order"); shot("lesson_showme");
+  togglePause(); CHECK(paused, "pause works in a lesson"); shot("pause_lesson"); CHECK(click(B_RESUME), "resume lesson"); CHECK(screen == Screen::Lesson, "back in lesson");
   { Uint32 a0 = animStart; CHECK(tick(SDL_GetTicks() + 40), "animation redraws"); (void)a0; }
   CHECK(click(B_SHOWME), "lesson show me"); go(Screen::Home);
   go(Screen::Settings); setGroup = 3; CHECK(click(B_FOOT_R), "open Display");

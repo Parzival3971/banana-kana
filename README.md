@@ -43,6 +43,8 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
   stroke goes.
 - **Your kind of writing.** Kana in rounded print or a textbook handwriting font, canvas guide lines (cross, grid or
   none), ink thickness, and how strictly strokes are checked (relaxed, normal or strict).
+- **Sound effects.** Little chimes for right answers, newly known kana, unlocks and your daily goal (made in code, no
+  audio files). Off, quiet, normal or loud.
 - **Daily goal and streak**, plus a stats screen with your last 14 days and an accuracy heatmap of every kana.
 - **Made for the device.**
   - Prompts on the top screen, answers and the tracing canvas on the touch screen.
@@ -89,15 +91,16 @@ You need an Anbernic RG DS Plus running BananaOS.
 | | |
 |---|---|
 | **Stylus / touch** (bottom screen) | Tap answers, keys and buttons. Buttons act when you lift, so slide off to cancel. Trace on the canvas. |
-| **D-pad** (shown as ✛ in the hint chips) | Move between tiles, cartridges, stages, chart cells and settings |
+| **D-pad** (shown as ✛ in the hint chips) | Move between tiles, cartridges, stages, chart cells, settings and keyboard keys |
 | **A** | Choose / confirm (press again on a chosen answer to check it) |
 | **B** | Back. In drills: undo a stroke or delete a letter |
 | **X** | Check the answer |
 | **Y** | Hint while writing, guide in free writing. On Home and stats: switch hiragana / katakana |
 | **START** | Show me (stroke-order animation) when writing; in the chart, write the practice set freely |
 | **L / R** | Switch tabs, scripts or settings groups |
-| **F** (or **SELECT**) | Pause during practice: resume, back to menu or quit. Tapping the Pause hint works too |
-| **F + START** | Quit from anywhere (BananaOS's F + SELECT works too) |
+| **F** (or **SELECT**) | Pause during practice, lessons and free writing: resume, back to menu or quit. Tapping the Pause hint works too |
+| **Back** (right of F) | Same as B |
+| **F + START** | Quit from the menus; during practice it opens the pause menu instead |
 
 ## How learning works
 
@@ -125,7 +128,7 @@ Six groups, laid out like BananaOS's own Settings app:
 | **Practice** | How often each drill appears, and whether typing uses a romaji or kana keyboard |
 | **Sessions** | Session length, how much older stages come back, the daily goal and how strict the writing check is |
 | **Script** | Which script you practise, and skipping ahead to a later stage (or unlocking katakana early) |
-| **Display** | Dark or light theme, kana font (rounded or handwriting), canvas lines and ink |
+| **Display** | Dark or light theme, kana font (rounded or handwriting), canvas lines, ink and sound effects |
 | **Progress** | Your stats, and resetting progress (press twice; settings are kept) |
 | **About** | Version and credits |
 

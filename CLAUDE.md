@@ -27,7 +27,7 @@ running BananaOS. Top screen: prompt and feedback. Bottom screen (touch/stylus):
   one-finger evdev, identified by sysfs path `fe5e0000.i2c` (SDL can't tell the two touchscreens apart).
 - Buttons via SDL GameController, which reports by POSITION (SDL A = south). Device labels are Nintendo (A = east), so
   main.cpp swaps A<->B and X<->Y before handling (confirmed on device: unswapped A/B were backwards). KT_POSITIONAL=1 disables.
-- Only the bottom screen is touch. Audio unused for now.
+- Only the bottom screen is touch. Audio: synthesised sound effects only (no voice clips).
 
 ## Toolkit
 SDL2 + C++ (CMake), two SDL windows (top = DSI-2 connector, bottom = touch), like Banana Player.
@@ -124,11 +124,15 @@ README has an AI disclosure section (user asked 2026-11-15): keep it accurate wh
   (SDL_GetError had said "Unexpected controller element crc"; buttons work, so probably harmless).
 
 ## Device test 3 (2026-11-15)
-- F + START quits (probably BananaOS's own hotkey). F alone did NOT pause; F + SELECT opened the pause menu = SELECT alone,
-  so F never reached us as GUIDE. Fix: any raw joystick button the controller mapping doesn't use counts as F (log line
-  "raw buttons used by the mapping" + "(taken as F)"; override KT_MENU_BUTTON=<raw index>); two menu keys together = combo
-  (F + SELECT left to BananaOS); the "F Pause" chip is tappable (B_PAUSE). If F still doesn't pause, BananaOS grabs it:
-  ask for launch.log.
+- F alone DOES pause in drills (it is GUIDE). User wants: F/SELECT pause also in lessons + free writing (togglePause works on
+  every screen but Home/Welcome); F + START mid-practice must NOT quit (App::inPractice() -> opens pause instead; still
+  quits from menus); F + SELECT is BananaOS's. Two menu keys together = combo. "F Pause" chip is tappable (B_PAUSE).
+- The RG DS Plus has a Back key right of F: any raw joystick button the controller mapping doesn't use is taken as Back
+  (padButton B); KT_BACK_BUTTON=<raw> overrides; SDLK_AC_BACK also = B. Launch log lists mapped raw buttons, raw presses
+  ("taken as Back") and the first 20 key codes - ask for it if Back does nothing.
+- On-screen keyboards (kana + romaji) have a d-pad cursor (keyRow/keyCol, kbMove skips gaps), A types, X checks, B deletes.
+- Sound effects (src/sound.cpp): synthesised at start-up (Tap, Right, Wrong, Known, Unlock, Goal, Tick), SDL queue audio,
+  Settings > Display > Sound (off/quiet/normal/loud). Not yet heard on device.
 
 ## Banana Player lessons applied (pre-emptive, 2026-11-14)
 - Quit anywhere: F + START (confirmed working on device; SELECT + START also quits).
