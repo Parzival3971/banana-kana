@@ -1162,8 +1162,15 @@ void App::drawDrill() {
     drawText(top, q.hint, SDL_Rect{24, 78, 592, 36}, DIM, F_TINY);
   }
   Col pc = checked ? (correct ? GOOD : BAD) : FG;
+  auto meaningLine = [&](int y) {  // a word's English meaning, under the prompt
+    if (q.meaning.empty()) return;
+    int w = std::min(560, textWidth(top, F_SMALL, q.meaning) + 60);
+    SDL_Rect r{(LW - w) / 2, y, w, 46}; fillRound(top, r, 23, PANEL);
+    drawText(top, q.meaning, r, ACCENT_TXT, F_SMALL);
+  };
   if (q.type == QType::Type) {
-    drawText(top, q.prompt, SDL_Rect{24, 112, 592, 180}, pc, F_HUGE);
+    drawText(top, q.prompt, SDL_Rect{24, 104, 592, q.meaning.empty() ? 188 : 140}, pc, F_HUGE);
+    meaningLine(246);
     SDL_Rect f{140, 298, 360, 72}; fillRound(top, f, 12, PANEL); fillRect(top, SDL_Rect{f.x + 10, f.y + f.h - 6, f.w - 20, 4}, ACCENT);
     std::string t = typed + (checked ? "" : "_");
     drawText(top, typed.empty() && checked ? "-" : t, SDL_Rect{f.x + 10, f.y, f.w - 20, f.h - 6}, checked ? pc : ACCENT_TXT, F_MID);
@@ -1200,7 +1207,8 @@ void App::drawDrill() {
     }
     drawWrapped(top, help, SDL_Rect{340, 232, 276, 120}, DIM, F_MICRO);
   } else {
-    drawText(top, q.prompt, SDL_Rect{24, 112, 592, 250}, pc, F_HUGE);
+    drawText(top, q.prompt, SDL_Rect{24, 112, 592, q.meaning.empty() ? 250 : 190}, pc, F_HUGE);
+    meaningLine(306);
   }
   if (timed && flash) {
     SDL_Rect f{24, 392, 592, 64}; fillRound(top, f, 12, flash == 1 ? GOOD_FILL : BAD_FILL);

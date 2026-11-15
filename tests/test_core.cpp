@@ -337,5 +337,15 @@ int main(int argc, char** argv) {
     printf("recogniser, wobbly: %d/%d first, %d/%d in top 3\n", r2, t2, top3, t2);
     CHECK(r2 * 100 >= t2 * 85 && top3 * 100 >= t2 * 95);
   }
+  // ---- word prompts carry their English meaning (except when the meaning is the answer)
+  {
+    Progress p; p.unlocked[0] = STAGE_COUNT; stepAll(d, p, PRODUCE_STEP); std::mt19937 rng(31); int typedWords = 0;
+    for (int n = 0; n < 300; n++) {
+      Question q = makeQuestion(d, p, rng);
+      if (q.type == QType::Type && q.isWord) { typedWords++; CHECK(!q.meaning.empty()); }
+      if (q.type == QType::Meaning) CHECK(q.meaning.empty());
+    }
+    CHECK(typedWords > 0);
+  }
   printf(fails ? "%d FAILURES\n" : "all core tests passed\n", fails); return fails != 0;
 }

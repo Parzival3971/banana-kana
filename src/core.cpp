@@ -598,7 +598,7 @@ Question makeKanaQuestion(const Data& d, const Progress& p, std::mt19937& rng, i
       for (auto* o : others) if (opts.size() < 4 && !std::count(opts.begin(), opts.end(), o->romaji)) opts.push_back(o->romaji);
       while (opts.size() > 4) opts.pop_back();
       std::shuffle(opts.begin(), opts.end(), rng);
-      q.type = QType::ReadKana; q.prompt = w.kana; q.hint = "How do you read this word? · " + w.english;
+      q.type = QType::ReadKana; q.prompt = w.kana; q.hint = "How do you read this word?"; q.meaning = w.english;
       q.options = opts; q.answer = w.romaji; q.correct = int(std::find(opts.begin(), opts.end(), w.romaji) - opts.begin());
       return q;
     }
@@ -635,8 +635,9 @@ static Question makeWordQuestion(const Data&, const Progress& p, std::mt19937& r
       q.prompt = w.kana; q.hint = "What does it mean?";
       q.options = fillOptions(engPool, w.english, rng, 6, &q.correct); q.answer = w.english; break;
     case QType::Type:
-      if (p.settings.kanaKeys) { q.prompt = w.romaji; q.hint = "Type it in kana · " + w.english; q.answer = w.kana; q.kanaInput = true; }
-      else { q.prompt = w.kana; q.hint = "Type the romaji · " + w.english; q.answer = w.romaji; }
+      q.meaning = w.english;
+      if (p.settings.kanaKeys) { q.prompt = w.romaji; q.hint = "Spell it in kana"; q.answer = w.kana; q.kanaInput = true; }
+      else { q.prompt = w.kana; q.hint = "Type the romaji"; q.answer = w.romaji; }
       break;
     default:
       q.type = QType::ReadKana; q.prompt = w.kana; q.hint = "How do you read this word?";

@@ -142,6 +142,7 @@ struct Question {
   bool optionsAreKana = false;
   bool kanaInput = false;  // Type question answered on the kana keyboard
   int writeLevel = WRITE_MEMORY;  // Write: 0 full guide, 1 faint outline, 2 from memory
+  std::string meaning;  // the English meaning, shown under word prompts (empty when it would give the answer away)
   bool mixup = false; std::string note;  // mix-up questions carry the set's difference note
   int kanaIdx = -1;                // for kana questions
 };

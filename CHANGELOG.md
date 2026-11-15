@@ -3,6 +3,10 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
+## 0.1.1 - unreleased
+
+- Word questions (spelling a word in kana or romaji, reading っ/ー words) show the English meaning under the word.
+
 ## 0.1.0 - 2026-11-15
 
 First release for BananaOS on the Anbernic RG DS Plus.
