@@ -1,153 +1,395 @@
-あい	ai	love
-いえ	ie	house
-うえ	ue	above
-あお	ao	blue
-あう	au	to meet
-いいえ	iie	no
-あか	aka	red
-いけ	ike	pond
-こい	koi	carp
-こえ	koe	voice
-きく	kiku	to listen
-かく	kaku	to write
-いく	iku	to go
-ここ	koko	here
-いか	ika	squid
-くうき	kuuki	air
-おおきい	ookii	big
-えいご	eigo	English
-かさ	kasa	umbrella
-いす	isu	chair
-うし	ushi	cow
-あし	ashi	leg
-すき	suki	to like
-そこ	soko	there
-せき	seki	seat
-おかし	okashi	sweets
-しお	shio	salt
-いち	ichi	one
-くち	kuchi	mouth
-て	te	hand
-たこ	tako	octopus
-した	shita	below
-そと	soto	outside
-つくえ	tsukue	desk
-きた	kita	north
-たかい	takai	tall / expensive
-ちかてつ	chikatetsu	subway
-あつい	atsui	hot
-なつ	natsu	summer
-なに	nani	what
-いぬ	inu	dog
-にし	nishi	west
-ひと	hito	person
-ふね	fune	ship
-ほし	hoshi	star
-はな	hana	flower
-へた	heta	bad at
-アイス	aisu	ice cream
-ココア	kokoa	cocoa
-テスト	tesuto	test
-タクシー	takushii	taxi
-スイス	suisu	Switzerland
-テニス	tenisu	tennis
-あめ	ame	rain
-うみ	umi	sea
-えき	eki	station
-おかね	okane	money
-かお	kao	face
-くるま	kuruma	car
-さくら	sakura	cherry blossom
-すし	sushi	sushi
-せかい	sekai	world
-そら	sora	sky
-つき	tsuki	moon
-てがみ	tegami	letter
-とり	tori	bird
-なまえ	namae	name
-にく	niku	meat
-ねこ	neko	cat
-ふゆ	fuyu	winter
-へや	heya	room
-まど	mado	window
-みず	mizu	water
-やま	yama	mountain
-ゆき	yuki	snow
-よる	yoru	night
-りんご	ringo	apple
-わたし	watashi	I / me
-ほん	hon	book
-あさ	asa	morning
-おちゃ	ocha	tea
-ごはん	gohan	rice / meal
-やきとり	yakitori	grilled chicken skewers
-げんき	genki	healthy / energetic
-ともだち	tomodachi	friend
-がっこう	gakkou	school
-せんせい	sensei	teacher
-でんしゃ	densha	train
-じかん	jikan	time
-ちず	chizu	map
-ぞう	zou	elephant
-ぶた	buta	pig
-とけい	tokei	clock / watch
-くつ	kutsu	shoes
-はし	hashi	chopsticks
-みち	michi	road
-たまご	tamago	egg
-ぎゅうにゅう	gyuunyuu	milk
-きょう	kyou	today
-ちゃわん	chawan	rice bowl
-びょういん	byouin	hospital
-りょこう	ryokou	travel
-じてんしゃ	jitensha	bicycle
-でんわ	denwa	telephone
-コーヒー	koohii	coffee
-ビール	biiru	beer
-パン	pan	bread
-ホテル	hoteru	hotel
-メモ	memo	memo
-テレビ	terebi	television
-ラーメン	raamen	ramen
-ケーキ	keeki	cake
-バス	basu	bus
-カメラ	kamera	camera
-ゲーム	geemu	game
-アニメ	anime	anime
-ピザ	piza	pizza
-トイレ	toire	toilet
-ナイフ	naifu	knife
-ドア	doa	door
-ペン	pen	pen
-ノート	nooto	notebook
-ミルク	miruku	milk
-サラダ	sarada	salad
-スープ	suupu	soup
-レストラン	resutoran	restaurant
-サッカー	sakkaa	soccer
-ギター	gitaa	guitar
-ピアノ	piano	piano
-きって	kitte	stamp
-ざっし	zasshi	magazine
-きっぷ	kippu	ticket
-もっと	motto	more
-ちょっと	chotto	a little
-いっぱい	ippai	full
-にっき	nikki	diary
-カップ	kappu	cup
-ベッド	beddo	bed
-ネット	netto	internet
-チケット	chiketto	ticket
-クッキー	kukkii	cookie
-コピー	kopii	copy
-パーティー	paatii	party
-カフェ	kafe	café
-フォーク	fooku	fork
-ウェブ	webu	web
-ソファ	sofa	sofa
-ジェット	jetto	jet
-チェック	chekku	check
-シェフ	shefu	chef
-ディスク	disuku	disc
-フィルム	firumu	film
-ウィンク	winku	wink
+あい	ai	love	
+いえ	ie	house	home
+うえ	ue	above	
+あお	ao	blue	describing
+あう	au	to meet	actions
+いいえ	iie	no	greetings
+あか	aka	red	describing
+いけ	ike	pond	
+こい	koi	carp	
+こえ	koe	voice	
+きく	kiku	to listen	actions
+かく	kaku	to write	actions
+いく	iku	to go	actions
+ここ	koko	here	
+いか	ika	squid	animals
+くうき	kuuki	air	
+おおきい	ookii	big	describing
+えいご	eigo	English	
+かさ	kasa	umbrella	home
+いす	isu	chair	home
+うし	ushi	cow	animals
+あし	ashi	leg	body
+すき	suki	to like	describing
+そこ	soko	there	
+せき	seki	seat	
+おかし	okashi	sweets	food
+しお	shio	salt	
+いち	ichi	one	numbers
+くち	kuchi	mouth	body
+て	te	hand	body
+たこ	tako	octopus	animals
+した	shita	below	
+そと	soto	outside	
+つくえ	tsukue	desk	home
+きた	kita	north	travel
+たかい	takai	tall / expensive	describing
+ちかてつ	chikatetsu	subway	travel
+あつい	atsui	hot	nature
+なつ	natsu	summer	time
+なに	nani	what	
+いぬ	inu	dog	animals
+にし	nishi	west	travel
+ひと	hito	person	people
+ふね	fune	ship	travel
+ほし	hoshi	star	nature
+はな	hana	flower	nature
+へた	heta	bad at	describing
+アイス	aisu	ice cream	food
+ココア	kokoa	cocoa	
+テスト	tesuto	test	
+タクシー	takushii	taxi	travel
+スイス	suisu	Switzerland	
+テニス	tenisu	tennis	
+あめ	ame	rain	nature
+うみ	umi	sea	nature
+えき	eki	station	travel
+おかね	okane	money	
+かお	kao	face	body
+くるま	kuruma	car	travel
+さくら	sakura	cherry blossom	nature
+すし	sushi	sushi	food
+せかい	sekai	world	
+そら	sora	sky	nature
+つき	tsuki	moon	nature
+てがみ	tegami	letter	
+とり	tori	bird	animals
+なまえ	namae	name	
+にく	niku	meat	food
+ねこ	neko	cat	animals
+ふゆ	fuyu	winter	time
+へや	heya	room	home
+まど	mado	window	home
+みず	mizu	water	food
+やま	yama	mountain	nature
+ゆき	yuki	snow	nature
+よる	yoru	night	time
+りんご	ringo	apple	food
+わたし	watashi	I / me	people
+ほん	hon	book	home
+あさ	asa	morning	time
+おちゃ	ocha	tea	food
+ごはん	gohan	rice / meal	food
+やきとり	yakitori	grilled chicken skewers	food
+げんき	genki	healthy / energetic	body
+ともだち	tomodachi	friend	people
+がっこう	gakkou	school	travel
+せんせい	sensei	teacher	people
+でんしゃ	densha	train	travel
+じかん	jikan	time	time
+ちず	chizu	map	travel
+ぞう	zou	elephant	animals
+ぶた	buta	pig	animals
+とけい	tokei	clock / watch	time
+くつ	kutsu	shoes	home
+はし	hashi	chopsticks	home
+みち	michi	road	travel
+たまご	tamago	egg	food
+ぎゅうにゅう	gyuunyuu	milk	food
+きょう	kyou	today	time
+ちゃわん	chawan	rice bowl	home
+びょういん	byouin	hospital	travel
+りょこう	ryokou	travel	travel
+じてんしゃ	jitensha	bicycle	travel
+でんわ	denwa	telephone	home
+コーヒー	koohii	coffee	food
+ビール	biiru	beer	food
+パン	pan	bread	food
+ホテル	hoteru	hotel	travel
+メモ	memo	memo	
+テレビ	terebi	television	home
+ラーメン	raamen	ramen	food
+ケーキ	keeki	cake	food
+バス	basu	bus	travel
+カメラ	kamera	camera	
+ゲーム	geemu	game	
+アニメ	anime	anime	
+ピザ	piza	pizza	food
+トイレ	toire	toilet	home
+ナイフ	naifu	knife	
+ドア	doa	door	home
+ペン	pen	pen	home
+ノート	nooto	notebook	home
+ミルク	miruku	milk	
+サラダ	sarada	salad	food
+スープ	suupu	soup	food
+レストラン	resutoran	restaurant	travel
+サッカー	sakkaa	soccer	
+ギター	gitaa	guitar	
+ピアノ	piano	piano	
+きって	kitte	stamp	
+ざっし	zasshi	magazine	
+きっぷ	kippu	ticket	travel
+もっと	motto	more	
+ちょっと	chotto	a little	
+いっぱい	ippai	full	
+にっき	nikki	diary	
+カップ	kappu	cup	home
+ベッド	beddo	bed	home
+ネット	netto	internet	
+チケット	chiketto	ticket	
+クッキー	kukkii	cookie	
+コピー	kopii	copy	
+パーティー	paatii	party	
+カフェ	kafe	café	travel
+フォーク	fooku	fork	
+ウェブ	webu	web	
+ソファ	sofa	sofa	home
+ジェット	jetto	jet	
+チェック	chekku	check	
+シェフ	shefu	chef	
+ディスク	disuku	disc	
+フィルム	firumu	film	
+ウィンク	winku	wink	
+おはよう	ohayou	good morning	greetings
+こんにちは	konnichiwa	hello	greetings
+こんばんは	konbanwa	good evening	greetings
+おやすみ	oyasumi	good night	greetings
+さようなら	sayounara	goodbye	greetings
+ありがとう	arigatou	thank you	greetings
+どうも	doumo	thanks	greetings
+すみません	sumimasen	excuse me / sorry	greetings
+ごめんなさい	gomennasai	I'm sorry	greetings
+はい	hai	yes	greetings
+おねがいします	onegaishimasu	please	greetings
+どうぞ	douzo	here you are / go ahead	greetings
+いただきます	itadakimasu	said before eating	greetings
+ごちそうさま	gochisousama	thanks for the meal	greetings
+いってきます	ittekimasu	I'm off (leaving home)	greetings
+ただいま	tadaima	I'm home	greetings
+おかえり	okaeri	welcome home	greetings
+はじめまして	hajimemashite	nice to meet you	greetings
+よろしく	yoroshiku	pleased to meet you	greetings
+またね	matane	see you later	greetings
+だいじょうぶ	daijoubu	it's OK	greetings
+もしもし	moshimoshi	hello (on the phone)	greetings
+おめでとう	omedetou	congratulations	greetings
+さかな	sakana	fish	food
+やさい	yasai	vegetables	food
+くだもの	kudamono	fruit	food
+みかん	mikan	mandarin orange	food
+いちご	ichigo	strawberry	food
+バナナ	banana	banana	food
+うどん	udon	udon noodles	food
+そば	soba	buckwheat noodles	food
+てんぷら	tenpura	tempura	food
+おにぎり	onigiri	rice ball	food
+みそしる	misoshiru	miso soup	food
+とうふ	toufu	tofu	food
+ぎょうざ	gyouza	dumplings	food
+からあげ	karaage	fried chicken	food
+やきにく	yakiniku	grilled meat (BBQ)	food
+カレー	karee	curry	food
+ジュース	juusu	juice	food
+おべんとう	obentou	packed lunch	food
+あさごはん	asagohan	breakfast	food
+ひるごはん	hirugohan	lunch	food
+ばんごはん	bangohan	dinner	food
+に	ni	two	numbers
+さん	san	three	numbers
+よん	yon	four	numbers
+ご	go	five	numbers
+ろく	roku	six	numbers
+なな	nana	seven	numbers
+はち	hachi	eight	numbers
+きゅう	kyuu	nine	numbers
+じゅう	juu	ten	numbers
+にじゅう	nijuu	twenty	numbers
+ひゃく	hyaku	hundred	numbers
+せん	sen	thousand	numbers
+まん	man	ten thousand	numbers
+ゼロ	zero	zero	numbers
+ひとつ	hitotsu	one (thing)	numbers
+ふたつ	futatsu	two (things)	numbers
+みっつ	mittsu	three (things)	numbers
+はんぶん	hanbun	half	numbers
+いくつ	ikutsu	how many	numbers
+いくら	ikura	how much	numbers
+えん	en	yen	numbers
+いま	ima	now	time
+あした	ashita	tomorrow	time
+きのう	kinou	yesterday	time
+ひる	hiru	noon / daytime	time
+ゆうがた	yuugata	evening	time
+まいにち	mainichi	every day	time
+しゅうまつ	shuumatsu	weekend	time
+らいしゅう	raishuu	next week	time
+せんしゅう	senshuu	last week	time
+ことし	kotoshi	this year	time
+らいねん	rainen	next year	time
+きょねん	kyonen	last year	time
+はる	haru	spring	time
+あき	aki	autumn	time
+いつ	itsu	when	time
+げつようび	getsuyoubi	Monday	time
+かようび	kayoubi	Tuesday	time
+すいようび	suiyoubi	Wednesday	time
+もくようび	mokuyoubi	Thursday	time
+きんようび	kin'youbi	Friday	time
+どようび	doyoubi	Saturday	time
+にちようび	nichiyoubi	Sunday	time
+あなた	anata	you	people
+みんな	minna	everyone	people
+かぞく	kazoku	family	people
+おかあさん	okaasan	mother	people
+おとうさん	otousan	father	people
+おねえさん	oneesan	older sister	people
+おにいさん	oniisan	older brother	people
+いもうと	imouto	younger sister	people
+おとうと	otouto	younger brother	people
+おばあさん	obaasan	grandmother	people
+おじいさん	ojiisan	grandfather	people
+こども	kodomo	child	people
+あかちゃん	akachan	baby	people
+おとこのこ	otokonoko	boy	people
+おんなのこ	onnanoko	girl	people
+つま	tsuma	(my) wife	people
+おっと	otto	(my) husband	people
+がくせい	gakusei	student	people
+いしゃ	isha	doctor	people
+かれ	kare	he / boyfriend	people
+かのじょ	kanojo	she / girlfriend	people
+どうぶつ	doubutsu	animal	animals
+うま	uma	horse	animals
+ひつじ	hitsuji	sheep	animals
+うさぎ	usagi	rabbit	animals
+ねずみ	nezumi	mouse / rat	animals
+ハムスター	hamusutaa	hamster	animals
+さる	saru	monkey	animals
+くま	kuma	bear	animals
+きつね	kitsune	fox	animals
+たぬき	tanuki	raccoon dog	animals
+しか	shika	deer	animals
+とら	tora	tiger	animals
+かめ	kame	turtle	animals
+へび	hebi	snake	animals
+むし	mushi	insect	animals
+ちょう	chou	butterfly	animals
+パンダ	panda	panda	animals
+ライオン	raion	lion	animals
+ペンギン	pengin	penguin	animals
+キリン	kirin	giraffe	animals
+からだ	karada	body	body
+あたま	atama	head	body
+め	me	eye	body
+みみ	mimi	ear	body
+は	ha	tooth	body
+かみ	kami	hair	body
+くび	kubi	neck	body
+かた	kata	shoulder	body
+むね	mune	chest	body
+おなか	onaka	stomach / belly	body
+せなか	senaka	back	body
+ゆび	yubi	finger	body
+ひじ	hiji	elbow	body
+ひざ	hiza	knee	body
+ほね	hone	bone	body
+こころ	kokoro	heart / mind	body
+びょうき	byouki	ill	body
+かぜ	kaze	a cold	body
+いたい	itai	it hurts	body
+だいどころ	daidokoro	kitchen	home
+おふろ	ofuro	bath	home
+ふとん	futon	futon	home
+れいぞうこ	reizouko	fridge	home
+スマホ	sumaho	smartphone	home
+パソコン	pasokon	computer	home
+かぎ	kagi	key	home
+かばん	kaban	bag	home
+めがね	megane	glasses	home
+ふく	fuku	clothes	home
+シャツ	shatsu	shirt	home
+ぼうし	boushi	hat	home
+まち	machi	town	travel
+しんかんせん	shinkansen	bullet train	travel
+ひこうき	hikouki	aeroplane	travel
+くうこう	kuukou	airport	travel
+パスポート	pasupooto	passport	travel
+みせ	mise	shop	travel
+スーパー	suupaa	supermarket	travel
+コンビニ	konbini	convenience store	travel
+ぎんこう	ginkou	bank	travel
+こうえん	kouen	park	travel
+おてら	otera	temple	travel
+じんじゃ	jinja	shrine	travel
+みぎ	migi	right	travel
+ひだり	hidari	left	travel
+まっすぐ	massugu	straight on	travel
+みなみ	minami	south	travel
+ひがし	higashi	east	travel
+てんき	tenki	weather	nature
+はれ	hare	sunny	nature
+くもり	kumori	cloudy	nature
+かみなり	kaminari	thunder	nature
+たいふう	taifuu	typhoon	nature
+にじ	niji	rainbow	nature
+くも	kumo	cloud	nature
+たいよう	taiyou	sun	nature
+かわ	kawa	river	nature
+もり	mori	forest	nature
+しま	shima	island	nature
+き	ki	tree	nature
+いし	ishi	stone	nature
+さむい	samui	cold	nature
+すずしい	suzushii	cool	nature
+あたたかい	atatakai	warm	nature
+たべる	taberu	to eat	actions
+のむ	nomu	to drink	actions
+くる	kuru	to come	actions
+みる	miru	to see / watch	actions
+よむ	yomu	to read	actions
+はなす	hanasu	to speak	actions
+わかる	wakaru	to understand	actions
+する	suru	to do	actions
+かう	kau	to buy	actions
+まつ	matsu	to wait	actions
+ねる	neru	to sleep	actions
+おきる	okiru	to get up	actions
+あるく	aruku	to walk	actions
+はしる	hashiru	to run	actions
+およぐ	oyogu	to swim	actions
+あそぶ	asobu	to play	actions
+うたう	utau	to sing	actions
+つくる	tsukuru	to make	actions
+あける	akeru	to open	actions
+しめる	shimeru	to close	actions
+すわる	suwaru	to sit	actions
+はたらく	hataraku	to work	actions
+べんきょうする	benkyousuru	to study	actions
+おしえる	oshieru	to teach	actions
+ちいさい	chiisai	small	describing
+やすい	yasui	cheap	describing
+あたらしい	atarashii	new	describing
+ふるい	furui	old (things)	describing
+いい	ii	good	describing
+わるい	warui	bad	describing
+おいしい	oishii	tasty	describing
+たのしい	tanoshii	fun	describing
+むずかしい	muzukashii	difficult	describing
+やさしい	yasashii	easy / kind	describing
+はやい	hayai	fast / early	describing
+おそい	osoi	slow / late	describing
+ながい	nagai	long	describing
+みじかい	mijikai	short	describing
+かわいい	kawaii	cute	describing
+きれい	kirei	pretty / clean	describing
+しずか	shizuka	quiet	describing
+すごい	sugoi	amazing	describing
+じょうず	jouzu	good at	describing
+しろ	shiro	white	describing
+くろ	kuro	black	describing
+きいろ	kiiro	yellow	describing
+みどり	midori	green	describing
+ちゃいろ	chairo	brown	describing
+ピンク	pinku	pink	describing
+オレンジ	orenji	orange (colour)	describing

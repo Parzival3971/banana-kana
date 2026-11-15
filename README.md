@@ -39,6 +39,9 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 - 🔀 **Mix-ups.** Short drills on look-alikes such as さ/き, ね/れ/わ, シ/ツ and ソ/ン, with a note on how to tell them
   apart. Pairs you've confused yourself are added too.
 - ⏱️ **Timed challenge.** One-tap answers for 60 seconds, with a personal best for each script.
+- 🍱 **Word packs.** 12 topics (greetings, food, numbers, time, people, animals, body, home, town & travel, nature,
+  actions and describing words), about 340 words in all. Each pack quizzes meanings both ways, reading and typing.
+  A word joins its pack as soon as you've unlocked every kana in it, so packs fill up as you learn.
 - 🎯 **Practice sets.** Pick kana in the chart and drill just those. A single kana is mixed with its look-alikes, so
   the answer isn't always the same.
 
@@ -84,7 +87,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 | <img src="docs/img/welcome.png" width="250"><br>First launch | <img src="docs/img/practice-set.png" width="250"><br>Practice set | <img src="docs/img/free-write.png" width="250"><br>Free writing |
 | <img src="docs/img/skip.png" width="250"><br>Skipping ahead | <img src="docs/img/guided.png" width="250"><br>Guided writing | <img src="docs/img/credits.png" width="250"><br>Credits |
 | <img src="docs/img/draw-any.png" width="250"><br>Draw any kana | <img src="docs/img/extras.png" width="250"><br>Extras stage | <img src="docs/img/handwriting.png" width="250"><br>Handwriting font and grid |
-| <img src="docs/img/match.png" width="250"><br>Hiragana ↔ katakana | <img src="docs/img/mixup.png" width="250"><br>Mix-ups | |
+| <img src="docs/img/match.png" width="250"><br>Hiragana ↔ katakana | <img src="docs/img/packs.png" width="250"><br>Word packs | <img src="docs/img/words.png" width="250"><br>Word pack quiz |
 
 </details>
 
@@ -133,6 +136,8 @@ A backup copy is also kept in `roms/ports/BananaKana/progress-backup.txt`: copy 
   to the next interval; a miss moves it back one and costs it a step, so it has to be re-learnt.
 - 🔤 **っ and ー.** These have no sound of their own, so they're practised by reading words that use them (きって = kitte,
   コーヒー = koohii), with near-miss answers that ignore the mark.
+- 🍱 **Word packs.** Words use the same 4 steps as kana. A pack opens once at least 4 of its words use only kana you've
+  unlocked; the rest join as you go.
 - 🔀 **Mix-ups.** When you pick the wrong kana, the pair is remembered. Mix-up drills show only the look-alikes as options.
 - ✍️ **Staging.** Step 0: multiple choice only. Step 1: romaji typing too. Step 2: the kana keyboard and writing.
   Writing has its own three levels (full guide, outline, memory) and moves up one level per session. Guided writing
@@ -244,7 +249,7 @@ self-test, plus the arm64 build and a package dry run.
 ## 🤖 AI disclosure
 
 Banana Kana is built with AI assistance. The C++ code, tests, data and build tools, CI workflows and these docs were
-written by Claude (Anthropic) in Claude Code. The same goes for the lesson hints, look-alike notes and word list. The
+written by Claude (Anthropic) in Claude Code. The same goes for the lesson hints, look-alike notes, word list and word packs. The
 maintainer directs the work, decides how the app should behave, and tests every build on a real RG DS Plus.
 Commits written this way carry a `Co-Authored-By: Claude` trailer.
 

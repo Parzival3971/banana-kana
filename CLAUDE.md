@@ -152,7 +152,17 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   questions once both scripts are open. Rumble in sound.cpp (snd::rumble per Sfx, Settings.rumble 0/1/2, joypad has
   FF_RUMBLE; log "rumble: yes/no"). Backup: App::backup -> BananaKana/progress-backup.txt (packaged layout only, i.e.
   data/../VERSION exists; KT_BACKUP=0 off, KT_BACKUP_PATH override), restored in main.cpp when progress.txt is missing.
-  Settings rows squeeze when a group has 6+ rows. Next idea the user agreed to: topic word packs (open-licence list).
+  Settings rows squeeze when a group has 6+ rows.
+- Word packs (user asked 2026-11-15; audio deferred, see below): tools/gen_data.py PACKS (12 packs, lists written by us,
+  not copied) -> packs.tsv (id, jp title, name, desc) + words.tsv column 4 = pack (a word lives in one pack; WORDS rows
+  keep their line and just join). Generator asserts every pack word only uses kana of its script. core: Pack, wordReady,
+  readyWords, packInfo, PACK_MIN 4, makePackQuestion (Meaning / RecallKana with English prompt / ReadKana / Type; no
+  option shares the answer's meaning). app: Screen::Packs (3x4 tiles, tap twice or A to start), Mode::Pack (packIdx),
+  Home mode row = 5 tiles drawn Review, Mix-ups, Words, Timed, Stats (HOME_MODE_IDS; Words = B_MODE0+4; homeSel 4-8).
+  Words reaching step 4 get "Known word!" + confetti. Result screen shows pack stats, B = back to Packs.
+- Audio: user asked for licensed recordings 2026-11-15. Candidates: tofugu/japanese-vocabulary-pronunciation-audio
+  (CC BY-SA 4.0, on GitHub), Lingua Libre (CC BY-SA 4.0), Kanji alive (CC BY 4.0, kanji words). None covers single kana.
+  User said hold off on audio.
 - On-screen keyboards (kana + romaji) have a d-pad cursor (keyRow/keyCol, kbMove skips gaps), A types, X checks, B deletes.
 - Sound effects (src/sound.cpp): synthesised at start-up (Tap, Right, Wrong, Known, Unlock, Goal, Tick), SDL queue audio,
   Settings > Display > Sound (off/quiet/normal/loud). Not yet heard on device.

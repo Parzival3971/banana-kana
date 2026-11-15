@@ -120,7 +120,16 @@ bool Data::load(const std::string& dir, std::string* err) {
     for (std::string line; std::getline(f, line);) {
       auto c = split(line, '\t'); if (c.size() < 3) continue;
       uint32_t first = utf8Codepoints(c[0])[0];
-      words.push_back({c[0], c[1], c[2], first >= 0x30A0});
+      words.push_back({c[0], c[1], c[2], first >= 0x30A0, c.size() > 3 ? c[3] : ""});
+    }
+  }
+  {
+    std::ifstream f(dir + "/packs.tsv");  // optional: no packs, no Words screen
+    for (std::string line; f && std::getline(f, line);) {
+      auto c = split(line, '\t'); if (c.size() < 4) continue;
+      Pack pk{c[0], c[1], c[2], c[3], {}};
+      for (size_t i = 0; i < words.size(); i++) if (words[i].pack == pk.id) pk.words.push_back(int(i));
+      packs.push_back(pk);
     }
   }
   {
@@ -493,10 +502,15 @@ std::vector<int> unlockedKana(const Data& d, const Progress& p, Script s) {
   return out;
 }
 
-std::vector<const Word*> eligibleWords(const Data& d, const Progress& p, Script s) {
+static std::set<uint32_t> okCodepoints(const Data& d, const Progress& p, Script s) {  // characters a word may use
   std::set<uint32_t> ok;
   for (int i : unlockedKana(d, p, s)) for (uint32_t cp : utf8Codepoints(d.kana[i].glyph)) ok.insert(cp);
   if (p.unlocked[si(s)] >= 10) for (uint32_t cp : {0x3063u, 0x30C3u, 0x30FCu}) ok.insert(cp);  // small tsu, long mark
+  return ok;
+}
+
+std::vector<const Word*> eligibleWords(const Data& d, const Progress& p, Script s) {
+  std::set<uint32_t> ok = okCodepoints(d, p, s);
   std::vector<const Word*> out;
   for (auto& w : d.words) {
     if (w.katakana != (s == Script::Katakana)) continue;
@@ -720,6 +734,78 @@ Question makeMatchQuestion(const Data& d, const Progress& p, std::mt19937& rng, 
 }
 
 // ---------------------------------------------------------------- reviews and mix-ups
+// ---------------------------------------------------------------- word packs
+static bool readyWith(const std::set<uint32_t>& ok, const Word& w) {
+  for (uint32_t cp : utf8Codepoints(w.kana)) if (!ok.count(cp)) return false;
+  return true;
+}
+bool wordReady(const Data& d, const Progress& p, const Word& w) {
+  return readyWith(okCodepoints(d, p, w.katakana ? Script::Katakana : Script::Hiragana), w);
+}
+std::vector<int> readyWords(const Data& d, const Progress& p, int pack) {
+  std::vector<int> out;
+  if (pack < 0 || pack >= int(d.packs.size())) return out;
+  auto okH = okCodepoints(d, p, Script::Hiragana), okK = okCodepoints(d, p, Script::Katakana);
+  for (int wi : d.packs[pack].words) if (readyWith(d.words[wi].katakana ? okK : okH, d.words[wi])) out.push_back(wi);
+  return out;
+}
+PackInfo packInfo(const Data& d, const Progress& p, int pack) {
+  PackInfo pi; if (pack < 0 || pack >= int(d.packs.size())) return pi;
+  pi.total = int(d.packs[pack].words.size()); pi.ready = int(readyWords(d, p, pack).size());
+  for (int wi : d.packs[pack].words) if (p.step(Progress::keyWord(d.words[wi])) >= KNOWN_STEP) pi.known++;
+  return pi;
+}
+
+// Pack questions: kana -> meaning, meaning -> kana, reading (romaji), typing. Wrong options come from the same pack first,
+// and never share the answer's meaning (ミルク / ぎゅうにゅう are both "milk").
+Question makePackQuestion(const Data& d, const Progress& p, std::mt19937& rng, int pack) {
+  std::vector<int> ready = readyWords(d, p, pack);
+  if (int(ready.size()) < PACK_MIN) return makeQuestion(d, p, rng);
+  std::vector<double> wts;
+  for (int wi : ready) { std::string k = Progress::keyWord(d.words[wi]); wts.push_back(baseWeight(p, k) * (p.step(k) >= KNOWN_STEP ? 0.4 : 1.0)); }
+  std::discrete_distribution<int> pick(wts.begin(), wts.end());
+  const Word& w = d.words[ready[pick(rng)]];
+  Script ws = w.katakana ? Script::Katakana : Script::Hiragana;
+  bool typeOk = true;
+  for (const std::string& c : Data::partNames(w.kana)) { int ki = d.findKana(ws, c); if (ki < 0 || !allowedType(d, p, ki, QType::Type)) typeOk = false; }
+  // 0 meaning, 1 meaning -> kana, 2 reading, 3 typing
+  std::vector<double> tw = {3, 2, 2, typeOk ? 1.5 : 0};
+  std::discrete_distribution<int> dt(tw.begin(), tw.end());
+  int kind = dt(rng);
+  // distractors: same pack (ready words first), then any ready word of the same script
+  std::vector<const Word*> same, other;
+  for (int wi : ready) if (&d.words[wi] != &w && d.words[wi].english != w.english && d.words[wi].kana != w.kana) same.push_back(&d.words[wi]);
+  for (const Word* o : eligibleWords(d, p, ws)) if (o != &w && o->english != w.english && o->pack != w.pack) other.push_back(o);
+  std::shuffle(same.begin(), same.end(), rng); std::shuffle(other.begin(), other.end(), rng);
+  std::vector<const Word*> pool = same; for (auto* o : other) pool.push_back(o);
+  auto opts = [&](auto field, size_t n, int* correctIdx) {
+    std::vector<std::string> v{field(w)};
+    for (auto* o : pool) { if (v.size() >= n) break; std::string x = field(*o); if (!std::count(v.begin(), v.end(), x)) v.push_back(x); }
+    std::shuffle(v.begin(), v.end(), rng);
+    *correctIdx = int(std::find(v.begin(), v.end(), field(w)) - v.begin());
+    return v;
+  };
+  Question q; q.key = Progress::keyWord(w); q.isWord = true;
+  const std::string& title = d.packs[pack].jp;
+  switch (kind) {
+    case 0:
+      q.type = QType::Meaning; q.prompt = w.kana; q.hint = title + " · What does it mean?";
+      q.options = opts([](const Word& x) { return x.english; }, 6, &q.correct); q.answer = w.english; break;
+    case 1:
+      q.type = QType::RecallKana; q.prompt = w.english; q.hint = title + " · Which word is it?"; q.optionsAreKana = true;
+      q.options = opts([](const Word& x) { return x.kana; }, 4, &q.correct); q.answer = w.kana; break;
+    case 3:
+      q.type = QType::Type; q.meaning = w.english;
+      if (p.settings.kanaKeys) { q.prompt = w.romaji; q.hint = title + " · Spell it in kana"; q.answer = w.kana; q.kanaInput = true; }
+      else { q.prompt = w.kana; q.hint = title + " · Type the romaji"; q.answer = w.romaji; }
+      break;
+    default:
+      q.type = QType::ReadKana; q.prompt = w.kana; q.hint = title + " · How do you read it?"; q.meaning = w.english;
+      q.options = opts([](const Word& x) { return x.romaji; }, 6, &q.correct); q.answer = w.romaji; break;
+  }
+  return q;
+}
+
 Question makeReviewQuestion(const Data& d, const Progress& p, std::mt19937& rng) {
   Script s = p.settings.script;
   auto due = p.dueKana(d, s);

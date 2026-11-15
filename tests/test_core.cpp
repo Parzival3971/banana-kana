@@ -401,5 +401,44 @@ int main(int argc, char** argv) {
     CHECK(matches > 20);
     printf("match: %d hiragana/katakana questions\n", matches);
   }
+  {  // word packs
+    CHECK(d.packs.size() == 12);
+    std::set<std::string> ids; int words = 0;
+    for (auto& pk : d.packs) { ids.insert(pk.id); words += int(pk.words.size()); CHECK(pk.words.size() >= 20 && !pk.jp.empty() && !pk.name.empty()); }
+    CHECK(ids.size() == d.packs.size() && words > 300);
+    Progress p;                                          // brand new: only words made of あいうえお
+    for (size_t i = 0; i < d.packs.size(); i++)
+      for (int wi : readyWords(d, p, int(i))) for (uint32_t cp : utf8Codepoints(d.words[wi].kana)) CHECK(cp >= 0x3041 && cp <= 0x304A);
+    p.skipTo(d, Script::Hiragana, 6);                    // あ-は rows known
+    int food = -1; for (size_t i = 0; i < d.packs.size(); i++) if (d.packs[i].id == "food") food = int(i);
+    CHECK(food >= 0);
+    for (int wi : readyWords(d, p, food)) {              // only hiragana words made of unlocked kana
+      const Word& w = d.words[wi]; CHECK(!w.katakana && wordReady(d, p, w));
+      CHECK(w.kana.find("ら") == std::string::npos && w.kana.find("ま") == std::string::npos);
+    }
+    p.skipTo(d, Script::Hiragana, SKIP_ALL); p.skipTo(d, Script::Katakana, SKIP_ALL);
+    PackInfo fi = packInfo(d, p, food); CHECK(fi.ready == fi.total && fi.known == 0);
+    std::mt19937 rng(11); int kinds[4] = {0, 0, 0, 0};
+    for (int n = 0; n < 400; n++) {
+      Question q = makePackQuestion(d, p, rng, food);
+      CHECK(q.isWord && q.key.rfind("w:", 0) == 0);
+      const Word* w = nullptr; for (int wi : d.packs[food].words) if (Progress::keyWord(d.words[wi]) == q.key) w = &d.words[wi];
+      CHECK(w != nullptr); if (!w) continue;
+      if (q.type == QType::Meaning) { kinds[0]++; CHECK(q.options[q.correct] == w->english && q.prompt == w->kana); }
+      else if (q.type == QType::RecallKana) {
+        kinds[1]++; CHECK(q.prompt == w->english && q.options[q.correct] == w->kana && q.optionsAreKana);
+        for (size_t o = 0; o < q.options.size(); o++)       // no other option means the same thing
+          if (int(o) != q.correct) for (auto& x : d.words) if (x.kana == q.options[o]) CHECK(x.english != w->english);
+      }
+      else if (q.type == QType::ReadKana) { kinds[2]++; CHECK(q.options[q.correct] == w->romaji && !q.meaning.empty()); }
+      else if (q.type == QType::Type) { kinds[3]++; CHECK(q.answer == w->romaji || q.answer == w->kana); }
+      if (!q.options.empty()) { std::set<std::string> u(q.options.begin(), q.options.end()); CHECK(u.size() == q.options.size() && q.options.size() >= 4); }
+    }
+    CHECK(kinds[0] > 0 && kinds[1] > 0 && kinds[2] > 0 && kinds[3] > 0);
+    Question q = makePackQuestion(d, p, rng, food);      // knowing words shows in the pack's count
+    for (int r = 0; r < 4; r++) { p.session++; p.record(q.key, true); p.record(q.key, true); }
+    CHECK(packInfo(d, p, food).known == 1);
+    printf("packs: %zu packs, %d words, food %d/%d ready\n", d.packs.size(), words, fi.ready, fi.total);
+  }
   printf(fails ? "%d FAILURES\n" : "all core tests passed\n", fails); return fails != 0;
 }

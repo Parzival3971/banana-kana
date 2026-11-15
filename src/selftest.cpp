@@ -62,6 +62,11 @@ int App::selfTest(const std::string& shotDir) {
 
   // ---- 1. fresh start: home, lesson for stage 1, tracing
   go(Screen::Home); shot("home_new");
+  go(Screen::Packs); shot("packs_new");
+  { int open = 0; for (int i = 0; i < int(data.packs.size()); i++) if (int(readyWords(data, prog, i).size()) >= PACK_MIN) open++;
+    CHECK(open <= 1, "new user: packs mostly locked"); packSel = 0; while (packSel < int(data.packs.size()) && int(readyWords(data, prog, packSel).size()) >= PACK_MIN) packSel++;
+    if (packSel < int(data.packs.size())) { CHECK(!click(B_PACK_START), "locked pack can't start"); } }
+  go(Screen::Home);
   CHECK(prog.lessonPending(Script::Hiragana), "lesson pending at start");
   CHECK(click(B_CART0), "practice cart"); CHECK(screen == Screen::Lesson && lessonStage == 0, "lesson opens");
   shot("lesson");
@@ -367,6 +372,28 @@ int App::selfTest(const std::string& shotDir) {
         } else answer(true, false);
       }
       CHECK(seen, "saw a matching question"); }
+    { // word packs: Words tile -> picker -> a pack session -> back to the picker
+      go(Screen::Home); homeSel = 4;
+      padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); CHECK(homeSel == 6, "pad to the Words tile");
+      shot("home_words");
+      padButton(SDL_CONTROLLER_BUTTON_A); CHECK(screen == Screen::Packs, "words tile opens packs");
+      int food = -1; for (size_t i = 0; i < data.packs.size(); i++) if (data.packs[i].id == "food") food = int(i);
+      CHECK(food >= 0 && click(B_PACK0 + food) && packSel == food, "select food pack"); shot("packs");
+      padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); CHECK(packSel == (food + 3) % int(data.packs.size()), "pad moves down a row");
+      CHECK(click(B_PACK0 + food) && click(B_PACK0 + food), "tap twice starts");
+      CHECK(screen == Screen::Drill && mode == Mode::Pack && q.isWord, "pack session");
+      std::set<int> kinds; bool missShown = false;
+      for (int i = 0; i < 40 && screen == Screen::Drill; i++) {
+        CHECK(q.isWord, "pack questions are words"); kinds.insert(int(q.type));
+        std::string tn = "pack_" + std::string(tname[int(q.type)]);
+        if (!shotTypes.count(tn)) { shot("q_" + tn); shotTypes.insert(tn); }
+        bool right = i != 1; answer(right, false);
+        if (!right) missShown = true;
+      }
+      CHECK(missShown && kinds.size() >= 3, "pack question kinds");
+      CHECK(screen == Screen::Result, "pack result"); shot("result_pack");
+      CHECK(click(B_HOME) && screen == Screen::Packs, "result -> packs");
+      CHECK(click(B_BACK) && screen == Screen::Home, "packs -> home"); }
     go(Screen::Stats); shot("stats_katakana");
     prog = keep; setScript(Script::Hiragana); go(Screen::Home); }
 

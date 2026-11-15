@@ -223,6 +223,385 @@ WORDS = """
 ウィンク|winku|wink
 """.strip().splitlines()
 
+# ---------------------------------------------------------------- word packs
+# Topic packs, written for Banana Kana (no list was copied from a textbook or dictionary).
+# Words usually written with kanji are given in kana, as a kana learner meets them; loanwords are in katakana.
+# Format per pack: (id, kana title, English name, description, "kana|romaji|english" lines).
+# A word already in WORDS keeps its line there and just joins the pack.
+PACKS = [
+("greetings", "あいさつ", "Greetings", "Hello, thank you, sorry: the words you'll use every day.", """
+おはよう|ohayou|good morning
+こんにちは|konnichiwa|hello
+こんばんは|konbanwa|good evening
+おやすみ|oyasumi|good night
+さようなら|sayounara|goodbye
+ありがとう|arigatou|thank you
+どうも|doumo|thanks
+すみません|sumimasen|excuse me / sorry
+ごめんなさい|gomennasai|I'm sorry
+はい|hai|yes
+いいえ|iie|no
+おねがいします|onegaishimasu|please
+どうぞ|douzo|here you are / go ahead
+いただきます|itadakimasu|said before eating
+ごちそうさま|gochisousama|thanks for the meal
+いってきます|ittekimasu|I'm off (leaving home)
+ただいま|tadaima|I'm home
+おかえり|okaeri|welcome home
+はじめまして|hajimemashite|nice to meet you
+よろしく|yoroshiku|pleased to meet you
+またね|matane|see you later
+だいじょうぶ|daijoubu|it's OK
+もしもし|moshimoshi|hello (on the phone)
+おめでとう|omedetou|congratulations
+"""),
+("food", "たべもの", "Food & drink", "From sushi and ramen to snacks, drinks and the three meals of the day.", """
+すし|sushi|sushi
+ごはん|gohan|rice / meal
+にく|niku|meat
+さかな|sakana|fish
+たまご|tamago|egg
+やさい|yasai|vegetables
+くだもの|kudamono|fruit
+りんご|ringo|apple
+みかん|mikan|mandarin orange
+いちご|ichigo|strawberry
+バナナ|banana|banana
+うどん|udon|udon noodles
+そば|soba|buckwheat noodles
+ラーメン|raamen|ramen
+てんぷら|tenpura|tempura
+おにぎり|onigiri|rice ball
+みそしる|misoshiru|miso soup
+とうふ|toufu|tofu
+ぎょうざ|gyouza|dumplings
+からあげ|karaage|fried chicken
+やきとり|yakitori|grilled chicken skewers
+やきにく|yakiniku|grilled meat (BBQ)
+カレー|karee|curry
+パン|pan|bread
+ピザ|piza|pizza
+サラダ|sarada|salad
+スープ|suupu|soup
+ケーキ|keeki|cake
+おかし|okashi|sweets
+アイス|aisu|ice cream
+みず|mizu|water
+おちゃ|ocha|tea
+コーヒー|koohii|coffee
+ジュース|juusu|juice
+ぎゅうにゅう|gyuunyuu|milk
+ビール|biiru|beer
+おべんとう|obentou|packed lunch
+あさごはん|asagohan|breakfast
+ひるごはん|hirugohan|lunch
+ばんごはん|bangohan|dinner
+"""),
+("numbers", "かず", "Numbers", "Counting from one to ten thousand, plus how many and how much.", """
+いち|ichi|one
+に|ni|two
+さん|san|three
+よん|yon|four
+ご|go|five
+ろく|roku|six
+なな|nana|seven
+はち|hachi|eight
+きゅう|kyuu|nine
+じゅう|juu|ten
+にじゅう|nijuu|twenty
+ひゃく|hyaku|hundred
+せん|sen|thousand
+まん|man|ten thousand
+ゼロ|zero|zero
+ひとつ|hitotsu|one (thing)
+ふたつ|futatsu|two (things)
+みっつ|mittsu|three (things)
+はんぶん|hanbun|half
+いくつ|ikutsu|how many
+いくら|ikura|how much
+えん|en|yen
+"""),
+("time", "じかん", "Time & days", "Today, tomorrow, the seasons and every day of the week.", """
+いま|ima|now
+きょう|kyou|today
+あした|ashita|tomorrow
+きのう|kinou|yesterday
+あさ|asa|morning
+ひる|hiru|noon / daytime
+ゆうがた|yuugata|evening
+よる|yoru|night
+まいにち|mainichi|every day
+しゅうまつ|shuumatsu|weekend
+らいしゅう|raishuu|next week
+せんしゅう|senshuu|last week
+ことし|kotoshi|this year
+らいねん|rainen|next year
+きょねん|kyonen|last year
+はる|haru|spring
+なつ|natsu|summer
+あき|aki|autumn
+ふゆ|fuyu|winter
+じかん|jikan|time
+いつ|itsu|when
+とけい|tokei|clock / watch
+げつようび|getsuyoubi|Monday
+かようび|kayoubi|Tuesday
+すいようび|suiyoubi|Wednesday
+もくようび|mokuyoubi|Thursday
+きんようび|kin'youbi|Friday
+どようび|doyoubi|Saturday
+にちようび|nichiyoubi|Sunday
+"""),
+("people", "ひと", "People & family", "Family, friends and the people around you.", """
+ひと|hito|person
+わたし|watashi|I / me
+あなた|anata|you
+みんな|minna|everyone
+ともだち|tomodachi|friend
+かぞく|kazoku|family
+おかあさん|okaasan|mother
+おとうさん|otousan|father
+おねえさん|oneesan|older sister
+おにいさん|oniisan|older brother
+いもうと|imouto|younger sister
+おとうと|otouto|younger brother
+おばあさん|obaasan|grandmother
+おじいさん|ojiisan|grandfather
+こども|kodomo|child
+あかちゃん|akachan|baby
+おとこのこ|otokonoko|boy
+おんなのこ|onnanoko|girl
+つま|tsuma|(my) wife
+おっと|otto|(my) husband
+せんせい|sensei|teacher
+がくせい|gakusei|student
+いしゃ|isha|doctor
+かれ|kare|he / boyfriend
+かのじょ|kanojo|she / girlfriend
+"""),
+("animals", "どうぶつ", "Animals", "Pets, farm animals, zoo favourites and a few creepy-crawlies.", """
+どうぶつ|doubutsu|animal
+いぬ|inu|dog
+ねこ|neko|cat
+とり|tori|bird
+うし|ushi|cow
+ぶた|buta|pig
+うま|uma|horse
+ひつじ|hitsuji|sheep
+うさぎ|usagi|rabbit
+ねずみ|nezumi|mouse / rat
+ハムスター|hamusutaa|hamster
+さる|saru|monkey
+くま|kuma|bear
+きつね|kitsune|fox
+たぬき|tanuki|raccoon dog
+しか|shika|deer
+とら|tora|tiger
+ぞう|zou|elephant
+かめ|kame|turtle
+へび|hebi|snake
+むし|mushi|insect
+ちょう|chou|butterfly
+いか|ika|squid
+たこ|tako|octopus
+パンダ|panda|panda
+ライオン|raion|lion
+ペンギン|pengin|penguin
+キリン|kirin|giraffe
+"""),
+("body", "からだ", "Body", "Head to toe, plus a few words for how you feel.", """
+からだ|karada|body
+あたま|atama|head
+かお|kao|face
+め|me|eye
+みみ|mimi|ear
+くち|kuchi|mouth
+は|ha|tooth
+かみ|kami|hair
+くび|kubi|neck
+かた|kata|shoulder
+むね|mune|chest
+おなか|onaka|stomach / belly
+せなか|senaka|back
+て|te|hand
+ゆび|yubi|finger
+ひじ|hiji|elbow
+あし|ashi|leg / foot
+ひざ|hiza|knee
+ほね|hone|bone
+こころ|kokoro|heart / mind
+げんき|genki|healthy / energetic
+びょうき|byouki|ill
+かぜ|kaze|a cold
+いたい|itai|it hurts
+"""),
+("home", "いえ", "Home & things", "Rooms, furniture and the things you carry every day.", """
+いえ|ie|house
+へや|heya|room
+まど|mado|window
+ドア|doa|door
+だいどころ|daidokoro|kitchen
+おふろ|ofuro|bath
+トイレ|toire|toilet
+ベッド|beddo|bed
+ふとん|futon|futon
+ソファ|sofa|sofa
+いす|isu|chair
+つくえ|tsukue|desk
+テレビ|terebi|television
+れいぞうこ|reizouko|fridge
+とけい|tokei|clock / watch
+でんわ|denwa|telephone
+スマホ|sumaho|smartphone
+パソコン|pasokon|computer
+かぎ|kagi|key
+かばん|kaban|bag
+かさ|kasa|umbrella
+めがね|megane|glasses
+ほん|hon|book
+ノート|nooto|notebook
+ペン|pen|pen
+はし|hashi|chopsticks
+カップ|kappu|cup
+ちゃわん|chawan|rice bowl
+ふく|fuku|clothes
+シャツ|shatsu|shirt
+くつ|kutsu|shoes
+ぼうし|boushi|hat
+"""),
+("travel", "まち", "Town & travel", "Getting around: stations, shops, directions and your passport.", """
+まち|machi|town
+えき|eki|station
+でんしゃ|densha|train
+しんかんせん|shinkansen|bullet train
+ちかてつ|chikatetsu|subway
+バス|basu|bus
+タクシー|takushii|taxi
+くるま|kuruma|car
+じてんしゃ|jitensha|bicycle
+ひこうき|hikouki|aeroplane
+くうこう|kuukou|airport
+ふね|fune|ship
+きっぷ|kippu|ticket
+パスポート|pasupooto|passport
+ホテル|hoteru|hotel
+レストラン|resutoran|restaurant
+カフェ|kafe|café
+みせ|mise|shop
+スーパー|suupaa|supermarket
+コンビニ|konbini|convenience store
+ぎんこう|ginkou|bank
+びょういん|byouin|hospital
+がっこう|gakkou|school
+こうえん|kouen|park
+おてら|otera|temple
+じんじゃ|jinja|shrine
+みち|michi|road
+ちず|chizu|map
+みぎ|migi|right
+ひだり|hidari|left
+まっすぐ|massugu|straight on
+きた|kita|north
+みなみ|minami|south
+ひがし|higashi|east
+にし|nishi|west
+りょこう|ryokou|travel
+"""),
+("nature", "てんき", "Nature & weather", "Sun, rain, sea and mountains, and how hot or cold it is.", """
+てんき|tenki|weather
+はれ|hare|sunny
+くもり|kumori|cloudy
+あめ|ame|rain
+ゆき|yuki|snow
+かぜ|kaze|wind
+かみなり|kaminari|thunder
+たいふう|taifuu|typhoon
+にじ|niji|rainbow
+そら|sora|sky
+くも|kumo|cloud
+たいよう|taiyou|sun
+つき|tsuki|moon
+ほし|hoshi|star
+うみ|umi|sea
+かわ|kawa|river
+やま|yama|mountain
+もり|mori|forest
+しま|shima|island
+き|ki|tree
+はな|hana|flower
+さくら|sakura|cherry blossom
+いし|ishi|stone
+あつい|atsui|hot
+さむい|samui|cold
+すずしい|suzushii|cool
+あたたかい|atatakai|warm
+"""),
+("actions", "うごき", "Actions", "Everyday verbs: eat, drink, go, see, buy, sleep and more.", """
+たべる|taberu|to eat
+のむ|nomu|to drink
+いく|iku|to go
+くる|kuru|to come
+みる|miru|to see / watch
+きく|kiku|to listen
+よむ|yomu|to read
+かく|kaku|to write
+はなす|hanasu|to speak
+わかる|wakaru|to understand
+する|suru|to do
+あう|au|to meet
+かう|kau|to buy
+まつ|matsu|to wait
+ねる|neru|to sleep
+おきる|okiru|to get up
+あるく|aruku|to walk
+はしる|hashiru|to run
+およぐ|oyogu|to swim
+あそぶ|asobu|to play
+うたう|utau|to sing
+つくる|tsukuru|to make
+あける|akeru|to open
+しめる|shimeru|to close
+すわる|suwaru|to sit
+はたらく|hataraku|to work
+べんきょうする|benkyousuru|to study
+おしえる|oshieru|to teach
+"""),
+("describing", "ようす", "Describing & colours", "Big, small, tasty, cute: adjectives and colours.", """
+おおきい|ookii|big
+ちいさい|chiisai|small
+たかい|takai|tall / expensive
+やすい|yasui|cheap
+あたらしい|atarashii|new
+ふるい|furui|old (things)
+いい|ii|good
+わるい|warui|bad
+おいしい|oishii|tasty
+たのしい|tanoshii|fun
+むずかしい|muzukashii|difficult
+やさしい|yasashii|easy / kind
+はやい|hayai|fast / early
+おそい|osoi|slow / late
+ながい|nagai|long
+みじかい|mijikai|short
+かわいい|kawaii|cute
+きれい|kirei|pretty / clean
+しずか|shizuka|quiet
+すごい|sugoi|amazing
+じょうず|jouzu|good at
+へた|heta|bad at
+すき|suki|to like
+あか|aka|red
+あお|ao|blue
+しろ|shiro|white
+くろ|kuro|black
+きいろ|kiiro|yellow
+みどり|midori|green
+ちゃいろ|chairo|brown
+ピンク|pinku|pink
+オレンジ|orenji|orange (colour)
+"""),
+]
+
 # ---------------------------------------------------------------- KanjiVG strokes
 def parse_path(d):
     toks = re.findall(r"[MmCcSsLlHhVvZz]|-?\d*\.?\d+(?:e-?\d+)?", d)
@@ -269,12 +648,28 @@ def main():
     rows = kana_rows()
     with open(os.path.join(DATA, "kana.tsv"), "w", encoding="utf-8") as f:
         for script, g, r, grp in rows: f.write(f"{script}\t{g}\t{r}\t{grp}\n")
+    # words: the kana-practice list, then every pack word; one row per word, column 4 = its pack ("" = none)
+    order, word = [], {}
+    for w in WORDS:
+        k, r, e = w.split("|")
+        if k not in word: order.append(k); word[k] = [k, r, e, ""]
+    glyphs = {}
+    for script, g, _, _ in kana_rows(): glyphs.setdefault(script, set()).update(g)
+    glyphs["hiragana"].add("っ"); glyphs["katakana"].update("ッー")
+    for pid, jp, name, desc, body in PACKS:
+        for line in body.strip().splitlines():
+            k, r, e = line.split("|")
+            script = "katakana" if ord(k[0]) >= 0x30A0 else "hiragana"
+            bad = [c for c in k if c not in glyphs[script]]
+            assert not bad, f"pack {pid}: {k} uses {bad} outside {script}"
+            assert all(c.isascii() and (c.isalpha() or c == "'") for c in r), f"pack {pid}: romaji {r!r}"
+            if k in word:
+                if not word[k][3]: word[k][3] = pid   # first pack wins (a word lives in one pack)
+            else: order.append(k); word[k] = [k, r, e, pid]
     with open(os.path.join(DATA, "words.tsv"), "w", encoding="utf-8") as f:
-        seen = set()
-        for w in WORDS:
-            k = w.split("|")[0]
-            if k in seen: continue
-            seen.add(k); f.write(w.replace("|", "\t") + "\n")
+        for k in order: f.write("\t".join(word[k]) + "\n")
+    with open(os.path.join(DATA, "packs.tsv"), "w", encoding="utf-8") as f:
+        for pid, jp, name, desc, body in PACKS: f.write(f"{pid}\t{jp}\t{name}\t{desc}\n")
 
     cps = sorted({ord(c) for _, g, _, _ in rows for c in g})
     def work(cp):
@@ -440,7 +835,7 @@ def build_fonts(rows):
        ui.ttf    : Zen Maru Gothic Medium, Latin (OFL) - same family as the kana, readable at small sizes
        fallback.ttf: Noto Sans CJK JP subset, for any glyph the other two lack (OFL)"""
     lic = os.path.join(DATA, "licenses"); os.makedirs(lic, exist_ok=True)
-    kana = sorted({c for _, g, _, _ in rows for c in g} | {c for w in WORDS for c in w.split("|")[0]}
+    kana = sorted({c for _, g, _, _ in rows for c in g} | {c for w in WORDS for c in w.split("|")[0]} | {c for p in PACKS for l in p[4].strip().splitlines() for c in l.split("|")[0]}
                   | {chr(c) for c in range(0x3041, 0x3097)} | {chr(c) for c in range(0x30A1, 0x30FB)})  # whole kana blocks: the kana keyboard can type any of them
     jp_extra = "ー・…。、「」？！〜（）"
     zen = fetch(GF + "ofl/zenmarugothic/ZenMaruGothic-Bold.ttf", "ZenMaruGothic-Bold.ttf")

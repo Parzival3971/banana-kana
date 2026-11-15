@@ -15,7 +15,8 @@ inline const char* scriptName(Script s) { return s == Script::Hiragana ? "Hiraga
 inline int si(Script s) { return s == Script::Hiragana ? 0 : 1; }
 
 struct Kana { Script script; std::string glyph, romaji, group; bool special = false; };  // special: っ ッ ー (read through words)
-struct Word { std::string kana, romaji, english; bool katakana; };
+struct Word { std::string kana, romaji, english; bool katakana; std::string pack; };
+struct Pack { std::string id, jp, name, desc; std::vector<int> words; };  // topic word pack (packs.tsv)
 struct Pt { float x, y; };
 using Stroke = std::vector<Pt>;
 struct Glyph { std::vector<Stroke> strokes; };  // coordinates in KanjiVG 109x109 space
@@ -50,6 +51,7 @@ struct Data {
   std::array<std::vector<Stage>, 2> stages;  // [script]
   std::vector<int> stageOfKana;              // kana index -> stage index
   std::vector<MixSet> mixSets;               // built-in look-alike sets (both scripts)
+  std::vector<Pack> packs;                   // topic word packs, in packs.tsv order
   bool load(const std::string& dir, std::string* err = nullptr);
   const Glyph* glyphFor(const std::string& kanaGlyph) const;  // single-codepoint kana only
   int scriptCount(Script s) const;  // kana in a script (105 hiragana, 119 katakana)
@@ -160,6 +162,13 @@ Question makeQuestionOfType(const Data& d, const Progress& p, std::mt19937& rng,
 bool typeAllowed(const Data& d, const Progress& p, int kanaIdx, QType t);  // the staging above
 int twinKana(const Data& d, const Progress& p, int kanaIdx);  // same sound in the other script, unlocked; -1 if none
 Question makeMatchQuestion(const Data& d, const Progress& p, std::mt19937& rng, int kanaIdx);
+// ---- word packs: a word is ready once every kana in it is unlocked (in its own script)
+constexpr int PACK_MIN = 4;  // ready words a pack needs before it can be practised
+bool wordReady(const Data& d, const Progress& p, const Word& w);
+std::vector<int> readyWords(const Data& d, const Progress& p, int pack);
+struct PackInfo { int total = 0, ready = 0, known = 0; };
+PackInfo packInfo(const Data& d, const Progress& p, int pack);
+Question makePackQuestion(const Data& d, const Progress& p, std::mt19937& rng, int pack);
 Question makeReviewQuestion(const Data& d, const Progress& p, std::mt19937& rng);  // due kana only
 std::vector<MixSet> mixupSets(const Data& d, const Progress& p, Script s);       // built-in + learned, unlocked only
 Question makeMixupQuestion(const Data& d, const Progress& p, std::mt19937& rng);

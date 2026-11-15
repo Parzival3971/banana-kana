@@ -3,6 +3,15 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
+## 0.3.0 - unreleased
+
+- Word packs: 12 topic packs (greetings, food & drink, numbers, time & days, people & family, animals, body, home &
+  things, town & travel, nature & weather, actions, describing & colours), about 340 words written for Banana Kana.
+  Open them from the new **Words** tile on Home. Pack quizzes mix kana → meaning, meaning → kana, reading and typing,
+  and a word joins its pack once every kana in it is unlocked. Words have 4 steps like kana, with a cheer when one
+  becomes known.
+- Normal practice draws on the bigger word list too.
+
 ## 0.2.0 - 2026-11-15
 
 - Hiragana ↔ katakana matching: once both scripts are open, some reading questions show a kana in one script and ask
