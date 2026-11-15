@@ -3,7 +3,7 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
-## 0.1.1 - unreleased
+## 0.1.1 - 2026-11-15
 
 - Both analogue sticks move like the d-pad (hold to repeat).
 - Fix: the X and Y buttons were swapped on the device (X now checks, Y now shows hints).
