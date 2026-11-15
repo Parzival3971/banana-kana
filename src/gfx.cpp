@@ -199,6 +199,33 @@ void iconLock(Win& w, int x, int y, int px, Col c) { pixIcon(w, {".###.", "#...#
 void iconCheck(Win& w, int x, int y, int px, Col c) { pixIcon(w, {".....#", "....#.", "#..#..", ".##...", "......"}, x, y, px, c); }
 void iconCross(Win& w, int x, int y, int px, Col c) { pixIcon(w, {"#...#", ".#.#.", "..#..", ".#.#.", "#...#"}, x, y, px, c); }
 
+// Progress ring: a full track, then `frac` of it filled clockwise from the top with round ends (triangles, one call each).
+void drawRing(Win& w, int cx, int cy, int rad, int thick, float frac, Col fill, Col track) {
+  auto arc = [&](float from, float to, Col c) {
+    if (to <= from) return;
+    const SDL_Color col{c.r, c.g, c.b, 255};
+    float ro = float(rad), ri = float(rad - thick);
+    int seg = std::max(4, int(64 * (to - from)));
+    std::vector<SDL_Vertex> v;
+    auto pt = [&](float r, float t) { float a = -1.5707963f + 6.2831853f * t; return SDL_FPoint{cx + r * std::cos(a), cy + r * std::sin(a)}; };
+    for (int i = 0; i < seg; i++) {
+      float t0 = from + (to - from) * i / seg, t1 = from + (to - from) * (i + 1) / seg;
+      SDL_FPoint a = pt(ro, t0), b = pt(ri, t0), c2 = pt(ro, t1), d = pt(ri, t1);
+      for (SDL_FPoint q : {a, b, d, a, d, c2}) v.push_back(SDL_Vertex{q, col, SDL_FPoint{0, 0}});
+    }
+    SDL_RenderGeometry(w.r, nullptr, v.data(), int(v.size()), nullptr, 0);
+  };
+  arc(0.f, 1.f, track);
+  frac = std::clamp(frac, 0.f, 1.f);
+  if (frac <= 0.f) return;
+  arc(0.f, frac, fill);
+  float mid = rad - thick / 2.f;  // round caps
+  for (float t : {0.f, frac}) {
+    float a = -1.5707963f + 6.2831853f * t;
+    fillCircle(w, int(cx + mid * std::cos(a)), int(cy + mid * std::sin(a)), thick / 2, fill);
+  }
+}
+
 // ------------------------------------------------------------------ glyphs
 SDL_Point glyphToBox(Pt p, SDL_Rect b) { return {int(b.x + p.x * b.w / 109.f), int(b.y + p.y * b.h / 109.f)}; }
 Pt boxToGlyph(int x, int y, SDL_Rect b) { return {(x - b.x) * 109.f / b.w, (y - b.y) * 109.f / b.h}; }

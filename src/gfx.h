@@ -44,6 +44,7 @@ void fillRect(Win& w, SDL_Rect r, Col c);
 void fillRound(Win& w, SDL_Rect r, int rad, Col c);
 void boxRound(Win& w, SDL_Rect r, int rad, Col fill, Col line, int t = 3);
 void fillCircle(Win& w, int cx, int cy, int rad, Col c);
+void drawRing(Win& w, int cx, int cy, int rad, int thick, float frac, Col fill, Col track);  // progress ring from 12 o'clock
 int textWidth(Win& w, int font, const std::string& s);  // logical px
 // Draws text in `box`, using the biggest font <= maxFont that fits on one line.
 void drawText(Win& w, const std::string& s, SDL_Rect box, Col c, int maxFont = F_MID, Align al = A_CENTER);

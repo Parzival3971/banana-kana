@@ -1,5 +1,6 @@
 #include "app.h"
 #include "sound.h"
+#include <ctime>
 
 #include <algorithm>
 #include <cmath>
@@ -12,7 +13,20 @@ namespace {
 const char* WEIGHT_NAMES[3] = {"Off", "Sometimes", "Often"};
 const char* REVIEW_NAMES[3] = {"Off", "Some", "Lots"};
 const int SESSION_LENS[4] = {5, 10, 15, 20};
-const int HOME_MODE_IDS[5] = {0, 1, 4, 2, 3};  // home mode row, left to right: Review, Mix-ups, Words, Timed, Stats (B_MODE0 + id)
+const int HOME_MODE_IDS[5] = {0, 1, 4, 2, 3};
+// Home: sticker colours for the four cartridges (Lesson, Stages, Kana chart, Settings) and pixel icons for the mode row,
+// drawn like the Settings group icons ('#' = main colour, 'B' = accent).
+const Col STICKER[4] = {hex(0xFFD23F), hex(0x8FD9B6), hex(0xF5A285), hex(0xC3B1F2)};
+const Col STICKER_TXT = hex(0x1D1B17);
+const std::vector<const char*> MODE_ICONS[5] = {  // by B_MODE0 id: review, mix-ups, timed, stats, words
+  {"...######...", "..#......#B.", ".#.......BB.", "#.......BBB.", "#...........", "#..........#", "...........#", ".BBB.......#", ".BB.......#.", ".B#......#..", "...######..."},  // review
+  {"..........B.", "###......BBB", "...#....#.B.", "....#..#....", ".....##.....", "....#..#....", "...#....#.B.", "###......BBB", "..........B."},  // mix-ups
+  {"....####....", ".....##.....", "...######...", "..#......#..", ".#....B...#.", ".#....B...#.", ".#....BBB..#", ".#........#.", "..#......#..", "...######..."},  // timed
+  {"..........BB", "..........BB", "......##..BB", "......##..BB", "..##..##..BB", "..##..##..BB", "..##..##..BB", "############"},  // stats
+  {"############", "#....#.....#", "#.BB.#.B.B.#", "#.BB.#.....#", "#....#.B.B.#", "######.....#", "#....#.B.B.#", "#.BB.#.....#", "############"},  // words (bento)
+};
+const std::vector<const char*> FLAME = {".....#......", "....##......", "....###.....", "...####..#..", "..#####.##..", "..########..",
+                                        ".####BB####.", ".###BBBB###.", ".###BBBB###.", "..##BBBB##..", "...######..."};  // home mode row, left to right: Review, Mix-ups, Words, Timed, Stats (B_MODE0 + id)
 int vowelCol(const std::string& romaji) {
   const std::string v = "aiueo";
   size_t p = v.find(romaji.back());
@@ -930,7 +944,8 @@ void App::drawHome() {
   Script sc = prog.settings.script; int scI = si(sc);
   const auto& stages = data.stages[scI];
   int curSt = prog.currentStage(sc); const Stage& st = stages[curSt];
-  header(scriptName(sc));
+  { std::time_t t = std::time_t(prog.now()); std::tm lt{}; localtime_r(&t, &lt);
+    header(lt.tm_hour < 5 ? "Burning the midnight oil?" : lt.tm_hour < 12 ? "Good morning!" : lt.tm_hour < 18 ? "Good afternoon!" : "Good evening!"); }
   // stage card
   SDL_Rect card{24, 58, 592, 206}; fillRound(top, card, 14, PANEL);
   int known = prog.stageKnown(data, sc, curSt), n = int(st.kana.size());
@@ -977,11 +992,26 @@ void App::drawHome() {
   int goal = prog.settings.dailyGoal, todayN = prog.today == dayNumber(prog.now()) ? prog.todayCount : 0;
   int streak = prog.currentStreak(), due = int(prog.dueKana(data, sc).size());
   std::string next = curSt + 1 < STAGE_COUNT ? stages[curSt + 1].name : "-";
-  statBox(top, SDL_Rect{24, 340, 140, 120}, "TODAY", std::to_string(todayN) + " / " + std::to_string(goal));
-  bar(top, SDL_Rect{38, 436, 112, 10}, float(todayN) / goal);
-  statBox(top, SDL_Rect{174, 340, 140, 120}, "STREAK", std::to_string(streak) + (streak == 1 ? " day" : " days"));
-  statBox(top, SDL_Rect{324, 340, 140, 120}, "REVIEWS DUE", std::to_string(due));
-  statBox(top, SDL_Rect{474, 340, 140, 120}, "NEXT UNLOCK", next, F_TINY);
+  { // today's goal as a ring that fills up
+    SDL_Rect r{24, 340, 196, 120}; fillRound(top, r, 12, PANEL);
+    bool met = todayN >= goal;
+    drawRing(top, r.x + 58, r.y + 60, 42, 11, float(todayN) / std::max(1, goal), met ? GOOD : ACCENT, TRACK);
+    if (met) iconCheck(top, r.x + 46, r.y + 52, 4, GOOD);
+    else drawText(top, std::to_string(todayN), SDL_Rect{r.x + 22, r.y + 40, 72, 40}, FG, F_SMALL);
+    drawText(top, "TODAY", SDL_Rect{r.x + 112, r.y + 14, 80, 20}, DIM, F_MICRO, A_LEFT);
+    drawText(top, std::to_string(todayN) + "/" + std::to_string(goal), SDL_Rect{r.x + 112, r.y + 38, 80, 36}, FG, F_TINY, A_LEFT);
+    drawText(top, met ? "goal met!" : std::to_string(goal - todayN) + " to go", SDL_Rect{r.x + 112, r.y + 76, 80, 24}, met ? GOOD : DIM, F_MICRO, A_LEFT);
+  }
+  { // streak with a flame (grey until the first day)
+    SDL_Rect r{230, 340, 124, 120}; fillRound(top, r, 12, PANEL);
+    drawText(top, "STREAK", SDL_Rect{r.x + 14, r.y + 8, r.w - 28, 20}, DIM, F_MICRO, A_LEFT);
+    pixIcon(top, FLAME, r.x + 14, r.y + 40, 4, streak ? hex(0xF07A4F) : DIS_TXT, streak ? ACCENT : DIS_LINE);
+    drawText(top, std::to_string(streak), SDL_Rect{r.x + 66, r.y + 34, r.w - 70, 44}, FG, F_SMALL, A_LEFT);
+    drawText(top, streak == 1 ? "day" : "days", SDL_Rect{r.x + 66, r.y + 80, r.w - 70, 22}, DIM, F_MICRO, A_LEFT);
+  }
+  statBox(top, SDL_Rect{364, 340, 124, 120}, "REVIEWS DUE", std::to_string(due));
+  if (due) fillRound(top, SDL_Rect{364 + 14, 340 + 96, 40, 8}, 4, ACCENT);
+  statBox(top, SDL_Rect{498, 340, 118, 120}, "NEXT UNLOCK", next, F_TINY);
 
   // cartridges
   bool lesson = prog.lessonPending(sc);
@@ -995,9 +1025,13 @@ void App::drawHome() {
     fillRound(bot, SDL_Rect{r.x + 4, r.y + 4, r.w - 8, 22}, 10, PANEL2);
     for (int j = 0; j < 5; j++) fillRect(bot, SDL_Rect{r.x + 26 + j * 18, r.y + 10, 8, 12}, LINE);
     SDL_Rect lab{r.x + 12, r.y + 34, r.w - 24, 128};
-    fillRound(bot, lab, 10, on ? ACCENT : PANEL2);
-    drawText(bot, glyphs[i], SDL_Rect{lab.x + 6, lab.y, lab.w - 12, lab.h}, on ? ON_ACCENT : FG, i == 0 ? F_MID : F_SMALL);
-    drawText(bot, labels[i], SDL_Rect{r.x + 6, r.y + 168, r.w - 12, 40}, FG, F_TINY);
+    Col stick = on ? STICKER[i] : mix(STICKER[i], PANEL, 0.25f);
+    fillRound(bot, lab, 10, stick);
+    fillRound(bot, SDL_Rect{lab.x, lab.y + lab.h - 26, lab.w, 26}, 10, mix(stick, STICKER_TXT, 0.12f));  // sticker's printed strip
+    fillRect(bot, SDL_Rect{lab.x, lab.y + lab.h - 26, lab.w, 10}, mix(stick, STICKER_TXT, 0.12f));
+    drawText(bot, glyphs[i], SDL_Rect{lab.x + 6, lab.y, lab.w - 12, lab.h - 26}, STICKER_TXT, i == 0 ? F_MID : F_SMALL);
+    drawText(bot, i == 0 ? "STAGE " + std::to_string(curSt + 1) : i == 1 ? "MAP" : i == 2 ? "CHART" : "OPTIONS", SDL_Rect{lab.x, lab.y + lab.h - 26, lab.w, 26}, mix(STICKER_TXT, stick, 0.3f), F_MICRO);
+    drawText(bot, labels[i], SDL_Rect{r.x + 6, r.y + 168, r.w - 12, 40}, on ? FG : DIM, F_TINY);
     addBtn(r, B_CART0 + i, ""); lastBtn().hidden = true;
   }
   // script switch
@@ -1017,9 +1051,15 @@ void App::drawHome() {
   const Mode mm[5] = {Mode::Review, Mode::Mixup, Mode::Timed, Mode::Normal, Mode::Normal};
   for (int slot = 0; slot < 5; slot++) {
     int i = HOME_MODE_IDS[slot];
-    addBtn(SDL_Rect{16 + slot * 122, 338, 116, 88}, B_MODE0 + i, ml[i], F_TINY, i == 4 ? !data.packs.empty() : modeAvailable(mm[i])); Button& b = lastBtn();
-    b.sub = ms[i]; if (i == 0 && due) b.subText = ACCENT_TXT;
-    if (homeSel == 4 + slot) { b.line = ACCENT; b.lineW = 4; }
+    bool en = i == 4 ? !data.packs.empty() : modeAvailable(mm[i]), on = homeSel == 4 + slot;
+    SDL_Rect r{16 + slot * 122, 336, 116, 94};
+    Col fill = on ? ACCENT : PANEL; if (pressedId == B_MODE0 + i) fill = mix(fill, FG, 0.2f);
+    if (on) fillRound(bot, r, 14, fill); else boxRound(bot, r, 14, fill, en ? mix(BG, FG, 0.55f) : DIS_LINE, 2);
+    Col ic = on ? ON_ACCENT : en ? FG : DIS_TXT, ia = on ? ON_ACCENT : en ? ACCENT : DIS_LINE;
+    pixIcon(bot, MODE_ICONS[i], r.x + (r.w - 36) / 2, r.y + 10, 3, ic, ia);
+    drawText(bot, ml[i], SDL_Rect{r.x + 4, r.y + 42, r.w - 8, 26}, on ? ON_ACCENT : en ? FG : DIS_TXT, F_TINY);
+    drawText(bot, ms[i], SDL_Rect{r.x + 4, r.y + 68, r.w - 8, 20}, on ? ON_ACCENT : !en ? DIS_TXT : (i == 0 && due) ? ACCENT_TXT : DIM, F_MICRO);
+    addBtn(r, B_MODE0 + i, ml[i], F_TINY, en); lastBtn().hidden = true; lastBtn().sub = ms[i];  // label/sub kept for the self-test
   }
   chips({{"A", homeSel == 0 && lesson ? "Lesson" : "Start"}, {"+", "Choose"}, {"Y", "Script"}, {"F+START", "Quit"}});
 }
