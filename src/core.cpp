@@ -234,7 +234,10 @@ void Progress::record(const std::string& key, bool ok) {
     s.wrong++; s.streak = 0; s.step = std::max(0, s.step - 1);
     if (kana && wasKnown) s.srs = std::max(1, s.srs - 1);       // relearn it; it comes back sooner once known again
   }
-  // daily goal and streak
+  countAnswer(ok, t);
+}
+
+void Progress::countAnswer(bool ok, Time t) {  // daily goal, streak and history
   goalJustMet = false;
   int d = dayNumber(t);
   if (d != today) { today = d; todayCount = 0; }
@@ -245,6 +248,39 @@ void Progress::record(const std::string& key, bool ok) {
     streak = lastGoalDay == dayNumber(t - 86400) ? streak + 1 : 1;
     lastGoalDay = d; bestStreak = std::max(bestStreak, streak); goalJustMet = true;
   }
+}
+
+void Progress::recordWrite(const std::string& key, bool ok, int level) {
+  Stat& s = stats[key];
+  if (level >= WRITE_MEMORY) {
+    record(key, ok);
+    if (!ok && s.wlv >= WRITE_MEMORY) s.wlv = WRITE_MEMORY - 1;  // back to the outline for a while
+    return;
+  }
+  s.seen++; if (ok) s.correct++; else s.wrong++;  // guided practice: counted, but no step won or lost
+  if (ok && s.wlvSession != session) { s.wlv = std::min(WRITE_MEMORY, s.wlv + 1); s.wlvSession = session; }
+  countAnswer(ok, now());
+}
+
+int Progress::writeLevel(const std::string& key) const {
+  auto it = stats.find(key); return it == stats.end() ? 0 : std::clamp(it->second.wlv, 0, WRITE_MEMORY);
+}
+
+void Progress::skipTo(const Data& d, Script s, int stage) {
+  stage = std::clamp(stage, 1, SKIP_ALL);
+  int n = std::min(stage - 1, STAGE_COUNT), spread = 0;
+  for (int st = 0; st < n; st++)
+    for (int ki : d.stages[si(s)][st].kana) {
+      Stat& x = stats[keyKana(d.kana[ki])];
+      if (x.step >= KNOWN_STEP) continue;
+      x.step = KNOWN_STEP; x.gainSession = -1; x.gain = 0;
+      x.srs = 1; x.due = now() + Time(86400) * (1 + spread++ % 2);  // a quick check in a day or two
+    }
+  int& u = unlocked[si(s)]; int& l = lessons[si(s)];
+  u = std::max(u, std::min(stage, STAGE_COUNT));
+  l = std::max(l, stage == SKIP_ALL ? STAGE_COUNT : stage - 1);
+  checkUnlocks(d);
+  for (int i = 0; i < 2; i++) l = std::max(l, 0);
 }
 
 bool Progress::isDue(const std::string& key) const {
@@ -359,6 +395,7 @@ bool Progress::load(const std::string& path, const Data* d) {
       std::string key; Stat s; is >> key >> s.seen >> s.correct >> s.wrong >> s.streak;
       if (!(is >> s.step >> s.gainSession >> s.gain)) { s.step = 0; s.gainSession = -1; s.gain = 0; }
       else if (!(is >> s.srs >> s.due)) { s.srs = 0; s.due = 0; }
+      else if (!(is >> s.wlv >> s.wlvSession)) { s.wlv = 0; s.wlvSession = -1; }
       stats[key] = s; anyStat = true;
     }
   }
@@ -392,7 +429,7 @@ bool Progress::save(const std::string& path) const {
       << "\nset lessons_h " << lessons[0] << "\nset lessons_k " << lessons[1] << "\n";
     for (const auto& [k, s] : stats)
       f << "stat " << k << ' ' << s.seen << ' ' << s.correct << ' ' << s.wrong << ' ' << s.streak << ' ' << s.step << ' '
-        << s.gainSession << ' ' << s.gain << ' ' << s.srs << ' ' << s.due << '\n';
+        << s.gainSession << ' ' << s.gain << ' ' << s.srs << ' ' << s.due << ' ' << s.wlv << ' ' << s.wlvSession << '\n';
     for (const auto& [dd, x] : days) f << "day " << dd << ' ' << x.answers << ' ' << x.correct << '\n';
     for (const auto& [k, n] : confusions) { auto bar = k.find('|'); f << "mix " << k.substr(0, bar) << ' ' << k.substr(bar + 1) << ' ' << n << '\n'; }
     if (!f) return false; }
@@ -473,15 +510,23 @@ std::vector<std::string> fillOptions(std::vector<std::string> pool, const std::s
   return opts;
 }
 
-int pickKana(const Data& d, const Progress& p, std::mt19937& rng, Script s, bool needGlyph) {
+bool allowedType(const Data& d, const Progress& p, int ki, QType t) {
+  if (ki < 0) return false;
+  int st = p.step(Progress::keyKana(d.kana[ki]));
+  if (t == QType::Write) return st >= PRODUCE_STEP && !d.writeParts(d.kana[ki].glyph).empty();
+  if (t == QType::Type) return st >= (p.settings.kanaKeys ? PRODUCE_STEP : TYPE_STEP);
+  return true;
+}
+
+int pickKana(const Data& d, const Progress& p, std::mt19937& rng, Script s, QType t) {
   std::vector<int> pool; std::vector<double> w;
   for (int i : unlockedKana(d, p, s)) {
-    if (needGlyph && d.writeParts(d.kana[i].glyph).empty()) continue;
+    if (!allowedType(d, p, i, t)) continue;
     double x = kanaWeight(d, p, i); if (x <= 0) continue;
     pool.push_back(i); w.push_back(x);
   }
   if (pool.empty()) {  // everything reviewed away: fall back to any unlocked kana
-    for (int i : unlockedKana(d, p, s)) if (!needGlyph || !d.writeParts(d.kana[i].glyph).empty()) { pool.push_back(i); w.push_back(1); }
+    for (int i : unlockedKana(d, p, s)) if (allowedType(d, p, i, t)) { pool.push_back(i); w.push_back(1); }
   }
   if (pool.empty()) return -1;
   std::discrete_distribution<int> dist(w.begin(), w.end());
@@ -491,7 +536,7 @@ int pickKana(const Data& d, const Progress& p, std::mt19937& rng, Script s, bool
 
 Question makeKanaQuestion(const Data& d, const Progress& p, std::mt19937& rng, int ki, QType type) {
   const Kana& k = d.kana[ki];
-  if (type == QType::Write && d.writeParts(k.glyph).empty()) type = QType::ReadKana;
+  if (!allowedType(d, p, ki, type)) type = QType::ReadKana;  // too new for writing or typing
   if (type == QType::Meaning) type = QType::ReadKana;
   Question q; q.type = type; q.key = Progress::keyKana(k); q.kanaIdx = ki;
   std::vector<int> pool = unlockedKana(d, p, k.script);
@@ -513,7 +558,9 @@ Question makeKanaQuestion(const Data& d, const Progress& p, std::mt19937& rng, i
       q.prompt = k.romaji; q.hint = "Pick the matching kana";
       q.options = fillOptions(kanaPool, k.glyph, rng, n, &q.correct); q.optionsAreKana = true; q.answer = k.glyph; break;
     case QType::Write:
-      q.prompt = k.romaji; q.hint = "Trace the kana"; q.answer = k.glyph; break;
+      q.writeLevel = p.writeLevel(q.key); q.prompt = k.romaji; q.answer = k.glyph;
+      q.hint = q.writeLevel == 0 ? "Trace the kana over the guide" : q.writeLevel == 1 ? "Write it over the outline" : "Write it from memory";
+      break;
     case QType::Type:
       if (p.settings.kanaKeys) { q.prompt = k.romaji; q.hint = "Type it in kana"; q.answer = k.glyph; q.kanaInput = true; }
       else { q.prompt = k.glyph; q.hint = "Type the romaji"; q.answer = k.romaji; }
@@ -552,7 +599,8 @@ Question makeQuestionOfType(const Data& d, const Progress& p, std::mt19937& rng,
     if (words.size() >= 6) return makeWordQuestion(d, p, rng, t, words);
     t = QType::ReadKana;
   }
-  int ki = pickKana(d, p, rng, s, t == QType::Write);
+  int ki = pickKana(d, p, rng, s, t);
+  if (ki < 0) { ki = pickKana(d, p, rng, s, QType::ReadKana); t = QType::ReadKana; }
   return makeKanaQuestion(d, p, rng, ki, t);
 }
 
@@ -560,22 +608,35 @@ Question makeQuestion(const Data& d, const Progress& p, std::mt19937& rng) {
   const Settings& st = p.settings; Script s = st.script;
   auto words = eligibleWords(d, p, s);
   bool wordsOk = words.size() >= 6;
+  std::vector<const Word*> typeWords;  // typing a word needs every kana in it far enough along
+  for (auto* w : words) {
+    bool ok = true;
+    for (const std::string& c : Data::partNames(w->kana)) {
+      int ki = d.findKana(s, c);
+      if (ki >= 0 && !allowedType(d, p, ki, QType::Type)) ok = false;
+    }
+    if (ok) typeWords.push_back(w);
+  }
   struct Opt { QType t; bool word; double w; };
   std::vector<Opt> opts = {{QType::ReadKana, false, double(st.reading)}, {QType::RecallKana, false, double(st.reading)},
                            {QType::Write, false, double(st.writing)}, {QType::Type, false, double(st.typing)}};
   if (wordsOk) {
     opts.push_back({QType::Meaning, true, double(st.meanings)});
     opts.push_back({QType::ReadKana, true, st.reading * 0.5});
-    opts.push_back({QType::Type, true, st.typing * 0.5});
+    if (!typeWords.empty()) opts.push_back({QType::Type, true, st.typing * 0.5});
   }
   std::vector<double> w; for (auto& o : opts) w.push_back(o.w);
   double total = 0; for (double x : w) total += x;
-  if (total <= 0) return makeKanaQuestion(d, p, rng, pickKana(d, p, rng, s, false), QType::ReadKana);
+  if (total <= 0) return makeKanaQuestion(d, p, rng, pickKana(d, p, rng, s, QType::ReadKana), QType::ReadKana);
   std::discrete_distribution<int> dist(w.begin(), w.end());
   const Opt& o = opts[dist(rng)];
-  if (o.word) return makeWordQuestion(d, p, rng, o.t, words);
-  return makeKanaQuestion(d, p, rng, pickKana(d, p, rng, s, o.t == QType::Write), o.t);
+  if (o.word) return makeWordQuestion(d, p, rng, o.t, o.t == QType::Type ? typeWords : words);
+  int ki = pickKana(d, p, rng, s, o.t);
+  if (ki < 0) return makeKanaQuestion(d, p, rng, pickKana(d, p, rng, s, QType::ReadKana), QType::ReadKana);  // nothing far enough along yet
+  return makeKanaQuestion(d, p, rng, ki, o.t);
 }
+
+bool typeAllowed(const Data& d, const Progress& p, int ki, QType t) { return allowedType(d, p, ki, t); }
 
 // ---------------------------------------------------------------- reviews and mix-ups
 Question makeReviewQuestion(const Data& d, const Progress& p, std::mt19937& rng) {
@@ -653,7 +714,7 @@ Question makeTimedQuestion(const Data& d, const Progress& p, std::mt19937& rng) 
   if (p.settings.meanings > 0 && eligibleWords(d, p, s).size() >= 6) ts.push_back(QType::Meaning);
   QType t = ts[std::uniform_int_distribution<int>(0, int(ts.size()) - 1)(rng)];
   if (t == QType::Meaning) return makeQuestionOfType(d, p, rng, t);
-  int ki = pickKana(d, p, rng, s, false);
+  int ki = pickKana(d, p, rng, s, QType::ReadKana);
   return makeKanaQuestion(d, p, rng, ki, t);
 }
 

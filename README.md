@@ -25,11 +25,17 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
   - word meanings, using only words made of kana you've unlocked;
   - writing, traced with the stylus and scored stroke by stroke (combination kana are traced in two parts);
   - typing, in romaji or on a kana keyboard.
+- **One step at a time.** A brand-new kana is only asked as multiple choice. Typing comes once you've got it right,
+  then writing: first over the full guide, then over a faint outline, then from memory, one level per session.
+- **Already know some?** On first launch, say how much you know, or skip ahead later in Settings > Script.
+  Skipped kana count as known, with a quick review in a day or two to check.
 - **Progress that sticks.** A kana is *known* after 4 right answers spread over at least two sessions.
   Known kana then come back for **spaced review** after 1, 3, 7, 14, 30 and 90 days.
 - **Mix-ups.** Short drills on look-alikes such as さ/き, ね/れ/わ, シ/ツ and ソ/ン, with a note on how to tell them apart.
   Pairs you've confused yourself are added too.
 - **Timed challenge.** One-tap answers for 60 seconds, with a personal best for each script.
+- **Practice sets and free writing.** Pick kana in the chart and drill just those (a single kana is mixed with its
+  look-alikes), or write them freely with a full guide, an outline or none, without touching your progress.
 - **Daily goal and streak**, plus a stats screen with your last 14 days and an accuracy heatmap of every kana.
 - **Made for the device.**
   - Prompts on the top screen, answers and the tracing canvas on the touch screen.
@@ -48,6 +54,8 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 | <img src="docs/img/timed.png" width="250"><br>Timed challenge | <img src="docs/img/result.png" width="250"><br>Results | <img src="docs/img/unlocked.png" width="250"><br>Stage unlocked |
 | <img src="docs/img/stages.png" width="250"><br>Stage map | <img src="docs/img/chart.png" width="250"><br>Kana chart | <img src="docs/img/stats.png" width="250"><br>Stats |
 | <img src="docs/img/settings.png" width="250"><br>Settings | <img src="docs/img/light-home.png" width="250"><br>Light theme | <img src="docs/img/light-stats.png" width="250"><br>Light theme stats |
+| <img src="docs/img/welcome.png" width="250"><br>First launch | <img src="docs/img/practice-set.png" width="250"><br>Practice set | <img src="docs/img/free-write.png" width="250"><br>Free writing |
+| <img src="docs/img/skip.png" width="250"><br>Skipping ahead | <img src="docs/img/guided.png" width="250"><br>Guided writing | <img src="docs/img/credits.png" width="250"><br>Credits |
 
 </details>
 
@@ -73,11 +81,12 @@ You need an Anbernic RG DS Plus running BananaOS.
 | | |
 |---|---|
 | **Stylus / touch** (bottom screen) | Tap answers, keys and buttons. Buttons act when you lift, so slide off to cancel. Trace on the canvas. |
-| **D-pad** | Move between tiles, cartridges, stages, chart cells and settings |
+| **D-pad** (shown as ✛ in the hint chips) | Move between tiles, cartridges, stages, chart cells and settings |
 | **A** | Choose / confirm (press again on a chosen answer to check it) |
 | **B** | Back. In drills: undo a stroke or delete a letter |
 | **X** | Check the answer |
-| **Y** | Hint while writing. On Home, the chart and stats: switch hiragana / katakana |
+| **Y** | Hint while writing, guide in free writing. On Home and stats: switch hiragana / katakana |
+| **START** | In the chart: write the practice set freely |
 | **L / R** | Switch tabs, scripts or settings groups |
 | **F** (or **SELECT**) | Pause during practice: resume, back to menu or quit |
 | **F + START** | Quit from anywhere (BananaOS's F + SELECT works too) |
@@ -92,6 +101,10 @@ You need an Anbernic RG DS Plus running BananaOS.
 - **Spaced review.** A known kana is due again 1 day later, then 3, 7, 14, 30 and 90 days. Each right answer moves it
   to the next interval; a miss moves it back one and costs it a step, so it has to be re-learnt.
 - **Mix-ups.** When you pick the wrong kana, the pair is remembered. Mix-up drills show only the look-alikes as options.
+- **Staging.** Step 0: multiple choice only. Step 1: romaji typing too. Step 2: the kana keyboard and writing.
+  Writing has its own three levels (full guide, outline, memory) and moves up one level per session. Guided writing
+  is practice: it never costs a step. Writing from memory counts like any other answer, and a miss sends you back to
+  the outline for a while.
 
 ## Settings
 
@@ -101,7 +114,7 @@ Six groups, laid out like BananaOS's own Settings app:
 |---|---|
 | **Practice** | How often each drill appears, and whether typing uses a romaji or kana keyboard |
 | **Sessions** | Session length, how much older stages come back, and the daily goal |
-| **Script** | Hiragana or katakana |
+| **Script** | Which script you practise, and skipping ahead to a later stage (or unlocking katakana early) |
 | **Display** | Dark or light theme |
 | **Progress** | Your stats, and resetting progress (press twice; settings are kept) |
 | **About** | Version and credits |
@@ -186,7 +199,19 @@ self-test, plus the arm64 build and a package dry run.
 - **Fonts:** [Zen Maru Gothic](https://fonts.google.com/specimen/Zen+Maru+Gothic) and
   [Noto Sans CJK JP](https://github.com/notofonts/noto-cjk), both under the SIL Open Font License 1.1.
 - **Text:** the lesson hints, words and look-alike notes were written for Banana Kana.
+- **BananaOS:** [BananaLinux](https://github.com/JorreFog/BananaLinux) by JorreFog, the OS this all runs on.
 - **Thanks:** [Banana Player](https://github.com/tonywei92/banana-player) for documenting how apps work on BananaOS.
+
+## AI disclosure
+
+Banana Kana is built with AI assistance. The C++ code, tests, data and build tools, CI workflows and these docs were
+written by Claude (Anthropic) in Claude Code. The same goes for the lesson hints, look-alike notes and word list. The
+maintainer directs the work, decides how the app should behave, and tests every build on a real RG DS Plus.
+Commits written this way carry a `Co-Authored-By: Claude` trailer.
+
+Stroke data (KanjiVG) and fonts are third-party work by people, credited above. The README screenshots are rendered
+by the app's own self-test, not generated images. If you spot a mistake in a hint or a word, please
+[open an issue](https://github.com/Parzival3971/banana-kana/issues).
 
 Licence texts for all bundled data are in [`app/data/licenses`](app/data/licenses) and in the app under
 Settings > About > Credits.

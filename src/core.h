@@ -25,6 +25,10 @@ struct Glyph { std::vector<Stroke> strokes; };  // coordinates in KanjiVG 109x10
 constexpr int STAGE_COUNT = 14;
 constexpr int KATAKANA_AFTER = 10;     // katakana unlocks once hiragana stage 10 is passed
 constexpr int KNOWN_STEP = 4;          // a kana is "known" at step 4
+constexpr int SKIP_ALL = STAGE_COUNT + 1;  // skipTo(): every stage known
+// Staging: a brand-new kana is only asked as multiple choice. Romaji typing from step 1,
+// kana keyboard and writing (guided first) from step 2.
+constexpr int TYPE_STEP = 1, PRODUCE_STEP = 2, WRITE_MEMORY = 2;
 constexpr int MAX_GAIN_PER_SESSION = 2;  // right answers count for at most 2 steps per session
 
 struct Stage { std::string name; std::vector<int> kana; };  // indices into Data::kana
@@ -58,6 +62,7 @@ struct Data {
 struct Stat {
   int seen = 0, correct = 0, wrong = 0, streak = 0, step = 0, gainSession = -1, gain = 0;
   int srs = 0; Time due = 0;  // spaced review once known: level 1..SRS_LEVELS and when it is next due
+  int wlv = 0, wlvSession = -1;  // writing level: 0 full guide, 1 faint outline, 2 from memory (one level per session)
 };
 
 struct Settings {
@@ -94,6 +99,10 @@ struct Progress {
   static std::string keyKana(const Kana& k);
   static std::string keyWord(const Word& w);
   void record(const std::string& key, bool correct);  // steps, spaced review, daily goal
+  void countAnswer(bool correct, Time t);
+  void recordWrite(const std::string& key, bool correct, int level);  // guided writes (level < 2) don't move steps
+  int writeLevel(const std::string& key) const;
+  void skipTo(const Data& d, Script s, int stage);  // stages before `stage` (1-14, SKIP_ALL = all) become known, review soon
   bool isDue(const std::string& key) const;
   std::vector<int> dueKana(const Data& d, Script s) const;
   void addConfusion(const std::string& a, const std::string& b);
@@ -126,6 +135,7 @@ struct Question {
   bool isWord = false;
   bool optionsAreKana = false;
   bool kanaInput = false;  // Type question answered on the kana keyboard
+  int writeLevel = WRITE_MEMORY;  // Write: 0 full guide, 1 faint outline, 2 from memory
   bool mixup = false; std::string note;  // mix-up questions carry the set's difference note
   int kanaIdx = -1;                // for kana questions
 };
@@ -138,6 +148,7 @@ std::vector<const Word*> eligibleWords(const Data& d, const Progress& p, Script 
 Question makeQuestion(const Data& d, const Progress& p, std::mt19937& rng);
 Question makeKanaQuestion(const Data& d, const Progress& p, std::mt19937& rng, int kanaIdx, QType t);
 Question makeQuestionOfType(const Data& d, const Progress& p, std::mt19937& rng, QType t);
+bool typeAllowed(const Data& d, const Progress& p, int kanaIdx, QType t);  // the staging above
 Question makeReviewQuestion(const Data& d, const Progress& p, std::mt19937& rng);  // due kana only
 std::vector<MixSet> mixupSets(const Data& d, const Progress& p, Script s);       // built-in + learned, unlocked only
 Question makeMixupQuestion(const Data& d, const Progress& p, std::mt19937& rng);

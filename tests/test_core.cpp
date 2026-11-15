@@ -5,6 +5,9 @@
 using namespace kt;
 #define CHECK(c) do { if (!(c)) { printf("FAIL %s:%d  %s\n", __FILE__, __LINE__, #c); fails++; } } while (0)
 
+static void stepAll(const Data& d, Progress& p, int step) {  // every kana at least this far along
+  for (auto& k : d.kana) { int& st = p.stats[Progress::keyKana(k)].step; st = std::max(st, step); }
+}
 static void knowStage(const Data& d, Progress& p, Script s, int stage) {  // make every kana in a stage known
   for (int i : d.stages[si(s)][stage].kana) p.stats[Progress::keyKana(d.kana[i])].step = KNOWN_STEP;
 }
@@ -92,7 +95,8 @@ int main(int argc, char** argv) {
     auto w1 = eligibleWords(d, p, Script::Hiragana);
     for (auto* w : w1) for (uint32_t cp : utf8Codepoints(w->kana)) CHECK(cp >= 0x3041 && cp <= 0x304A);  // あ-お only
     printf("stage 1 words: %zu, question types seen: %zu\n", w1.size(), types.size());
-    CHECK(w1.size() >= 6); CHECK(types.size() >= 4);
+    CHECK(w1.size() >= 6); CHECK(types.size() == 3);  // brand-new kana: reading and meanings only
+    CHECK(!types.count(int(QType::Write)) && !types.count(int(QType::Type)));
     // everything unlocked: 6 options, all five types
     for (int s = 0; s < 13; s++) knowStage(d, p, Script::Hiragana, s);
     p.checkUnlocks(d); CHECK(p.unlocked[0] == STAGE_COUNT);
@@ -208,14 +212,14 @@ int main(int argc, char** argv) {
     auto kya = d.writeParts("きゃ"); CHECK(kya.size() == 2 && kya[0] == d.glyphFor("き") && kya[1] == d.glyphFor("や"));
     CHECK(d.writeParts("ジョ").size() == 2 && d.writeParts("ジョ")[1] == d.glyphFor("ヨ"));
     CHECK(Data::partNames("きゃ").size() == 2 && Data::partNames("きゃ")[1] == "ゃ");
-    Progress p; p.unlocked[0] = STAGE_COUNT; std::mt19937 rng(4); int combos = 0;
+    Progress p; p.unlocked[0] = STAGE_COUNT; std::mt19937 rng(4); int combos = 0; stepAll(d, p, PRODUCE_STEP);
     for (int n = 0; n < 400; n++) { Question q = makeQuestionOfType(d, p, rng, QType::Write); CHECK(q.type == QType::Write);
       if (Data::partNames(q.answer).size() == 2) combos++; }
     CHECK(combos > 0);
   }
   // ---- kana keyboard typing
   {
-    Progress p; p.settings.kanaKeys = true; p.unlocked[0] = STAGE_COUNT; std::mt19937 rng(6);
+    Progress p; p.settings.kanaKeys = true; p.unlocked[0] = STAGE_COUNT; std::mt19937 rng(6); stepAll(d, p, PRODUCE_STEP);
     int ji = d.findKana(Script::Hiragana, "ぢ");
     Question q = makeKanaQuestion(d, p, rng, ji, QType::Type);
     CHECK(q.kanaInput && q.answer == "ぢ" && q.prompt == d.kana[ji].romaji);
@@ -232,6 +236,39 @@ int main(int argc, char** argv) {
     p.timedBest[1] = 23; CHECK(p.save("/tmp/kt_days.txt")); Progress b; CHECK(b.load("/tmp/kt_days.txt", &d));
     CHECK(b.days.size() == 2 && b.timedBest[1] == 23 && b.days.rbegin()->second.correct == 1);
     CHECK(dayDiff(20261130, 20261201) == 1 && dayDiff(20261231, 20270101) == 1 && dayDiff(20261115, 20261101) == -14);
+  }
+  // ---- staging: choice only at step 0, romaji typing from step 1, kana keyboard and writing from step 2
+  {
+    Progress p; std::mt19937 rng(11); int a = d.findKana(Script::Hiragana, "あ"); std::string ka = "h:あ";
+    CHECK(!typeAllowed(d, p, a, QType::Write) && !typeAllowed(d, p, a, QType::Type) && typeAllowed(d, p, a, QType::ReadKana));
+    CHECK(makeKanaQuestion(d, p, rng, a, QType::Write).type == QType::ReadKana);
+    p.stats[ka].step = 1; CHECK(typeAllowed(d, p, a, QType::Type) && !typeAllowed(d, p, a, QType::Write));
+    p.settings.kanaKeys = true; CHECK(!typeAllowed(d, p, a, QType::Type));
+    p.stats[ka].step = 2; CHECK(typeAllowed(d, p, a, QType::Type) && typeAllowed(d, p, a, QType::Write));
+    // writing levels: full guide -> outline -> memory, one level per session; guided writes don't move steps
+    Question q = makeKanaQuestion(d, p, rng, a, QType::Write); CHECK(q.type == QType::Write && q.writeLevel == 0);
+    p.session = 1; p.recordWrite(ka, false, 0); CHECK(p.step(ka) == 2 && p.writeLevel(ka) == 0);
+    p.recordWrite(ka, true, 0); CHECK(p.step(ka) == 2 && p.writeLevel(ka) == 1);
+    p.recordWrite(ka, true, 1); CHECK(p.writeLevel(ka) == 1);   // one level per session
+    p.session = 2; p.recordWrite(ka, true, 1); CHECK(p.writeLevel(ka) == 2 && p.step(ka) == 2);
+    p.recordWrite(ka, true, 2); CHECK(p.step(ka) == 3);         // from memory: counts like any answer
+    p.recordWrite(ka, false, 2); CHECK(p.step(ka) == 2 && p.writeLevel(ka) == 1);
+    CHECK(p.save("/tmp/kt_wlv.txt")); Progress b; CHECK(b.load("/tmp/kt_wlv.txt", &d)); CHECK(b.writeLevel(ka) == 1 && b.stats[ka].wlvSession == 2);
+  }
+  // ---- skipping ahead: earlier stages known with an early review, katakana straight away
+  {
+    Progress p; p.clock = 1700000000;
+    p.skipTo(d, Script::Hiragana, 5);
+    CHECK(p.unlocked[0] == 5 && p.lessons[0] == 4 && p.lessonPending(Script::Hiragana));
+    for (int st = 0; st < 4; st++) CHECK(p.stageKnown(d, Script::Hiragana, st) == int(d.stages[0][st].kana.size()));
+    CHECK(p.stageKnown(d, Script::Hiragana, 4) == 0 && p.dueKana(d, Script::Hiragana).empty());
+    p.clock += 2 * 86400; CHECK(p.dueKana(d, Script::Hiragana).size() == 20);   // all checked within two days
+    p.skipTo(d, Script::Hiragana, 3); CHECK(p.unlocked[0] == 5);                   // never moves back
+    CHECK(!p.scriptUnlocked(Script::Katakana)); p.skipTo(d, Script::Katakana, 1);
+    CHECK(p.unlocked[1] == 1 && p.lessons[1] == 0 && p.lessonPending(Script::Katakana));
+    Progress all; all.skipTo(d, Script::Hiragana, SKIP_ALL);
+    CHECK(all.knownCount(d, Script::Hiragana) == 104 && all.unlocked[0] == STAGE_COUNT && !all.lessonPending(Script::Hiragana));
+    CHECK(all.scriptUnlocked(Script::Katakana) && all.unlocked[1] == 1);          // katakana opens as usual after stage 10
   }
   printf(fails ? "%d FAILURES\n" : "all core tests passed\n", fails); return fails != 0;
 }

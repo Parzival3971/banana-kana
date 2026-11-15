@@ -79,7 +79,7 @@ void App::go(Screen s) {
     if (!cells.empty()) chartSel = cells[0].kana;
   }
   if (s == Screen::Home) homeSel = std::clamp(homeSel, 0, 7);
-  if (s == Screen::SettingsGroup) { resetArmed = false; setRow = std::clamp(setRow, 0, std::max(0, int(settingRows(setGroup).size()) - 1)); }
+  if (s == Screen::SettingsGroup) { skipPending[0] = skipCurrent(Script::Hiragana); skipPending[1] = skipCurrent(Script::Katakana); resetArmed = false; setRow = std::clamp(setRow, 0, std::max(0, int(settingRows(setGroup).size()) - 1)); }
 }
 
 void App::setScript(Script s) {
@@ -88,7 +88,62 @@ void App::setScript(Script s) {
 }
 
 void App::startSession(int focus) {
-  if (focus >= 0) { focusKana = focus; startMode(Mode::Focus); } else startMode(Mode::Normal);
+  if (focus >= 0) startFocus({focus}); else startMode(Mode::Normal);
+}
+
+void App::startFocus(const std::vector<int>& set) {
+  focusSet.clear();
+  for (int k : set) if (prog.isUnlocked(data, k)) focusSet.push_back(k);
+  if (focusSet.empty()) return;
+  focusKana = focusSet[0]; startMode(Mode::Focus);
+}
+
+void App::openFreeWrite(const std::vector<int>& list) {
+  if (list.empty()) return;
+  fwList = list; fwIdx = 0; strokes.clear(); part = 0; partStrokes.clear(); partOk.clear(); strokeOk.clear(); checked = false;
+  go(Screen::FreeWrite);
+}
+
+void App::welcomeChoice(int i) {
+  firstRun = false;
+  if (i == 1) { prog.skipTo(data, Script::Hiragana, SKIP_ALL); prog.settings.script = Script::Katakana; }
+  if (i == 2) { prog.skipTo(data, Script::Hiragana, SKIP_ALL); prog.skipTo(data, Script::Katakana, SKIP_ALL); }
+  pendingUnlocks.clear(); save();
+  if (i == 3) { setGroup = 2; setRow = 1; go(Screen::SettingsGroup); return; }
+  go(Screen::Home);
+}
+
+int App::skipCurrent(Script s) const {
+  if (prog.knownCount(data, s) >= 104) return SKIP_ALL;
+  return prog.unlocked[si(s)];
+}
+
+void App::confirmSetting(int g, int r) {
+  if (g == 2 && r >= 1) {
+    int i = r - 1; Script sc = i ? Script::Katakana : Script::Hiragana;
+    if (skipPending[i] > skipCurrent(sc)) { prog.skipTo(data, sc, skipPending[i]); pendingUnlocks.clear(); save(); }
+    skipPending[0] = skipCurrent(Script::Hiragana); skipPending[1] = skipCurrent(Script::Katakana);
+    return;
+  }
+  changeSetting(g, r, +1);
+}
+
+bool App::scoreWriting(const std::string& glyph, bool* countsMatch, size_t* total) {
+  auto parts = data.writeParts(glyph); int np = int(parts.size());
+  partStrokes.push_back(strokes); partOk.clear();
+  bool ok = true, counts = true; size_t tot = 0;
+  for (int pi = 0; pi < np && pi < int(partStrokes.size()); pi++) {
+    const auto& ss = partStrokes[pi]; const Glyph* pg = parts[pi]; std::vector<int> okv(ss.size(), 0);
+    if (ss.size() != pg->strokes.size()) { ok = false; counts = false; }
+    for (size_t i = 0; i < ss.size(); i++) {
+      bool sOk = i < pg->strokes.size() && scoreStroke(ss[i], pg->strokes[i]).ok; okv[i] = sOk; if (!sOk) ok = false;
+    }
+    partOk.push_back(okv); tot += ss.size();
+  }
+  partStrokes.pop_back(); strokeOk = partOk.empty() ? std::vector<int>{} : partOk.back();
+  if (countsMatch) *countsMatch = counts;
+  if (total) *total = tot;
+  return ok;
 }
 
 bool App::modeAvailable(Mode m) const {
@@ -102,7 +157,7 @@ void App::startMode(Mode m) {
   if (!modeAvailable(m)) m = Mode::Normal;
   mode = m; prog.session++;
   if (m != Mode::Focus) focusKana = -1;
-  sessionLen = m == Mode::Focus ? 5 : prog.settings.sessionLen;
+  sessionLen = prog.settings.sessionLen;
   if (m == Mode::Review) sessionLen = std::min(sessionLen, int(prog.dueKana(data, prog.settings.script).size()));
   if (m == Mode::Timed) { sessionLen = 0; timedLeft = TIMED_MS; timedLast = SDL_GetTicks(); timedNewBest = false; flash = 0; flashText.clear(); }
   index = 0; score = 0; results.clear(); missed.clear(); newlyKnown.clear(); lastKey.clear(); goalMet = false;
@@ -110,6 +165,10 @@ void App::startMode(Mode m) {
 }
 
 bool App::tick(Uint32 now) {
+  if (screen == Screen::Credits && !paused) {  // gentle animation
+    if (now - creditsLast >= 80) { creditsLast = now; return true; }
+    return false;
+  }
   if (screen != Screen::Drill || mode != Mode::Timed) return false;
   Uint32 dt = now - timedLast; timedLast = now;
   if (paused) return false;
@@ -131,7 +190,31 @@ void App::nextQuestion(bool first) {
       double tot = 0; for (double x : w) tot += x;
       QType t = QType::ReadKana;
       if (tot > 0) { std::discrete_distribution<int> d(w.begin(), w.end()); t = ts[d(rng)].first; }
-      q = makeKanaQuestion(data, prog, rng, focusKana, t); break;
+      // the set itself; a single kana is mixed with its look-alikes and row-mates so the answer isn't always the same
+      std::vector<int> pool = focusSet;
+      if (focusSet.size() == 1) {
+        int k0 = focusSet[0];
+        for (const MixSet& m : data.mixSets)
+          if (std::count(m.kana.begin(), m.kana.end(), k0))
+            for (int o : m.kana) if (o != k0 && prog.isUnlocked(data, o) && !std::count(pool.begin(), pool.end(), o)) pool.push_back(o);
+        for (int o : data.stages[si(data.kana[k0].script)][data.stageOfKana[k0]].kana)
+          if (o != k0 && prog.isUnlocked(data, o) && !std::count(pool.begin(), pool.end(), o)) pool.push_back(o);
+      }
+      int target = focusSet[std::uniform_int_distribution<int>(0, int(focusSet.size()) - 1)(rng)];
+      if (focusSet.size() == 1 && pool.size() > 1 && std::uniform_int_distribution<int>(0, 1)(rng))
+        target = pool[std::uniform_int_distribution<int>(1, int(pool.size()) - 1)(rng)];
+      q = makeKanaQuestion(data, prog, rng, target, t);
+      if (!q.options.empty() && !q.isWord) {  // wrong options from the set first, so it's about telling these apart
+        bool kanaOpts = q.optionsAreKana; std::vector<std::string> opts{q.answer}, cand;
+        for (int o : pool) if (o != target) { std::string v = kanaOpts ? data.kana[o].glyph : data.kana[o].romaji; if (v != q.answer) cand.push_back(v); }
+        std::shuffle(cand.begin(), cand.end(), rng);
+        for (auto& c : cand) if (opts.size() < q.options.size() && !std::count(opts.begin(), opts.end(), c)) opts.push_back(c);
+        for (auto& c : q.options) if (opts.size() < q.options.size() && !std::count(opts.begin(), opts.end(), c)) opts.push_back(c);
+        std::shuffle(opts.begin(), opts.end(), rng);
+        q.options = opts; q.correct = int(std::find(opts.begin(), opts.end(), q.answer) - opts.begin());
+      }
+      if (q.key == lastKey && tries < 5) continue;
+      break;
     }
     if (mode == Mode::Review) q = makeReviewQuestion(data, prog, rng);
     else if (mode == Mode::Mixup) q = makeMixupQuestion(data, prog, rng);
@@ -155,6 +238,10 @@ void App::finishSession() {
 
 const Glyph* App::activeGlyph() const {
   if (screen == Screen::Lesson) { int k = currentLessonKana(); return k >= 0 ? data.glyphFor(data.kana[k].glyph) : nullptr; }
+  if (screen == Screen::FreeWrite && !fwList.empty()) {
+    auto parts = data.writeParts(data.kana[fwList[fwIdx]].glyph);
+    return parts.empty() ? nullptr : parts[std::min(part, int(parts.size()) - 1)];
+  }
   if (screen == Screen::Drill && q.type == QType::Write) {
     auto parts = data.writeParts(q.answer);
     return parts.empty() ? nullptr : parts[std::min(part, int(parts.size()) - 1)];
@@ -162,7 +249,10 @@ const Glyph* App::activeGlyph() const {
   return nullptr;
 }
 
-int App::writePartCount() const { return int(data.writeParts(q.answer).size()); }
+int App::writePartCount() const {
+  if (screen == Screen::FreeWrite && !fwList.empty()) return int(data.writeParts(data.kana[fwList[fwIdx]].glyph).size());
+  return int(data.writeParts(q.answer).size());
+}
 
 int App::currentLessonKana() const {
   const auto& st = data.stages[si(lessonScript)];
@@ -179,18 +269,8 @@ void App::check() {
       const Glyph* g = activeGlyph(); if (!g || strokes.empty()) return;
       int np = writePartCount();
       if (part < np - 1) { partStrokes.push_back(strokes); strokes.clear(); part++; return; }  // on to the next part
-      auto parts = data.writeParts(q.answer);
-      partStrokes.push_back(strokes); partOk.clear(); ok = true;
       bool counts = true; size_t total = 0;
-      for (int pi = 0; pi < np; pi++) {
-        const auto& ss = partStrokes[pi]; const Glyph* pg = parts[pi]; std::vector<int> okv(ss.size(), 0);
-        if (ss.size() != pg->strokes.size()) { ok = false; counts = false; }
-        for (size_t i = 0; i < ss.size(); i++) {
-          bool s = i < pg->strokes.size() && scoreStroke(ss[i], pg->strokes[i]).ok; okv[i] = s; if (!s) ok = false;
-        }
-        partOk.push_back(okv); total += ss.size();
-      }
-      partStrokes.pop_back(); strokeOk = partOk.back();
+      ok = scoreWriting(q.answer, &counts, &total);
       said = counts ? "a different shape" : std::to_string(total) + " strokes";
       break; }
     case QType::Type:
@@ -200,7 +280,8 @@ void App::check() {
   }
   int before = q.isWord ? 0 : prog.step(q.key);
   checked = true; correct = ok; results.push_back(ok ? 1 : 0);
-  prog.record(q.key, ok);
+  int wlvBefore = prog.writeLevel(q.key);
+  if (q.type == QType::Write) prog.recordWrite(q.key, ok, q.writeLevel); else prog.record(q.key, ok);
   int after = q.isWord ? 0 : prog.step(q.key);
   const Kana* k = q.kanaIdx >= 0 ? &data.kana[q.kanaIdx] : nullptr;
   if (ok) {
@@ -216,6 +297,12 @@ void App::check() {
         if (o.script != k->script || int(i) == q.kanaIdx) continue;
         if ((q.optionsAreKana ? o.glyph : o.romaji) == said) { prog.addConfusion(q.key, Progress::keyKana(o)); break; }
       }
+  }
+  if (q.type == QType::Write && q.writeLevel < WRITE_MEMORY) {
+    int wa = prog.writeLevel(q.key);
+    if (ok) feedbackNote = wa > wlvBefore ? (wa == 1 ? "Guided practice. Next time: just the outline." : "Guided practice. Next time: from memory!")
+                                          : "Guided practice: steps count once you write it from memory.";
+    else feedbackNote += (feedbackNote.empty() ? "" : " ") + std::string("Guided practice, so no step lost.");
   }
   if (q.mixup) feedbackNote = q.note;
   else if (ok && k && mode == Mode::Review) {
@@ -328,8 +415,14 @@ void App::press(int id) {
     case Screen::Chart:
       if (id >= B_CELL0) {
         int k = id - B_CELL0;
-        if (k == chartSel && prog.isUnlocked(data, k)) startSession(k); else chartSel = k;
-      } else if (id >= B_TAB0 && id < B_TAB0 + 3) { chartTab = id - B_TAB0; go(Screen::Chart); }
+        if (k == chartSel && prog.isUnlocked(data, k)) {  // tap again: in or out of the practice set
+          auto it = std::find(chartPick.begin(), chartPick.end(), k);
+          if (it != chartPick.end()) chartPick.erase(it); else chartPick.push_back(k);
+        } else chartSel = k;
+      } else if (id == B_PICK_DRILL) startFocus(chartPick.empty() ? std::vector<int>{chartSel} : chartPick);
+      else if (id == B_PICK_WRITE) openFreeWrite(chartPick.empty() ? std::vector<int>{chartSel} : chartPick);
+      else if (id == B_PICK_CLEAR) chartPick.clear();
+      else if (id >= B_TAB0 && id < B_TAB0 + 3) { chartTab = id - B_TAB0; go(Screen::Chart); }
       else if (id == B_SCRIPT_H) { setScript(Script::Hiragana); go(Screen::Chart); }
       else if (id == B_SCRIPT_K) { setScript(Script::Katakana); go(Screen::Chart); }
       else if (id == B_SCROLL_UP) chartScroll = std::max(0, chartScroll - 1);
@@ -347,14 +440,34 @@ void App::press(int id) {
       int n = int(settingRows(setGroup).size());
       if (id >= B_SROW0 && id < B_SROW0 + n) {
         int r = id - B_SROW0;
-        if (r == setRow) changeSetting(setGroup, r, +1); else { setRow = r; resetArmed = false; }
+        if (r == setRow) confirmSetting(setGroup, r); else { setRow = r; resetArmed = false; go(Screen::SettingsGroup); }
       } else if (id >= B_SDEC0 && id < B_SDEC0 + n) { setRow = id - B_SDEC0; changeSetting(setGroup, setRow, -1); }
       else if (id >= B_SINC0 && id < B_SINC0 + n) { setRow = id - B_SINC0; changeSetting(setGroup, setRow, +1); }
       else if (id == B_FOOT_L) go(Screen::Settings);
-      else if (id == B_FOOT_R) changeSetting(setGroup, setRow, +1);
+      else if (id == B_FOOT_R) confirmSetting(setGroup, setRow);
       break; }
     case Screen::Credits:
       if (id == B_BACK) go(Screen::SettingsGroup);
+      break;
+    case Screen::FreeWrite: {
+      auto reset = [&]() { strokes.clear(); part = 0; partStrokes.clear(); partOk.clear(); strokeOk.clear(); checked = false; };
+      int n = int(fwList.size());
+      if (id == B_FW_GUIDE) fwGuide = (fwGuide + 1) % 3;
+      else if (id == B_UNDO && !checked) { if (!strokes.empty()) strokes.pop_back(); else if (part > 0) { part--; strokes = partStrokes.back(); partStrokes.pop_back(); } }
+      else if (id == B_CLEAR && !checked) strokes.clear();
+      else if (id == B_CHECK) {
+        if (checked) reset();
+        else if (!strokes.empty()) {
+          if (part < writePartCount() - 1) { partStrokes.push_back(strokes); strokes.clear(); part++; }
+          else { bool counts = true; size_t total = 0; correct = scoreWriting(data.kana[fwList[fwIdx]].glyph, &counts, &total); checked = true;
+                 feedbackNote = correct ? "" : counts ? "Right number of strokes; check the red ones." : std::to_string(total) + " strokes drawn."; }
+        }
+      } else if (id == B_FW_NEXT && n) { fwIdx = (fwIdx + 1) % n; reset(); }
+      else if (id == B_FW_PREV && n) { fwIdx = (fwIdx + n - 1) % n; reset(); }
+      else if (id == B_BACK) go(Screen::Chart);
+      break; }
+    case Screen::Welcome:
+      if (id >= B_WELCOME0 && id < B_WELCOME0 + 4) welcomeChoice(id - B_WELCOME0);
       break;
     case Screen::Stats:
       if (id >= B_HEAT0) {  // open that kana in the chart
@@ -375,7 +488,7 @@ SDL_Rect App::canvasRect() const {
 
 void App::pointer(int type, int x, int y) {
   bool canDraw = !paused && ((screen == Screen::Drill && q.type == QType::Write && !checked) ||
-                             (screen == Screen::Lesson && activeGlyph()));
+                             (screen == Screen::Lesson && activeGlyph()) || (screen == Screen::FreeWrite && !checked));
   if (canDraw) {
     SDL_Rect c = canvasRect();
     bool in = x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h;
@@ -448,7 +561,9 @@ void App::padButton(SDL_GameControllerButton b) {
       if (b == B) { press(B_BACK); break; }
       if (b == LS || b == RS) { chartTab = (chartTab + (b == RS ? 1 : 2)) % 3; go(Screen::Chart); break; }
       if (b == Y) { press(sc == Script::Hiragana ? B_SCRIPT_K : B_SCRIPT_H); break; }
-      if (b == A) { if (chartSel >= 0 && prog.isUnlocked(data, chartSel)) startSession(chartSel); break; }
+      if (b == A) { if (chartSel >= 0) press(B_CELL0 + chartSel); break; }  // chartSel is selected, so this toggles it in the set
+      if (b == X) { press(B_PICK_DRILL); break; }
+      if (b == ST) { press(B_PICK_WRITE); break; }
       auto cells = chartCells(sc, chartTab);
       const Cell* c0 = nullptr; for (auto& c : cells) if (c.kana == chartSel) c0 = &c;
       if (!c0) break;
@@ -464,7 +579,7 @@ void App::padButton(SDL_GameControllerButton b) {
       if (best) {
         chartSel = best->kana;
         if (best->row < chartScroll) chartScroll = best->row;
-        if (best->row >= chartScroll + 5) chartScroll = best->row - 4;
+        if (best->row >= chartScroll + 4) chartScroll = best->row - 3;
       }
       break; }
     case Screen::Settings:
@@ -474,15 +589,24 @@ void App::padButton(SDL_GameControllerButton b) {
       break;
     case Screen::SettingsGroup: {
       int n = int(settingRows(setGroup).size());
-      if (b == U) { setRow = (setRow + n - 1) % n; resetArmed = false; }
-      else if (b == D) { setRow = (setRow + 1) % n; resetArmed = false; }
+      if (b == U) { setRow = (setRow + n - 1) % n; go(Screen::SettingsGroup); }
+      else if (b == D) { setRow = (setRow + 1) % n; go(Screen::SettingsGroup); }
       else if (b == L) changeSetting(setGroup, setRow, -1);
-      else if (b == R || b == A) changeSetting(setGroup, setRow, +1);
+      else if (b == R) changeSetting(setGroup, setRow, +1);
+      else if (b == A) confirmSetting(setGroup, setRow);
       else if (b == B) press(B_FOOT_L);
       else if (b == LS || b == RS) { setGroup = (setGroup + (b == RS ? 1 : GROUPS - 1)) % GROUPS; setRow = 0; go(Screen::SettingsGroup); }
       break; }
     case Screen::Credits:
       if (b == B || b == A) press(B_BACK);
+      break;
+    case Screen::FreeWrite:
+      if (b == A) press(B_CHECK); else if (b == X) press(B_UNDO); else if (b == Y) press(B_FW_GUIDE);
+      else if (b == L || b == LS) press(B_FW_PREV); else if (b == R || b == RS) press(B_FW_NEXT); else if (b == B) press(B_BACK);
+      break;
+    case Screen::Welcome:
+      if (b == U) welcomeSel = (welcomeSel + 3) % 4; else if (b == D) welcomeSel = (welcomeSel + 1) % 4;
+      else if (b == A || b == ST) press(B_WELCOME0 + welcomeSel);
       break;
     case Screen::Stats:
       if (b == B) press(B_BACK);
@@ -553,7 +677,10 @@ void App::chips(const std::vector<std::pair<std::string, std::string>>& items) {
     if (x + w > LW - 8) break;
     fillRound(bot, SDL_Rect{x, 438, w, 34}, 17, PANEL);
     fillRound(bot, SDL_Rect{x + 3, 441, kw, 28}, 14, FG);
-    drawText(bot, k, SDL_Rect{x + 3, 441, kw, 28}, BG, F_MICRO);
+    if (k == "+") {  // the d-pad, drawn as a cross
+      int cx = x + 3 + kw / 2, cy = 455;
+      fillRound(bot, SDL_Rect{cx - 9, cy - 3, 18, 6}, 2, BG); fillRound(bot, SDL_Rect{cx - 3, cy - 9, 6, 18}, 2, BG);
+    } else drawText(bot, k, SDL_Rect{x + 3, 441, kw, 28}, BG, F_MICRO);
     drawText(bot, label, SDL_Rect{x + 4 + kw + 8, 438, lw + 4, 34}, FG, F_MICRO, A_LEFT);
     x += w + 8;
   }
@@ -586,21 +713,22 @@ void App::stepPips(Win& w, int x, int y, int step, int size) {
   for (int j = 0; j < KNOWN_STEP; j++) fillRound(w, SDL_Rect{x + j * (size + 4), y, size, size}, 3, j < step ? ACCENT : TRACK);
 }
 
-void App::drawCanvas(SDL_Rect c, const Glyph* g, bool guide, bool checkedState) {
+void App::drawCanvas(SDL_Rect c, const Glyph* g, int guide, bool checkedState) {
   boxRound(bot, SDL_Rect{c.x - 3, c.y - 3, c.w + 6, c.h + 6}, 14, CANVAS, LINE, 3);
   SDL_SetRenderDrawColor(bot.r, LINE.r, LINE.g, LINE.b, 255);
   for (int t = c.y + 8; t < c.y + c.h - 8; t += 10) SDL_RenderDrawLine(bot.r, c.x + c.w / 2, t, c.x + c.w / 2, t + 4);
   for (int t = c.x + 8; t < c.x + c.w - 8; t += 10) SDL_RenderDrawLine(bot.r, t, c.y + c.h / 2, t + 4, c.y + c.h / 2);
   float big = c.w * 0.024f, ink = c.w * 0.016f;
   if (g && guide) {
-    for (auto& s : g->strokes) drawStrokeIn(bot, s, c, checkedState ? GHOST_OK : GHOST, big);
+    Col gc = guide == 1 ? mix(CANVAS, GHOST, 0.45f) : checkedState ? GHOST_OK : GHOST;
+    for (auto& s : g->strokes) drawStrokeIn(bot, s, c, gc, guide == 1 ? big * 0.8f : big);
   }
   for (size_t i = 0; i < strokes.size(); i++) {
     Col col = checkedState ? (i < strokeOk.size() && strokeOk[i] ? GOOD : BAD) : FG;
     drawStrokeIn(bot, strokes[i], c, col, ink);
   }
   if (drawing) drawStrokeIn(bot, cur, c, ACCENT_TXT, ink);
-  if (g && guide) drawStrokeNumbers(bot, *g, c, int(strokes.size()), int(g->strokes.size()));
+  if (g && guide == 2) drawStrokeNumbers(bot, *g, c, int(strokes.size()), int(g->strokes.size()));
 }
 
 // ================================================================== screens
@@ -619,6 +747,8 @@ void App::render() {
     case Screen::SettingsGroup: drawSettingsGroup(); break;
     case Screen::Credits: drawCredits(); break;
     case Screen::Stats: drawStats(); break;
+    case Screen::Welcome: drawWelcome(); break;
+    case Screen::FreeWrite: drawFreeWrite(); break;
   }
   drawButtons();
   SDL_RenderPresent(top.r); SDL_RenderPresent(bot.r);
@@ -835,7 +965,7 @@ void App::drawLesson() {
   addBtn(SDL_Rect{16, 250, 220, 58}, B_LESSON_PREV, "Previous", F_TINY, lessonIdx > 0);
   addBtn(SDL_Rect{16, 316, 220, 76}, B_LESSON_NEXT, lessonIdx < n - 1 ? "Next kana" : (lessonReplay ? "Done" : "Start practice"), F_TINY);
   accent(lastBtn());
-  if (g) drawCanvas(canvasRect(), g, true, false);
+  if (g) drawCanvas(canvasRect(), g, 2, false);
   else {
     SDL_Rect c = canvasRect(); fillRound(bot, c, 14, PANEL);
     drawText(bot, k.glyph, SDL_Rect{c.x, c.y + 40, c.w, 220}, FG, F_HUGE);
@@ -894,7 +1024,9 @@ void App::drawUnlocked() {
 void App::drawDrill() {
   const Kana* k = q.kanaIdx >= 0 ? &data.kana[q.kanaIdx] : nullptr;
   const bool timed = mode == Mode::Timed;
-  std::string where = mode == Mode::Focus ? "Focus " + data.kana[focusKana].glyph : mode == Mode::Review ? "Review"
+  std::string fs; for (size_t i = 0; i < focusSet.size() && i < 3; i++) fs += (i ? " " : "") + data.kana[focusSet[i]].glyph;
+  if (focusSet.size() > 3) fs += " +" + std::to_string(focusSet.size() - 3);
+  std::string where = mode == Mode::Focus ? "Practice set " + fs : mode == Mode::Review ? "Review"
                     : mode == Mode::Mixup ? "Mix-ups" : "Stage " + std::to_string(prog.currentStage(prog.settings.script) + 1);
   if (timed) {
     header("Timed challenge · score " + std::to_string(score));
@@ -916,8 +1048,9 @@ void App::drawDrill() {
     const Glyph* g = activeGlyph(); int m = g ? int(g->strokes.size()) : 0, np = writePartCount();
     auto names = Data::partNames(q.answer);
     drawText(top, checked ? q.answer : q.prompt, SDL_Rect{24, 104, 300, 230}, pc, F_HUGE);
-    drawText(top, np > 1 ? "PART " + std::to_string(part + 1) + " OF " + std::to_string(np) + " · " + names[std::min(part, np - 1)]
-                         : std::string("TRACE THE KANA"), SDL_Rect{340, 120, 276, 22}, DIM, F_MICRO, A_LEFT);
+    std::string what = q.writeLevel == 0 ? "GUIDED" : q.writeLevel == 1 ? "OUTLINE" : "FROM MEMORY";
+    drawText(top, np > 1 ? "PART " + std::to_string(part + 1) + " OF " + std::to_string(np) + " · " + names[std::min(part, np - 1)] + " · " + what
+                         : what, SDL_Rect{340, 120, 276, 22}, DIM, F_MICRO, A_LEFT);
     drawText(top, checked ? std::to_string(m) + " strokes" : "Stroke " + std::to_string(std::min(int(strokes.size()) + 1, m)) + " of " + std::to_string(m),
              SDL_Rect{340, 146, 276, 40}, FG, F_SMALL, A_LEFT);
     for (int i = 0; i < m; i++) {
@@ -927,7 +1060,9 @@ void App::drawDrill() {
       else if (i == int(strokes.size())) boxRound(top, r, 4, BG, ACCENT, 3);
       else fillRound(top, r, 4, TRACK);
     }
-    std::string help = showHint ? "Hint is on: the grey guide shows the shape and stroke order." : "Press Y or tap Hint to show a guide.";
+    std::string help = q.writeLevel == 0 ? "Trace over the grey guide, following the numbers. Steps count once you write it from memory."
+                     : showHint ? "Hint is on: the grey guide shows the shape and stroke order."
+                     : q.writeLevel == 1 ? "Just the outline now, no numbers. Press Y for the full guide." : "Press Y or tap Hint to show a guide.";
     if (np > 1 && !checked)
       help = part == 0 ? "A combination: trace " + names[0] + " first, then the small " + names[1] + ". " + help
                        : "Now the small " + names[1] + ", traced full size. B goes back to " + names[0] + ".";
@@ -995,13 +1130,67 @@ void App::drawDrill() {
   } else {
     addBtn(SDL_Rect{16, 20, 120, 90}, B_UNDO, part > 0 && strokes.empty() ? "Back" : "Undo", F_TINY, !checked && (!strokes.empty() || part > 0));
     addBtn(SDL_Rect{16, 120, 120, 90}, B_CLEAR, "Clear", F_TINY, !checked && !strokes.empty());
-    addBtn(SDL_Rect{16, 220, 120, 90}, B_HINT, showHint ? "Hint on" : "Hint", F_TINY, !checked);
+    addBtn(SDL_Rect{16, 220, 120, 90}, B_HINT, q.writeLevel == 0 ? "Guide on" : showHint ? "Hint on" : "Hint", F_TINY, !checked && q.writeLevel > 0);
     if (showHint) { lastBtn().line = ACCENT; lastBtn().text = ACCENT_TXT; }
     if (checked) { addBtn(SDL_Rect{16, 320, 120, 96}, B_CONTINUE, "Next", F_TINY); accent(lastBtn()); }
     else { addBtn(SDL_Rect{16, 320, 120, 96}, B_CHECK, "Check", F_TINY, !strokes.empty()); if (!strokes.empty()) accent(lastBtn()); }
-    drawCanvas(canvasRect(), activeGlyph(), showHint || checked, checked);
+    drawCanvas(canvasRect(), activeGlyph(), checked || showHint || q.writeLevel == 0 ? 2 : q.writeLevel == 1 ? 1 : 0, checked);
     chips({{"X", "Check"}, {"Y", "Hint"}, {"B", "Undo"}, {"F", "Pause"}});
   }
+}
+
+void App::drawWelcome() {
+  iconBanana(top, 290, 40, 6);
+  drawText(top, "Welcome to Banana Kana", SDL_Rect{20, 112, 600, 60}, FG, F_MID);
+  drawWrapped(top, "Learn hiragana, then katakana, a few kana at a time: a short lesson, then drills. "
+                   "Already know some? Skip ahead. Kana you skip count as known, with a quick review soon to check.",
+              SDL_Rect{60, 190, 520, 140}, DIM, F_TINY);
+  drawText(top, "You can change this later in Settings > Script.", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+  const char* l[4] = {"New to kana", "I know hiragana", "I know both", "I know some"};
+  const char* sub[4] = {"start at \u3042 \u3044 \u3046 \u3048 \u304a", "all 104, start on katakana", "straight to reviews", "choose the stages in Settings"};
+  for (int i = 0; i < 4; i++) {
+    addBtn(SDL_Rect{16, 16 + i * 102, 608, 94}, B_WELCOME0 + i, l[i], F_SMALL); lastBtn().sub = sub[i];
+    if (i == welcomeSel) accent(lastBtn());
+  }
+  chips({{"+", "Choose"}, {"A", "Start"}});
+}
+
+void App::drawFreeWrite() {
+  if (fwList.empty()) { go(Screen::Chart); return; }
+  const Kana& k = data.kana[fwList[fwIdx]]; const Glyph* g = activeGlyph();
+  int np = writePartCount(); auto names = Data::partNames(k.glyph);
+  header("Free writing · " + std::to_string(fwIdx + 1) + " / " + std::to_string(fwList.size()));
+  SDL_Rect card{24, 58, 200, 200}; fillRound(top, card, 16, PANEL);
+  drawText(top, k.glyph, card, checked ? (correct ? GOOD : BAD) : FG, F_HUGE);
+  drawText(top, k.romaji, SDL_Rect{244, 58, 372, 80}, ACCENT_TXT, F_BIG, A_LEFT);
+  std::string info = np > 1 ? "Part " + std::to_string(part + 1) + " of 2: " + names[std::min(part, np - 1)] + (part ? ", traced full size" : "")
+                            : std::to_string(g ? g->strokes.size() : 0) + " strokes";
+  drawText(top, info, SDL_Rect{244, 140, 372, 32}, FG, F_TINY, A_LEFT);
+  std::string msg = checked ? (correct ? "Looks right!" : "Not quite. " + feedbackNote)
+                            : "Just practice: nothing here changes your progress. Y switches the guide.";
+  drawWrapped(top, msg, SDL_Rect{244, 180, 372, 80}, checked ? (correct ? GOOD : BAD) : DIM, F_TINY);
+  if (g) {
+    int m = int(g->strokes.size());
+    drawText(top, "STROKE ORDER", SDL_Rect{24, 280, 400, 22}, DIM, F_MICRO, A_LEFT);
+    int fs = std::min(110, (592 - (m - 1) * 10) / m);
+    for (int i = 0; i < m; i++) {
+      SDL_Rect f{24 + i * (fs + 10), 310, fs, fs}; fillRound(top, f, 10, PANEL);
+      SDL_Rect gbox{f.x + 6, f.y + 6, f.w - 12, f.h - 12};
+      for (auto& st : g->strokes) drawStrokeIn(top, st, gbox, GHOST, fs * 0.05f);
+      for (int j = 0; j <= i; j++) drawStrokeIn(top, g->strokes[j], gbox, j == i ? ACCENT_TXT : FG, fs * 0.045f);
+      if (!g->strokes[i].empty()) { SDL_Point pt = glyphToBox(g->strokes[i][0], gbox); fillCircle(top, pt.x, pt.y, std::max(4, fs / 18), ACCENT); }
+    }
+  }
+  const char* gl[3] = {"Guide", "Outline", "No guide"};
+  addBtn(SDL_Rect{16, 16, 120, 74}, B_FW_GUIDE, gl[fwGuide], F_TINY);
+  addBtn(SDL_Rect{16, 98, 120, 74}, B_UNDO, part > 0 && strokes.empty() ? "Back" : "Undo", F_TINY, !checked && (!strokes.empty() || part > 0));
+  addBtn(SDL_Rect{16, 180, 120, 74}, B_CLEAR, "Clear", F_TINY, !checked && !strokes.empty());
+  addBtn(SDL_Rect{16, 262, 120, 74}, B_CHECK, checked ? "Again" : (part < np - 1 ? "Next part" : "Check"), F_TINY, checked || !strokes.empty());
+  if (checked || !strokes.empty()) accent(lastBtn());
+  addBtn(SDL_Rect{16, 344, 120, 74}, B_FW_NEXT, fwList.size() > 1 ? "Next kana" : "Back", F_TINY);
+  if (fwList.size() <= 1) lastBtn().id = B_BACK;
+  drawCanvas(canvasRect(), g, checked ? 2 : fwGuide == 0 ? 2 : fwGuide == 1 ? 1 : 0, checked);
+  chips({{"A", checked ? "Again" : "Check"}, {"Y", "Guide"}, {"X", "Undo"}, {"L/R", "Kana"}, {"B", "Back"}});
 }
 
 void App::drawKanaKeyboard() {
@@ -1179,7 +1368,7 @@ void App::drawChart() {
   if (chartSel < 0 || std::none_of(cells.begin(), cells.end(), [&](const Cell& c) { return c.kana == chartSel; }))
     chartSel = cells.empty() ? -1 : cells[0].kana;
   int maxRow = 0; for (auto& c : cells) maxRow = std::max(maxRow, c.row);
-  const int VIS = 5; chartScroll = std::clamp(chartScroll, 0, std::max(0, maxRow + 1 - VIS));
+  const int VIS = 4; chartScroll = std::clamp(chartScroll, 0, std::max(0, maxRow + 1 - VIS));
 
   header(std::string("Kana chart · ") + scriptName(sc));
   if (chartSel >= 0) {
@@ -1203,8 +1392,10 @@ void App::drawChart() {
     statBox(top, SDL_Rect{506, 222, 110, 76}, "MISSED", std::to_string(s.wrong));
     auto h = data.hints.find(k.glyph);
     if (h != data.hints.end()) drawWrapped(top, h->second, SDL_Rect{24, 312, 592, 92}, DIM, F_TINY);
-    drawText(top, ks == KanaState::Locked ? "Unlocks with stage " + std::to_string(stI + 1) + "."
-                                          : "Tap it again or press A to drill just this kana.", SDL_Rect{24, 418, 592, 34}, DIM, F_MICRO, A_LEFT);
+    bool picked = std::count(chartPick.begin(), chartPick.end(), chartSel) > 0;
+    drawText(top, ks == KanaState::Locked ? "Unlocks with stage " + std::to_string(stI + 1) + ". You can still write it freely."
+                  : picked ? "In your practice set. Tap it again or press A to take it out."
+                           : "Tap it again or press A to add it to your practice set.", SDL_Rect{24, 418, 592, 34}, DIM, F_MICRO, A_LEFT);
   }
   const char* tabs[3] = {"Basic", "Voiced", "Combos"};
   for (int i = 0; i < 3; i++) { addBtn(SDL_Rect{16 + i * 116, 10, 108, 44}, B_TAB0 + i, tabs[i], F_TINY); if (i == chartTab) accent(lastBtn()); }
@@ -1223,11 +1414,20 @@ void App::drawChart() {
     b.fill = stateFill(ks); b.text = stateText(ks); b.subText = ks == KanaState::Known ? ON_ACCENT : DIM;
     b.line = ks == KanaState::Weak ? BAD : ks == KanaState::Locked ? DIS_LINE : b.fill;
     if (ks == KanaState::Locked) { b.subText = DIS_TXT; b.line = DIS_LINE; }
+    if (std::count(chartPick.begin(), chartPick.end(), c.kana)) { b.icon = 2; b.line = ACCENT_TXT; b.lineW = 3; }
     if (c.kana == chartSel) { b.line = FG; b.lineW = 4; }
   }
-  addBtn(SDL_Rect{572, 66, 52, 160}, B_SCROLL_UP, "▲", F_TINY, chartScroll > 0);
-  addBtn(SDL_Rect{572, 236, 52, 160}, B_SCROLL_DOWN, "▼", F_TINY, chartScroll + VIS <= maxRow);
-  chips({{"+", "Move"}, {"A", "Drill this"}, {"L/R", "Tab"}, {"Y", "Script"}, {"B", "Back"}});
+  addBtn(SDL_Rect{572, 66, 52, 130}, B_SCROLL_UP, "▲", F_TINY, chartScroll > 0);
+  addBtn(SDL_Rect{572, 204, 52, 130}, B_SCROLL_DOWN, "▼", F_TINY, chartScroll + VIS <= maxRow);
+  // practice set: drill it or write it freely (with nothing picked, the selected kana)
+  int np = int(chartPick.size());
+  bool selOk = chartSel >= 0 && prog.isUnlocked(data, chartSel);
+  std::string target = np ? std::to_string(np) + " kana" : chartSel >= 0 ? data.kana[chartSel].glyph : "";
+  addBtn(SDL_Rect{16, 346, 240, 78}, B_PICK_DRILL, "Drill " + target, F_TINY, np > 0 || selOk);
+  lastBtn().sub = np ? "your practice set" : "with look-alikes"; if (np || selOk) accent(lastBtn());
+  addBtn(SDL_Rect{266, 346, 200, 78}, B_PICK_WRITE, "Write " + target, F_TINY, np > 0 || chartSel >= 0); lastBtn().sub = "free practice";
+  addBtn(SDL_Rect{476, 346, 148, 78}, B_PICK_CLEAR, "Clear set", F_TINY, np > 0);
+  chips({{"+", "Move"}, {"A", "Pick"}, {"X", "Drill"}, {"START", "Write"}, {"B", "Back"}});
 }
 
 // ------------------------------------------------------------------ settings (modelled on BananaOS Settings)
@@ -1267,13 +1467,20 @@ std::vector<App::SRow> App::settingRows(int g) const {
     case 2: {
       bool kat = prog.scriptUnlocked(Script::Katakana);
       SRow x; x.label = "Practise"; x.value = scriptName(st.script); x.kind = 0;
-      x.help = kat ? "Which kana your practice sessions use." : "Katakana unlocks after hiragana stage 10.";
+      x.help = kat ? "Which kana your practice sessions use." : "Katakana unlocks after hiragana stage 10, or skip ahead below.";
       x.canDec = kat && st.script == Script::Katakana; x.canInc = kat && st.script == Script::Hiragana; r.push_back(x);
-      for (Script sc : {Script::Hiragana, Script::Katakana}) {
-        std::string v = prog.scriptUnlocked(sc) ? std::to_string(prog.knownCount(data, sc)) + " / 104 known · stage " +
-                                                  std::to_string(prog.currentStage(sc) + 1)
-                                                : std::string("Locked");
-        info(scriptName(sc), v, std::string(scriptName(sc)) + " progress. The stage map has the details.");
+      for (int i = 0; i < 2; i++) {
+        Script sc = i ? Script::Katakana : Script::Hiragana; int cur = skipCurrent(sc), pend = std::max(skipPending[i], cur);
+        std::string lower = scriptName(sc); lower[0] = char(std::tolower(lower[0]));
+        SRow y; y.kind = 3; y.label = scriptName(sc); y.canDec = pend > cur; y.canInc = pend < SKIP_ALL;
+        auto name = [](int v) { return v == 0 ? std::string("Locked") : v >= SKIP_ALL ? std::string("All known") : "Stage " + std::to_string(v); };
+        y.value = pend <= cur ? name(cur) : pend >= SKIP_ALL ? "Skip: all known" : cur == 0 && pend == 1 ? "Unlock" : "Skip to stage " + std::to_string(pend);
+        y.help = pend > cur ? (pend == 1 ? "Press A to unlock katakana now, starting with its first lesson."
+                                         : "Press A to confirm. Kana in the stages before it count as known, with a quick review in a day or two to check.")
+                            : cur >= SKIP_ALL ? "Every " + lower + " stage is open and known. Reviews keep it fresh."
+                            : "Already know some " + lower + "? Use ◀ ▶ to choose where to start, then A to confirm. "
+                              "It only moves forwards: Reset progress starts again.";
+        r.push_back(y);
       }
       break; }
     case 3:
@@ -1323,7 +1530,11 @@ void App::changeSetting(int g, int r, int dir) {
       else if (r == 1) step3(st.review);
       else { int gi = 1; for (int i = 0; i < 4; i++) if (GOALS[i] == st.dailyGoal) gi = i; st.dailyGoal = GOALS[std::clamp(gi + dir, 0, 3)]; }
       break;
-    case 2: if (r == 0) setScript(dir > 0 ? Script::Katakana : Script::Hiragana); break;
+    case 2:
+      if (r == 0) setScript(dir > 0 ? Script::Katakana : Script::Hiragana);
+      else { int i = r - 1, cur = skipCurrent(i ? Script::Katakana : Script::Hiragana);
+             skipPending[i] = std::clamp(std::max(skipPending[i], cur) + dir, cur, SKIP_ALL); return; }  // confirmed with A
+      break;
     case 3: st.light = dir > 0; applyTheme(st.light); break;
     case 4:
       if (r == 4) {
@@ -1413,7 +1624,7 @@ void App::drawSettingsGroup() {
     if (on) fillRound(bot, r, 12, fill); else boxRound(bot, r, 12, fill, mix(BG, FG, 0.55f), 2);
     Col t = on ? ON_ACCENT : FG, v = on ? ON_ACCENT : (row.kind == 2 ? DIM : FG);
     drawText(bot, row.label, SDL_Rect{r.x + 18, r.y, 250, r.h}, t, F_TINY, A_LEFT);
-    if (row.kind == 0) {
+    if (row.kind == 0 || row.kind == 3) {
       Col ad = row.canDec ? t : (on ? mix(ACCENT, ON_ACCENT, 0.35f) : DIS_TXT), ai = row.canInc ? t : (on ? mix(ACCENT, ON_ACCENT, 0.35f) : DIS_TXT);
       drawText(bot, "◀", SDL_Rect{r.x + r.w - 300, r.y, 36, r.h}, ad, F_MICRO);
       drawText(bot, row.value, SDL_Rect{r.x + r.w - 264, r.y, 220, r.h}, v, F_TINY);
@@ -1428,20 +1639,59 @@ void App::drawSettingsGroup() {
     }
     addBtn(r, B_SROW0 + i, ""); lastBtn().hidden = true;
   }
-  std::string act = cur.kind == 0 ? "Change" : cur.kind == 1 ? (cur.label == "Reset progress" ? "Reset" : "Open") : "";
+  std::string act = cur.kind == 0 ? "Change" : cur.kind == 1 ? (cur.label == "Reset progress" ? "Reset" : "Open")
+                  : cur.kind == 3 ? (cur.canDec ? "Confirm" : "") : "";
   footer("B", "Back", "A", act);
 }
 
 void App::drawCredits() {
-  header("Credits");
-  int y = 62;
-  auto para = [&](const std::string& t, Col c, int font) { y += drawWrapped(top, t, SDL_Rect{24, y, 592, 120}, c, font) + 12; };
-  para("Banana Kana: hiragana and katakana practice for BananaOS on the RG DS Plus.", FG, F_TINY);
-  para("Stroke data: KanjiVG (c) Ulrich Apel, Creative Commons BY-SA 3.0. kanjivg.tagaini.net", DIM, F_TINY);
-  para("Fonts: Zen Maru Gothic and Noto Sans CJK JP (fallback), both under the SIL Open Font License 1.1. "
-       "Full licence texts are in data/licenses.", DIM, F_TINY);
-  para("Lesson hints and the word list were written for Banana Kana.", DIM, F_TINY);
-  addBtn(SDL_Rect{16, 16, 608, 80}, B_BACK, "Back", F_SMALL); accent(lastBtn());
+  const float t = SDL_GetTicks() / 1000.f;
+  // top: twinkling confetti, a wavy thank-you and a banana parade
+  const Col conf[4] = {ACCENT, GOOD, BAD, FG};
+  for (int i = 0; i < 26; i++) {
+    unsigned h = 2654435761u * unsigned(i + 7);
+    int x = int(h % 600) + 12, y = int((h >> 10) % 300) + 46, sz = 4 + int((h >> 20) % 7);
+    float tw = 0.5f + 0.5f * std::sin(t * 2.2f + i);
+    if (tw > 0.25f) fillRect(top, SDL_Rect{x, y, sz, sz}, mix(BG, conf[i % 4], tw));
+  }
+  const std::vector<std::string> thanks = Data::partNames("ありがとう!");
+  int tw = 0; for (auto& c : thanks) tw += textWidth(top, F_BIG, c);
+  int x = (LW - tw) / 2;
+  for (size_t i = 0; i < thanks.size(); i++) {
+    int w = textWidth(top, F_BIG, thanks[i]), dy = int(10 * std::sin(t * 4.f - i * 0.7f));
+    drawText(top, thanks[i], SDL_Rect{x, 62 + dy, w, 110}, i % 2 ? FG : ACCENT_TXT, F_BIG);
+    x += w;
+  }
+  drawText(top, "arigatou: thank you for playing!", SDL_Rect{20, 186, 600, 34}, DIM, F_TINY);
+  fillRound(top, SDL_Rect{170, 232, 300, 44}, 22, ACCENT);
+  drawText(top, "BANANA KANA  " + version, SDL_Rect{170, 232, 300, 44}, ON_ACCENT, F_TINY);
+  for (int i = 0; i < 7; i++) {
+    int bx = 40 + i * 82, by = 318 + int(14 * std::sin(t * 3.f + i * 0.9f));
+    iconBanana(top, bx, by, 4);
+  }
+  drawText(top, "Made for the Anbernic RG DS Plus · code MIT · licences in BananaKana/data/licenses",
+           SDL_Rect{20, 420, 600, 34}, DIM, F_MICRO);
+
+  // bottom: sticker cards
+  struct Card { const char* title; const char* role; const char* who; Col stripe; };
+  const Card cards[6] = {
+    {"BananaOS", "the OS it all runs on", "JorreFog · github.com/JorreFog/BananaLinux", ACCENT},
+    {"KanjiVG", "stroke order data", "Ulrich Apel · CC BY-SA 3.0", GOOD},
+    {"Zen Maru Gothic", "kana and UI font", "SIL Open Font License 1.1", BAD},
+    {"Noto Sans CJK JP", "fallback font", "Google and Adobe · OFL 1.1", mix(ACCENT, BAD, 0.5f)},
+    {"Banana Player", "showed how BananaOS apps work", "tonywei92 · github.com/tonywei92/banana-player", mix(GOOD, ACCENT, 0.5f)},
+    {"Banana Kana", "hints, words and code", "Parzival3971 and Claude · MIT", FG},
+  };
+  for (int i = 0; i < 6; i++) {
+    SDL_Rect r{16 + (i % 2) * 310, 12 + (i / 2) * 110, 298, 100};
+    fillRound(bot, r, 14, PANEL);
+    fillRound(bot, SDL_Rect{r.x, r.y, 12, r.h}, 6, cards[i].stripe);
+    fillCircle(bot, r.x + r.w - 20, r.y + 20, 6, cards[i].stripe);
+    drawText(bot, cards[i].title, SDL_Rect{r.x + 26, r.y + 8, r.w - 56, 32}, FG, F_TINY, A_LEFT);
+    drawText(bot, cards[i].role, SDL_Rect{r.x + 26, r.y + 40, r.w - 36, 24}, ACCENT_TXT, F_MICRO, A_LEFT);
+    drawText(bot, cards[i].who, SDL_Rect{r.x + 26, r.y + 66, r.w - 36, 24}, DIM, F_MICRO, A_LEFT);
+  }
+  addBtn(SDL_Rect{16, 350, 608, 74}, B_BACK, "Back", F_SMALL); accent(lastBtn());
   chips({{"B", "Back"}});
 }
 

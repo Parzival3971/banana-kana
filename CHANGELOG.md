@@ -15,16 +15,22 @@ First release for BananaOS on the Anbernic RG DS Plus.
 - Spaced review: known kana come back after 1, 3, 7, 14, 30 and 90 days. Home shows how many are due, and Review drills just those.
 - Mix-ups: 24 built-in look-alike sets (さ/き, ね/れ/わ, シ/ツ, ソ/ン...) with notes on telling them apart, plus any pairs you've confused yourself.
 - Daily goal (5 to 30 answers) and a streak.
+- Staged practice: a new kana is multiple choice only, then typing, then writing. Writing starts over the full guide,
+  then a faint outline, then from memory (one level per session; guided writing never costs a step).
+- Already know some kana? Choose on first launch, or skip ahead (and unlock katakana early) in Settings > Script.
+  Skipped kana count as known, with a quick review in a day or two.
 
 ### Drills
 - Reading (kana to sound and back), word meanings (only words made of kana you've unlocked), writing with the stylus
   (scored stroke by stroke against KanjiVG; combinations are traced in two parts), and typing in romaji or on a kana keyboard.
 - Timed challenge: 60 seconds of one-tap answers, with a personal best per script.
-- Focus drill: tap a kana twice in the chart to practise just that one.
+- Practice sets: pick kana in the chart and drill just those. A single kana is mixed with its look-alikes and row-mates.
+- Free writing: trace any kana with a full guide, an outline or none. It doesn't touch your progress.
 
 ### App
 - Two-screen layout: prompt and feedback on the top screen, answers, keyboard and tracing canvas on the touch screen.
 - Kana chart (Basic / Voiced / Combos), stage map, stats with a 14-day chart and an accuracy heatmap.
-- Settings modelled on BananaOS Settings, with dark and light themes.
+- Settings modelled on BananaOS Settings, with dark and light themes. Hint chips draw the d-pad as a cross.
+- Animated credits for BananaOS, KanjiVG, the fonts and Banana Player.
 - Zen Maru Gothic fonts, rendered at the panel's real resolution.
 - Progress is saved after every answer and on power-off. F + START quits; F or SELECT pauses during practice.

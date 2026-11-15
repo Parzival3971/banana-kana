@@ -36,6 +36,7 @@ windows side by side; cross-compile to aarch64 for the release zip.
 
 ## Data
 Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
+README has an AI disclosure section (user asked 2026-11-15): keep it accurate when the process changes.
 
 ## Build / test (PC)
 - Deps: `libsdl2-dev libsdl2-ttf-dev cmake g++`; asset generation needs `python3 fonttools`.
@@ -56,7 +57,12 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
   mixupSets/makeMixupQuestion), daily goal/streak (Settings.dailyGoal, today/todayCount/streak/bestStreak/lastGoalDay,
   goalJustMet, days history 90 days), timedBest[2] + makeTimedQuestion, kana keyboard (Settings.kanaKeys, Question.kanaInput,
   kanaTypedMatches accepts じ/ぢ for "ji"), Data::writeParts (combos traced as 2 glyphs, small kana use the full-size glyph).
-  Progress.clock = fake time for tests (0 = real). Progress file: `stat ... step gainSession gain srs due`, `day`, `mix`.
+  Progress.clock = fake time for tests (0 = real). Progress file: `stat ... step gainSession gain srs due wlv wlvSession`, `day`, `mix`.
+  Staging (user asked 2026-11-15, "writing straight away is hard"): typeAllowed(): step 0 choice only, romaji typing from
+  TYPE_STEP 1, kana keyboard + writing from PRODUCE_STEP 2. Writing level Stat.wlv 0 full guide / 1 faint outline /
+  2 memory, +1 per session on a right guided write; guided writes (recordWrite level<2) never move steps; a memory miss
+  drops wlv to 1. skipTo(script, stage|SKIP_ALL): earlier stages known with srs 1 due in 1-2 days (user chose "known,
+  early review"); only moves forwards.
 - `src/gfx.{h,cpp}`: themes/palettes, fonts + mixed-script text (per run; spaces always UI font), wrapping, rounded shapes
   (rows overlap 1px: avoids seams at non-integer scale), pixel icons, glyph stroke drawing, windows, screenshots.
   Text is rasterised at the panel's real scale (Win::scale, 1.6 on device) for sharpness.
@@ -64,7 +70,11 @@ Stroke data: KanjiVG (CC BY-SA 3.0) - keep attribution in the app and README.
   Stages, Kana chart, Settings; mode row Review/Mix-ups/Timed/Stats = homeSel 4-7, U/D switches rows; top stats
   Today/Streak/Reviews due/Next unlock), Mode enum (Normal/Focus/Review/Mixup/Timed; startMode, tick() runs the 60 s clock,
   pause stops it), Stats (14-day chart, accuracy heatmap -> chart), kana keyboard (gojuon grid + dakuten/handakuten/small/long),
-  Write parts (part/partStrokes/partOk; Undo/Back returns to part 1), Stages (14-tile map, replay lessons), Lesson (hint, stroke-order frames, practice trace),
+  Write parts (part/partStrokes/partOk; Undo/Back returns to part 1), Welcome (first launch when no progress file:
+  new / know hiragana / know both / some -> Settings > Script), Settings > Script skip-ahead rows (kind 3: arrows pick,
+  A confirms), Chart practice set (chartPick; tap twice/A toggles, X drill = Mode::Focus on focusSet, a single kana is
+  mixed with its look-alikes and row-mates; START = FreeWrite), FreeWrite (guide full/outline/none, no progress),
+  Credits (animated via tick(), BananaOS/JorreFog first), d-pad cross drawn for the "+" chip key, Stages (14-tile map, replay lessons), Lesson (hint, stroke-order frames, practice trace),
   Unlocked, Drill (choice/typing/writing + feedback banner with hint), Pause, Result, Chart (Basic/Voiced/Combos tabs,
   scroll, tap twice / A = 5-question drill of one kana), Settings, Credits.
 - Settings copy BananaOS's Settings (user asked, 2026-11-15; reference shot: BananaLinux docs/img/readme/shot-settings.png):

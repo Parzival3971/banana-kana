@@ -12,7 +12,8 @@ SHOTS = {  # output name -> self-test shot
     "write-combo": "q_write_combo_part2", "type-kana": "q_type_kana_typed", "meaning": "q_meaning_word",
     "mixup": "q_mixup_checked", "timed": "timed", "result": "result", "review": "q_review",
     "stats": "stats", "chart": "chart", "stages": "stages", "unlocked": "unlocked", "settings": "settings_practice",
-    "light-home": "light_home", "light-stats": "light_stats",
+    "light-home": "light_home", "light-stats": "light_stats", "welcome": "welcome", "practice-set": "chart_set",
+    "free-write": "free_write", "skip": "settings_skip", "guided": "q_write", "credits": "credits",
 }
 WIDTH = 480  # README width of each device image
 BODY, HINGE = (27, 26, 23), (16, 15, 13)

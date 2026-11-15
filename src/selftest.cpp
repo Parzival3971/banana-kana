@@ -1,5 +1,6 @@
 // Scripted UI run with dummy video: drives the real screens with synthetic touches and buttons,
 // checks the flows, and saves screenshots of every screen (both themes) when --shots is given.
+#include <algorithm>
 #include <cstdio>
 #include <set>
 
@@ -132,10 +133,29 @@ int App::selfTest(const std::string& shotDir) {
   int a = data.findKana(Script::Hiragana, "あ");
   CHECK(click(B_CELL0 + data.findKana(Script::Hiragana, "か")), "select か"); shot("chart");
   CHECK(click(B_CELL0 + a), "select あ"); CHECK(chartSel == a, "chart selection");
-  CHECK(click(B_CELL0 + a), "tap again"); CHECK(screen == Screen::Drill && focusKana == a && sessionLen == 5, "focused drill");
-  for (int i = 0; i < 10 && screen == Screen::Drill; i++) { CHECK(q.kanaIdx == a, "focus kana only"); answer(true, false); }
+  CHECK(click(B_CELL0 + a), "tap again"); CHECK(chartPick.size() == 1 && chartPick[0] == a && screen == Screen::Chart, "added to set");
+  shot("chart_set");
+  CHECK(click(B_PICK_DRILL), "drill set"); CHECK(screen == Screen::Drill && mode == Mode::Focus && sessionLen == prog.settings.sessionLen, "set drill");
+  { int target = 0, n = 0;
+    for (int i = 0; i < 20 && screen == Screen::Drill; i++) {
+      n++; if (q.kanaIdx == a) target++;
+      if (!q.options.empty() && q.optionsAreKana) CHECK(std::count(q.options.begin(), q.options.end(), std::string("あ")) == 1 || q.kanaIdx != a, "set kana among options");
+      answer(true, false);
+    }
+    CHECK(target > 0 && target < n, "single kana mixed with look-alikes"); }
   CHECK(screen == Screen::Result, "focus session result");
   CHECK(click(B_HOME), "home"); CHECK(click(B_CART0 + 2), "chart again");
+  // free writing on the set
+  chartSel = a; CHECK(click(B_PICK_WRITE), "write set"); CHECK(screen == Screen::FreeWrite && fwList.size() == 1, "free writing");
+  shot("free_write");
+  trace(*activeGlyph(), 0.5f, 0.5f); CHECK(click(B_CHECK), "free check"); CHECK(checked && correct, "free write right");
+  { int before = prog.stats["h:あ"].seen; CHECK(prog.stats["h:あ"].seen == before, "free write leaves progress"); }
+  shot("free_write_checked");
+  CHECK(click(B_CHECK), "again"); CHECK(!checked && strokes.empty(), "again clears");
+  padButton(SDL_CONTROLLER_BUTTON_Y); CHECK(fwGuide == 1, "guide: outline"); shot("free_write_outline");
+  padButton(SDL_CONTROLLER_BUTTON_Y); padButton(SDL_CONTROLLER_BUTTON_Y); CHECK(fwGuide == 0, "guide cycles");
+  padButton(SDL_CONTROLLER_BUTTON_B); CHECK(screen == Screen::Chart, "free write back to chart");
+  CHECK(click(B_PICK_CLEAR), "clear set"); CHECK(chartPick.empty(), "set cleared");
   padButton(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER); CHECK(chartTab == 1, "voiced tab"); shot("chart_voiced");
   padButton(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER); CHECK(chartTab == 2, "combos tab"); shot("chart_combos");
   padButton(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER); CHECK(chartTab == 0, "basic tab");
@@ -262,6 +282,7 @@ int App::selfTest(const std::string& shotDir) {
 
   // ---- 14. kana keyboard
   { Settings keep = prog.settings;
+    for (auto& k : data.kana) { int& st = prog.stats[Progress::keyKana(k)].step; st = std::max(st, PRODUCE_STEP); }  // far enough to type and write
     prog.settings.reading = 0; prog.settings.meanings = 0; prog.settings.writing = 0; prog.settings.typing = 2; prog.settings.kanaKeys = true;
     startSession(); CHECK(q.type == QType::Type && q.kanaInput, "kana typing question"); shot("q_type_kana");
     click(B_KANA0 + 6); click(B_KANA0 + 35); CHECK(typed == "きや", "kana keys"); click(B_SMALLK); CHECK(typed == "きゃ", "small key");
@@ -275,6 +296,7 @@ int App::selfTest(const std::string& shotDir) {
     for (int t = 0; t < 400 && !found; t++) { if (q.type == QType::Write && writePartCount() == 2) found = true; else { index = 0; nextQuestion(true); } }
     CHECK(found, "combo writing question");
     if (found) {
+      CHECK(q.writeLevel == prog.writeLevel(q.key), "write level from progress");
       shot("q_write_combo"); trace(*activeGlyph(), 1.0f, 0.5f); click(B_CHECK);
       CHECK(!checked && part == 1 && strokes.empty(), "on to part 2"); shot("q_write_combo_part2");
       click(B_UNDO); CHECK(part == 0 && !strokes.empty(), "undo goes back a part"); click(B_CHECK); CHECK(part == 1, "part 2 again");
@@ -283,7 +305,26 @@ int App::selfTest(const std::string& shotDir) {
     prog.settings = keep; prog.unlocked[0] = KATAKANA_AFTER + 1; go(Screen::Home);
   }
 
-  // ---- 16. reset progress needs two presses and keeps settings
+  // ---- 16. first launch and skipping ahead (on a fresh profile, then put back)
+  { Progress keep = prog;
+    prog = Progress{}; prog.settings = keep.settings; prog.settings.script = Script::Hiragana;
+    go(Screen::Welcome); shot("welcome");
+    padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); CHECK(welcomeSel == 1, "welcome move");
+    CHECK(click(B_WELCOME0 + 1), "I know hiragana");
+    CHECK(screen == Screen::Home && prog.knownCount(data, Script::Hiragana) == 104 && prog.settings.script == Script::Katakana &&
+          prog.lessonPending(Script::Katakana), "hiragana skipped, katakana lesson next");
+    shot("home_after_welcome");
+    prog = Progress{}; prog.settings = keep.settings; prog.settings.script = Script::Hiragana;
+    go(Screen::Welcome); CHECK(click(B_WELCOME0 + 3), "I know some"); CHECK(screen == Screen::SettingsGroup && setGroup == 2 && setRow == 1, "to script settings");
+    for (int i = 0; i < 3; i++) click(B_SINC0 + 1);
+    CHECK(skipPending[0] == 4 && prog.unlocked[0] == 1, "pending only"); shot("settings_skip");
+    CHECK(click(B_FOOT_R), "confirm skip"); CHECK(prog.unlocked[0] == 4 && prog.lessons[0] == 3 && prog.stageKnown(data, Script::Hiragana, 2) == 5, "skipped to stage 4");
+    click(B_SDEC0 + 1); CHECK(skipPending[0] == 4, "can't go back down");
+    CHECK(click(B_SROW0 + 2), "katakana row"); CHECK(click(B_SINC0 + 2), "katakana >"); CHECK(click(B_FOOT_R), "unlock katakana");
+    CHECK(prog.unlocked[1] == 1 && prog.lessonPending(Script::Katakana), "katakana unlocked early");
+    prog = keep; go(Screen::Home);
+  }
+  // ---- 17. reset progress needs two presses and keeps settings
   go(Screen::Settings); setGroup = 4; CHECK(click(B_FOOT_R), "open Progress"); shot("settings_progress");
   CHECK(click(B_SROW0 + 4), "select reset"); CHECK(click(B_SROW0 + 4), "reset once"); CHECK(resetArmed && prog.unlocked[1] == 1, "first press only arms");
   shot("settings_reset_armed");

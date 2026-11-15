@@ -9,7 +9,7 @@
 
 namespace kt {
 
-enum class Screen { Home, Stages, Lesson, Unlocked, Drill, Result, Chart, Settings, SettingsGroup, Credits, Stats };
+enum class Screen { Home, Stages, Lesson, Unlocked, Drill, Result, Chart, Settings, SettingsGroup, Credits, Stats, Welcome, FreeWrite };
 
 // What a practice session draws from.
 enum class Mode { Normal, Focus, Review, Mixup, Timed };
@@ -32,7 +32,9 @@ enum BtnId {
   // lesson
   B_LESSON_NEXT = 95, B_LESSON_PREV, B_LESSON_CLEAR,
   // chart
-  B_TAB0 = 100, B_SCROLL_UP = 110, B_SCROLL_DOWN, B_CELL0 = 1000,
+  B_TAB0 = 100, B_SCROLL_UP = 110, B_SCROLL_DOWN, B_PICK_DRILL, B_PICK_WRITE, B_PICK_CLEAR, B_CELL0 = 1000,
+  // free writing, welcome
+  B_FW_GUIDE = 130, B_FW_NEXT, B_FW_PREV, B_WELCOME0 = 140,
   // settings (BananaOS style: group tiles -> rows with < value >)
   B_GROUP0 = 200, B_SROW0 = 220, B_SDEC0 = 240, B_SINC0 = 260, B_FOOT_L = 280, B_FOOT_R,
   // keyboard
@@ -71,6 +73,13 @@ struct App {
   std::vector<Missed> missed; std::vector<std::string> newlyKnown; std::string feedbackNote;
   std::vector<std::pair<Script, int>> pendingUnlocks;
   Mode mode = Mode::Normal; bool goalMet = false;
+  std::vector<int> chartPick;  // practice set picked in the chart (drill it, or write it freely)
+  std::vector<int> focusSet;   // what a Focus session draws from
+  // free writing
+  std::vector<int> fwList; int fwIdx = 0, fwGuide = 0;  // fwGuide 0 full, 1 outline, 2 none
+  // first launch, settings skip-ahead
+  Uint32 creditsLast = 0;
+  bool firstRun = false; int welcomeSel = 0; int skipPending[2] = {0, 0};
   // timed challenge
   int timedLeft = 0; Uint32 timedLast = 0; bool timedNewBest = false; int flash = 0; std::string flashText;  // flash 1 right, 2 wrong
   // writing in parts (combination kana): finished parts and their per-stroke results
@@ -78,7 +87,13 @@ struct App {
 
   // flow
   void go(Screen s);
-  void startSession(int focus = -1);  // focus >= 0: five questions on one kana
+  void startSession(int focus = -1);  // focus >= 0: practise that kana (with its look-alikes)
+  void startFocus(const std::vector<int>& set);
+  void openFreeWrite(const std::vector<int>& list);
+  bool scoreWriting(const std::string& glyph, bool* countsMatch, size_t* total);  // partStrokes + strokes vs the glyph
+  void welcomeChoice(int i);
+  int skipCurrent(Script s) const;
+  void confirmSetting(int g, int r);
   void startMode(Mode m);
   bool modeAvailable(Mode m) const;
   bool tick(Uint32 nowMs);  // timers; true if the screen should be redrawn
@@ -114,10 +129,10 @@ struct App {
   int currentLessonKana() const;
 
   void drawHome(); void drawStages(); void drawLesson(); void drawUnlocked(); void drawDrill(); void drawResult();
-  void drawChart(); void drawSettings(); void drawSettingsGroup(); void drawCredits(); void drawPause(); void drawStats();
+  void drawChart(); void drawSettings(); void drawSettingsGroup(); void drawCredits(); void drawPause(); void drawStats(); void drawWelcome(); void drawFreeWrite();
   void drawKanaKeyboard();
   // settings model
-  struct SRow { std::string label, value, help; int kind = 0; bool canDec = false, canInc = false; };  // kind 0 choice, 1 action, 2 info
+  struct SRow { std::string label, value, help; int kind = 0; bool canDec = false, canInc = false; };  // kind 0 choice, 1 action, 2 info, 3 skip-ahead (pick then confirm)
   static const int GROUPS = 6;
   std::vector<SRow> settingRows(int g) const;
   std::string groupName(int g) const; std::string groupSummary(int g) const;
@@ -125,7 +140,7 @@ struct App {
   void settingIcon(Win& w, int g, int x, int y, int px, Col a, Col b);
   void settingsPanel(int g, const std::string& label, const std::string& title, const std::string& accentLine, const std::string& body);
   void footer(const std::string& lk, const std::string& ll, const std::string& rk, const std::string& rl);
-  void drawCanvas(SDL_Rect c, const Glyph* g, bool guide, bool checkedState);
+  void drawCanvas(SDL_Rect c, const Glyph* g, int guide, bool checkedState);  // guide 0 none, 1 faint outline, 2 full
 
   // chart helpers
   struct Cell { int kana, row, col; };

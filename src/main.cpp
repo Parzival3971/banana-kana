@@ -128,8 +128,11 @@ int main(int argc, char** argv) {
   }
   App app; app.dataDir = dataDir; std::string err; applyTheme(false);
   if (!app.data.load(dataDir, &err)) { fprintf(stderr, "cannot load data from '%s': %s\n", dataDir.c_str(), err.c_str()); return 2; }
-  mkdirs(stateDir); app.statePath = stateDir + "/progress.txt"; if (app.prog.load(app.statePath, &app.data) && app.prog.migrated) { fprintf(stderr, "  progress upgraded to v2\n"); app.prog.save(app.statePath); }
+  mkdirs(stateDir); app.statePath = stateDir + "/progress.txt";
+  { FILE* pf = fopen(app.statePath.c_str(), "r"); app.firstRun = !pf; if (pf) fclose(pf); }
+  if (app.prog.load(app.statePath, &app.data) && app.prog.migrated) { fprintf(stderr, "  progress upgraded to v2\n"); app.prog.save(app.statePath); }
   applyTheme(app.prog.settings.light);
+  if (app.firstRun) app.go(kt::Screen::Welcome);
   { FILE* vf = fopen((dataDir + "/../VERSION").c_str(), "r"); char vb[64] = {0};
     if (vf) { if (fgets(vb, sizeof vb, vf)) { vb[strcspn(vb, "\r\n")] = 0; if (vb[0]) app.version = vb; } fclose(vf); } }
 
