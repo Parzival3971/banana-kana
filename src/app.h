@@ -91,7 +91,10 @@ struct App {
   Uint32 flameLast = 0;  // Home streak flame flicker
   // motion (0.5.0 polish): screen fade-in, Home strip glide, answer pop/shake. KT_MOTION=0 or the self-test turn it off.
   bool motion = true; Uint32 countStart = 0; Uint32 transStart = 0, answerAnim = 0, homeAnimLast = 0; float homePos = 0.f;
-  static constexpr Uint32 TRANS_MS = 180, ANSWER_MS = 420;
+  // Home strip: time-based glide (glideFrom -> glideTo over GLIDE_MS) and stylus swipes (homeDrag)
+  float glideFrom = 0.f; int glideTo = 0; Uint32 glideStart = 0; static constexpr Uint32 GLIDE_MS = 170;
+  bool homeTouch = false, homeDrag = false; int dragX0 = 0; float dragPos0 = 0.f;
+  static constexpr Uint32 TRANS_MS = 120, ANSWER_MS = 380;
   Uint32 creditsLast = 0, animStart = 0, animLast = 0;  // stroke-order animation (0 = not playing)
   void playStrokes() { animStart = SDL_GetTicks(); if (!animStart) animStart = 1; }
   std::string osdWhat; int osdPct = 0; Uint32 osdUntil = 0;  // volume / brightness level card (from BananaOS)

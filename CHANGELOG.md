@@ -24,7 +24,11 @@ A whole new look: the "Handheld" design.
   and the results score counts up (a medal for a perfect session). `KT_MOTION=0` turns it off.
 - Settings > Display shows a live preview (theme, kana font, canvas lines, ink). New **Reset settings** in Settings >
   Progress (press twice; your progress stays).
-- Fixes: tapping a side tile on Home now slides it to the centre, so every tile can be reached by touch; long mix-up
+- Swipe the Home strip with the stylus: it follows your pen and settles on the nearest tile.
+- Choice questions start with nothing highlighted: the d-pad cursor appears on your first d-pad or stick press, so a
+  highlighted tile can't give the answer away.
+- Fixes: the top screen background could show black or stale patches on the device; small text is never squashed
+  (Settings tiles); the Home strip glides in a fixed time even when frames are slow; tapping a side tile on Home now slides it to the centre, so every tile can be reached by touch; long mix-up
   hints no longer spill out of the answer banner; stage chips on Home fit their card; Extras is called Extras, not
   Stage 15; empty days on the Stats chart look empty; the Guide/Hint button is a proper on/off switch.
 

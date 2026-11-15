@@ -217,6 +217,14 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   context only (no wordmark). stageLabel(): Extras. Guide/Hint = switch (Button.icon 3 off / 4 on).
   settingPreview() for Display rows. Settings > Progress > Reset settings (resetSetArmed, two presses, keeps script +
   progress). Self-test shots hide toasts/confetti except celebration shots.
+- Device test 4 (PR #1 build, 2026-11-15 20:16): (1) top backdrop showed stale/black patches: the render-target
+  texture cache doesn't survive on KMSDRM/GLES -> drawBackdrop now draws cached SDL_RenderGeometry (no render targets
+  anywhere; keep it that way). (2) Home motion sluggish -> glide is time-based (GLIDE_MS 170 from glideFrom to glideTo,
+  independent of frame rate), fade 120 ms; main.cpp logs "render: X ms average, Y ms worst" to launch.log. (3) Choice
+  questions highlighted a tile at the start (could give the answer away) -> cursor = -1 until the first d-pad/stick
+  press, A does nothing before that (timed too). (4) Settings text looked squashed: drawText now shrinks evenly when
+  even F_MICRO is too wide (KT_TEXTLOG=1 lists such text); group summaries shortened. (5) Stylus swipe on the Home strip:
+  homeTouch/homeDrag in pointer(), strip follows the stylus (140 px per tile), settles on the nearest, a flick > 40 px moves one.
 - Old v1 look (kept for history): BananaOS palette (banana yellow #FFD23F on warm neutrals), button-hint chips, cartridge tiles.
   Fonts: kana in Zen Maru Gothic Bold (or Klee One SemiBold, setting), English/UI/keyboard in Zen Maru Gothic Medium (all OFL). Pixelify Sans (Banana
   Player's pixel font) was tried and DROPPED 2026-11-15: user found it hard to read. Don't reintroduce pixel fonts.

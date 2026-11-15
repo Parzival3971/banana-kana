@@ -75,7 +75,7 @@ bool isKataText(const std::string& s) { auto c = utf8Codepoints(s); return !c.em
 // ================================================================== flow
 void App::go(Screen s) {
   if (motion && s != screen) transStart = SDL_GetTicks() | 1;  // soft fade-in of the new screen
-  if (s == Screen::Home && screen != Screen::Home) homePos = float(homeSel);  // arrive centred, no glide
+  if (s == Screen::Home && screen != Screen::Home) { homePos = float(homeSel); glideTo = homeSel; glideStart = 0; homeDrag = homeTouch = false; }  // arrive centred, no glide
   screen = s; pressedId = -1; drawing = false; cur.clear(); paused = false; animStart = 0;
   if (s == Screen::Unlocked) { snd::play(snd::Sfx::Unlock); celebrate(3200, true); }
   if (s == Screen::Result || s == Screen::Unlocked) backup(true);
@@ -200,12 +200,15 @@ bool App::tick(Uint32 now) {  // every timer runs every time; true if anything n
   if (transStart) { if (now - transStart >= TRANS_MS) transStart = 0; redraw = true; }
   if (countStart) { if (now - countStart >= 900) countStart = 0; redraw = true; }
   if (answerAnim) { if (now - answerAnim >= ANSWER_MS) answerAnim = 0; redraw = true; }
-  if (screen == Screen::Home && std::fabs(homePos - float(homeSel)) > 0.002f) {  // the mode strip glides to its new centre
-    float dt = homeAnimLast ? std::min(0.05f, (now - homeAnimLast) / 1000.f) : 0.016f;
-    homePos += (float(homeSel) - homePos) * std::min(1.f, dt * 14.f);
-    if (!motion || std::fabs(homePos - float(homeSel)) < 0.01f) homePos = float(homeSel);
-    homeAnimLast = now; redraw = true;
-  } else homeAnimLast = 0;
+  if (screen == Screen::Home && !homeDrag) {  // the mode strip glides to its new centre in a fixed time, however slow frames are
+    if (homeSel != glideTo) { glideFrom = homePos; glideTo = homeSel; glideStart = now ? now : 1; }
+    if (glideStart) {
+      float t = std::clamp((now - glideStart) / float(GLIDE_MS), 0.f, 1.f), e = 1.f - (1.f - t) * (1.f - t) * (1.f - t);
+      homePos = motion ? glideFrom + (float(glideTo) - glideFrom) * e : float(glideTo);
+      if (t >= 1.f || !motion) { homePos = float(glideTo); glideStart = 0; }
+      redraw = true;
+    }
+  }
   if (screen == Screen::Home && !paused && now - flameLast >= 100 && prog.currentStreak() > 0 &&
       prog.lastGoalDay == dayNumber(prog.now())) { flameLast = now; redraw = true; }  // lit flame flickers
   if (screen == Screen::Credits && !paused && now - creditsLast >= 80) { creditsLast = now; redraw = true; }
@@ -268,7 +271,7 @@ void App::nextQuestion(bool first) {
     else q = makeQuestion(data, prog, rng);
     if (q.key != lastKey) break;
   }
-  lastKey = q.key; sel = -1; cursor = 0; checked = false; correct = false; typed.clear(); strokes.clear(); cur.clear();
+  lastKey = q.key; sel = -1; cursor = -1; /* no cursor until the d-pad/stick is used: a highlight could give the answer away */ checked = false; correct = false; typed.clear(); strokes.clear(); cur.clear();
   drawing = false; showHint = false; strokeOk.clear(); feedbackNote.clear(); part = 0; partStrokes.clear(); partOk.clear();
   animStart = 0; keyRow = 0; keyCol = 0;
   if (q.type == QType::Write && q.writeLevel == 0) playStrokes();  // guided: show the order first
@@ -618,6 +621,22 @@ void App::pointer(int type, int x, int y) {
     if (type == 1 && drawing) { cur.push_back(boxToGlyph(x, y, c)); return; }
     if (type == 2 && drawing) { drawing = false; if (cur.size() >= 2) strokes.push_back(cur); cur.clear(); return; }
   }
+  if (screen == Screen::Home && !paused) {  // swipe the mode strip: it follows the stylus, then settles on the nearest tile
+    if (type == 0 && y >= 70 && y < 260) { homeTouch = true; homeDrag = false; dragX0 = x; dragPos0 = homePos; }
+    else if (type == 1 && homeTouch) {
+      if (!homeDrag && std::abs(x - dragX0) > 14) { homeDrag = true; pressedId = -1; }
+      if (homeDrag) { homePos = std::clamp(dragPos0 - (x - dragX0) / 140.f, -0.4f, float(homeItems().size()) - 0.6f); return; }
+    } else if (type == 2 && homeTouch) {
+      homeTouch = false;
+      if (homeDrag) {
+        homeDrag = false; int n = int(homeItems().size());
+        int target = int(std::lround(homePos));
+        if (target == int(std::lround(dragPos0)) && std::abs(x - dragX0) > 40) target += x < dragX0 ? 1 : -1;  // a quick flick still moves one
+        homeSel = std::clamp(target, 0, n - 1); glideFrom = homePos; glideTo = homeSel; glideStart = SDL_GetTicks() | 1;
+        snd::play(snd::Sfx::Tap); return;
+      }
+    }
+  }
   auto hit = [&](const Button& b) { return b.enabled && x >= b.r.x && x < b.r.x + b.r.w && y >= b.r.y && y < b.r.y + b.r.h; };
   if (type == 0) { pressedId = -1; for (auto& b : buttons) if (hit(b)) { pressedId = b.id; return; } }
   if (type == 1 && pressedId >= 0) { for (auto& b : buttons) if (b.id == pressedId && !hit(b)) pressedId = -1; }
@@ -667,6 +686,10 @@ void App::padButton(SDL_GameControllerButton b) {
       bool choice = !q.options.empty(); int n = int(q.options.size());
       if (checked) { if (b == A || b == X) press(B_CONTINUE); break; }
       if (choice) {
+        if (cursor < 0) {  // the first d-pad/stick press only shows the cursor, on the first tile
+          if (b == L || b == R || b == U || b == D) { cursor = 0; break; }
+          if (b == A) break;  // nothing highlighted yet: A does nothing
+        }
         if (n <= 3) { if (b == L) cursor = (cursor + n - 1) % n; else if (b == R) cursor = (cursor + 1) % n; }
         else if (b == L || b == R) cursor ^= 1;
         else if (b == U) cursor = (cursor - 2 + n) % n; else if (b == D) cursor = (cursor + 2) % n;
@@ -1233,8 +1256,8 @@ void App::drawHome() {
     for (int k = 0; k < 10; k++) fillRect(bot, SDL_Rect{LW / 2 - 10 + k, 58 + k, 20 - 2 * k, 1}, PANEL);
   }
   const int cy = 166;
-  if (!motion) homePos = float(homeSel);
-  homePos = std::clamp(homePos, 0.f, float(ni - 1));
+  if (!motion && !homeDrag) homePos = float(homeSel);
+  if (!homeDrag) homePos = std::clamp(homePos, 0.f, float(ni - 1));
   // tiles sit at a smooth position (homePos glides towards homeSel): centre 150 px, neighbours 112 px, 150/130 px apart.
   // Far tiles are drawn first so the centred one sits on top.
   auto place = [](float off, int& cx, int& size) {
@@ -2241,10 +2264,10 @@ std::string App::groupSummary(int g) const {
     case 0: { std::vector<std::string> on; const char* n[4] = {"reading", "meanings", "writing", "typing"};
               int w[4] = {st.reading, st.meanings, st.writing, st.typing};
               for (int i = 0; i < 4; i++) if (w[i] > 0) on.push_back(n[i]);
-              return on.empty() ? "all off" : on.size() == 4 ? "all four on" : join(on, ", "); }
-    case 1: return std::to_string(st.sessionLen) + " questions, goal " + std::to_string(st.dailyGoal) + " a day";
+              return on.empty() ? "all off" : on.size() == 4 ? "all four on" : std::to_string(on.size()) + " of 4 on"; }
+    case 1: return std::to_string(st.sessionLen) + " a go · goal " + std::to_string(st.dailyGoal);  // short: tile subtitles are one line
     case 2: { std::string s = scriptName(st.script); s[0] = char(std::tolower(s[0])); return s; }
-    case 3: return std::string(st.light ? "light" : "dark") + (st.kanaHand ? ", handwriting" : ", rounded") + (st.sound ? ", sound on" : ", sound off") + (st.rumble ? ", rumble" : "");
+    case 3: return std::string(st.light ? "Light" : "Dark") + (st.sound ? " · sound on" : " · sound off");
     case 4: return std::to_string(prog.knownCount(data, Script::Hiragana) + prog.knownCount(data, Script::Katakana)) + " kana known";
     default: return "version, credits";
   }
@@ -2462,17 +2485,17 @@ void App::drawCredits() {
     int bx = 40 + i * 82, by = 318 + int(14 * std::sin(t * 3.f + i * 0.9f));
     appTile(top, bx, by, 52);
   }
-  drawText(top, "Made for the Anbernic RG DS Plus · code MIT · licences in BananaKana/data/licenses",
+  drawText(top, "For the Anbernic RG DS Plus · code MIT · licences in data/licenses",
            SDL_Rect{20, 420, 600, 34}, DIM, F_MICRO);
 
   // bottom: sticker cards
   struct Card { const char* title; const char* role; const char* who; const char* icon; ModeCol col; };
   const Card cards[6] = {
-    {"BananaOS", "the OS it all runs on", "JorreFog · github.com/JorreFog/BananaLinux", "play", MC_ORANGE},
+    {"BananaOS", "the OS it all runs on", "JorreFog · BananaLinux on GitHub", "play", MC_ORANGE},
     {"KanjiVG", "stroke order data", "Ulrich Apel · CC BY-SA 3.0", "pencil", MC_BLUE},
     {"Zen Maru Gothic · Klee One", "rounded and handwriting fonts", "SIL Open Font License 1.1", "book", MC_PURPLE},
     {"Noto Sans CJK JP", "fallback font", "Google and Adobe · OFL 1.1", "grid", MC_TEAL},
-    {"Banana Player", "showed how BananaOS apps work", "tonywei92 · github.com/tonywei92/banana-player", "map", MC_GREEN},
+    {"Banana Player", "showed how BananaOS apps work", "tonywei92 · banana-player on GitHub", "map", MC_GREEN},
     {"Banana Kana", "hints, words and code", "Parzival3971 and Claude · MIT", "star", MC_RED},
   };
   for (int i = 0; i < 6; i++) {

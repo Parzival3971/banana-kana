@@ -55,6 +55,11 @@ int App::selfTest(const std::string& shotDir) {
     std::string tn = tname[int(q.type)] + std::string(q.isWord ? "_word" : "");
     if (shots && !shotTypes.count(tn)) shot("q_" + tn);
     if (!q.options.empty()) {
+      if (mode != Mode::Timed && !checked) {  // nothing is highlighted or picked until the d-pad is used (no accidental hints)
+        CHECK(cursor < 0 && sel < 0, "no cursor on a new question");
+        padButton(SDL_CONTROLLER_BUTTON_A); CHECK(sel < 0 && !checked, "A does nothing before the d-pad");
+        padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); CHECK(cursor == 0 && sel < 0, "first d-pad press shows the cursor");
+      }
       int n = int(q.options.size()); click(B_TILE0 + (right ? q.correct : (q.correct + 1) % n)); click(B_CHECK);
     } else if (q.type == QType::Type && q.kanaInput) {
       typed = right ? q.answer : "ぬぬ"; click(B_CHECK);
@@ -309,7 +314,8 @@ int App::selfTest(const std::string& shotDir) {
     if (i == 3) { CHECK(flash == 2, "miss flashed"); shot("timed"); }
   }
   CHECK(score == 9, "timed score");
-  padButton(SDL_CONTROLLER_BUTTON_A); CHECK(index == 13, "A answers in timed");
+  padButton(SDL_CONTROLLER_BUTTON_A); CHECK(index == 12, "timed: A does nothing before the d-pad");
+  padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); padButton(SDL_CONTROLLER_BUTTON_A); CHECK(index == 13, "A answers in timed");
   togglePause(); tick(timedLast + 5000); CHECK(timedLeft > TIMED_MS - 2000 && screen == Screen::Drill, "pause stops the clock"); togglePause();
   timedLeft = 300; tick(timedLast + 400); CHECK(screen == Screen::Result, "time up -> result");
   CHECK(prog.timedBest[0] == score && timedNewBest, "timed best saved"); shot("result_timed");
@@ -486,14 +492,30 @@ int App::selfTest(const std::string& shotDir) {
     CHECK(click(B_FOOT_R), "confirm settings reset");
     CHECK(!resetSetArmed && prog.settings.sessionLen == 10 && prog.settings.light && prog.settings.sound == 2, "settings back to defaults");
     CHECK(prog.step("h:あ") == 3, "progress kept after settings reset"); }
+  if (getenv("KT_PERF")) {  // frame cost per screen (KT_PERF=1): helps find what makes motion stutter on the device
+    for (Screen sc : {Screen::Home, Screen::Settings, Screen::Stats, Screen::Chart}) {
+      go(sc); render(); Uint64 t0 = SDL_GetPerformanceCounter();
+      for (int k = 0; k < 30; k++) render();
+      double ms = (SDL_GetPerformanceCounter() - t0) * 1000.0 / SDL_GetPerformanceFrequency() / 30;
+      printf("perf: screen %d %.1f ms/frame\n", int(sc), ms);
+    }
+    go(Screen::Home);
+  }
   // ---- 19. motion: fade-in on screen change, Home strip glide, answer pop
   { motion = true; go(Screen::Settings); go(Screen::Home);
     CHECK(transStart != 0 && tick(transStart + 20), "screen fades in"); tick(transStart + TRANS_MS + 1); CHECK(transStart == 0, "fade ends");
-    homeSel = 0; homePos = 0; render(); homeSel = 3;
-    Uint32 t0 = SDL_GetTicks(); CHECK(tick(t0), "strip glides"); CHECK(homePos > 0.f && homePos < 3.f, "glide is gradual");
+    homeSel = 0; homePos = 0; glideTo = 0; glideStart = 0; render();
+    padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
+    Uint32 t0 = SDL_GetTicks(); CHECK(tick(t0), "strip glides"); CHECK(tick(t0 + GLIDE_MS / 2), "glide keeps going");
+    CHECK(homePos > 0.f && homePos < 3.f, "glide is gradual");
     { float keep = homePos; homePos = 1.5f; flameLast = SDL_GetTicks(); transStart = 0; shot("home_glide"); homePos = keep; }
-    for (int k = 1; k < 200 && homePos != 3.f; k++) tick(t0 + k * 16);
-    CHECK(homePos == 3.f, "glide settles on the new tile");
+    tick(t0 + GLIDE_MS + 1); CHECK(homePos == 3.f, "glide settles on the new tile in a fixed time");
+    // swipe: drag left across the strip moves to later tiles, a short flick moves one
+    pointer(0, 400, 166); pointer(1, 300, 166); CHECK(homeDrag && homePos > 3.f, "strip follows the stylus");
+    pointer(1, 260, 166); pointer(2, 260, 166); CHECK(!homeDrag && homeSel == 4, "swipe settles on the next tile");
+    tick(SDL_GetTicks() + GLIDE_MS + 1);
+    pointer(0, 300, 166); pointer(1, 350, 166); pointer(2, 350, 166); CHECK(homeSel == 3, "a flick right goes back one");
+    tick(SDL_GetTicks() + GLIDE_MS + 1);
     motion = false; }
   printf(fails ? "SELFTEST: %d failure(s)\n" : "SELFTEST: all passed (sessions %d, question types %zu)\n", fails ? fails : prog.session, typesSeen.size());
   return fails ? 1 : 0;

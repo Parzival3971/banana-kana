@@ -1,3 +1,5 @@
+#include <cstdint>
+#include <map>
 #include "gfx.h"
 
 #include <algorithm>
@@ -227,28 +229,29 @@ SDL_Rect pill(Win& w, SDL_Rect r, int rad, int kind, bool pressed) {
 
 // Backdrops: faint diagonal stripes (top screen) or a dot grid (bottom), drawn once per window/theme into a texture.
 void drawBackdrop(Win& w, bool topScreen) {
-  std::string key = std::string("#backdrop") + (topScreen ? "T" : "B") + (gLight ? "L" : "D");
-  SDL_Texture*& t = w.cache[key];
+  // Drawn straight to the screen as one triangle batch (no render-target texture: on the device's KMSDRM/GLES
+  // renderer the cached texture came back half-filled with stale pixels). The geometry is built once per
+  // window/theme and reused every frame.
   Col base = topScreen ? BG : BG2, mark = mix(base, FG, gLight ? 0.045f : 0.05f);
-  if (!t) {
-    int W = int(LW * w.scale + 0.5f), Hh = int(LH * w.scale + 0.5f);
-    t = SDL_CreateTexture(w.r, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, W, Hh);
-    if (!t) { clearWin(w, base); return; }
-    SDL_Texture* prev = SDL_GetRenderTarget(w.r);
-    float sx, sy; SDL_RenderGetScale(w.r, &sx, &sy);
-    SDL_SetRenderTarget(w.r, t); SDL_RenderSetScale(w.r, 1.f, 1.f);
-    SDL_SetRenderDrawColor(w.r, base.r, base.g, base.b, 255); SDL_RenderClear(w.r);
-    SDL_SetRenderDrawColor(w.r, mark.r, mark.g, mark.b, 255);
-    float sc = w.scale;
-    if (topScreen) {  // 135-degree stripes, 2 px wide every 12 px
-      for (int k = -Hh; k < W + Hh; k += int(12 * sc)) for (int d = 0; d < int(2 * sc + 0.5f); d++) SDL_RenderDrawLine(w.r, k + d, 0, k + d - Hh, Hh);
+  SDL_SetRenderDrawColor(w.r, base.r, base.g, base.b, 255);
+  SDL_Rect all{0, 0, LW, LH}; SDL_RenderFillRect(w.r, &all);
+  static std::map<std::string, std::vector<SDL_Vertex>> cache;
+  std::string key = std::to_string(reinterpret_cast<uintptr_t>(w.r)) + (topScreen ? "T" : "B") + (gLight ? "L" : "D");
+  std::vector<SDL_Vertex>& v = cache[key];
+  if (v.empty()) {
+    SDL_Color c{mark.r, mark.g, mark.b, 255};
+    auto quad = [&](SDL_FPoint p0, SDL_FPoint p1, SDL_FPoint p2, SDL_FPoint p3) {
+      v.push_back({p0, c, {0, 0}}); v.push_back({p1, c, {0, 0}}); v.push_back({p2, c, {0, 0}});
+      v.push_back({p0, c, {0, 0}}); v.push_back({p2, c, {0, 0}}); v.push_back({p3, c, {0, 0}});
+    };
+    const float H = float(LH);
+    if (topScreen) {  // 135-degree stripes, about 1.3 px wide every 12 px
+      for (float k = -H; k < LW + H; k += 12.f) quad({k, 0}, {k + 1.3f, 0}, {k + 1.3f - H, H}, {k - H, H});
     } else {          // dots every 16 px
-      int step = int(16 * sc), rr = std::max(1, int(1.3f * sc));
-      for (int y = step / 2; y < Hh; y += step) for (int x = step / 2; x < W; x += step) { SDL_Rect d{x - rr, y - rr, 2 * rr, 2 * rr}; SDL_RenderFillRect(w.r, &d); }
+      for (float y = 8; y < LH; y += 16) for (float x = 8; x < LW; x += 16) quad({x - 1.2f, y - 1.2f}, {x + 1.2f, y - 1.2f}, {x + 1.2f, y + 1.2f}, {x - 1.2f, y + 1.2f});
     }
-    SDL_SetRenderTarget(w.r, prev); SDL_RenderSetScale(w.r, sx, sy);
   }
-  SDL_Rect dst{0, 0, LW, LH}; SDL_RenderCopy(w.r, t, nullptr, &dst);
+  SDL_RenderGeometry(w.r, nullptr, v.data(), int(v.size()), nullptr, 0);
 }
 
 // ------------------------------------------------------------------ line icons
@@ -319,7 +322,8 @@ void drawText(Win& w, const std::string& s, SDL_Rect box, Col c, int maxFont, Al
     if ((tw <= box.w && th <= box.h + th / 4) || f == F_COUNT - 1) {
       int x = al == A_LEFT ? box.x : al == A_RIGHT ? box.x + box.w - tw : box.x + (box.w - tw) / 2;
       SDL_Rect d{x, box.y + (box.h - th) / 2, tw, th};
-      if (tw > box.w) { d.w = box.w; d.x = box.x; }
+      if (tw > box.w && getenv("KT_TEXTLOG")) fprintf(stderr, "text too wide (%d > %d): %s\n", tw, box.w, s.c_str());
+      if (tw > box.w) { d.w = box.w; d.h = th * box.w / tw; d.x = box.x; d.y = box.y + (box.h - d.h) / 2; }  // too wide even at the smallest size: shrink evenly, never squash
       SDL_RenderCopy(w.r, t, nullptr, &d); return;
     }
   }
