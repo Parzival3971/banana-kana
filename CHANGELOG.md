@@ -3,6 +3,11 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
+## 0.1.3 - unreleased
+
+- Fix: the analogue sticks no longer make the selector jump around. Wobbling near a diagonal, the stick springing back
+  past centre when let go, and sticks that rest slightly off centre no longer count as extra presses.
+
 ## 0.1.2 - 2026-11-15
 
 - The little banana icon is gone from the top-left header; the BANANA KANA wordmark sits there instead.

@@ -2,7 +2,9 @@
 #include <cstdio>
 #include <fstream>
 #include <set>
+#include <vector>
 #include "../src/core.h"
+#include "../src/stickpad.h"
 using namespace kt;
 #define CHECK(c) do { if (!(c)) { printf("FAIL %s:%d  %s\n", __FILE__, __LINE__, #c); fails++; } } while (0)
 
@@ -349,6 +351,30 @@ int main(int argc, char** argv) {
     p.settings.meanings = 0; int reads = 0;  // shown even with the Word meanings drill turned off
     for (int n = 0; n < 300; n++) { Question q = makeQuestion(d, p, rng); if (q.type == QType::ReadKana && q.isWord) { reads++; CHECK(!q.meaning.empty()); } }
     CHECK(reads > 0);
+  }
+  {  // analogue stick -> d-pad without jitter
+    kt::StickPad sp; std::vector<int> got; auto f = [&](int d) { got.push_back(d); };
+    unsigned t = 0;
+    auto feed = [&](int x, int y) { t += 8; sp.axis(0, true, x, t, f); sp.axis(0, false, y, t, f); sp.repeat(t, f); };
+    feed(1500, -900);                                   // rests a little off centre
+    for (int v = 0; v <= 30000; v += 5000) feed(v, -900);   // push right
+    CHECK(got.size() == 1 && got[0] == kt::STICK_RIGHT);
+    for (int w = 0; w < 10; w++) feed(26000, w % 2 ? 24000 : -22000);  // wobble towards both diagonals
+    CHECK(got.size() == 1);
+    for (int v = 30000; v >= 0; v -= 6000) feed(v, 0);  // let go...
+    feed(-14000, 0); feed(-21000, 0); feed(-9000, 0); feed(2000, 0);  // ...spring-back overshoot
+    CHECK(got.size() == 1);
+    for (int k = 0; k < 20; k++) feed(1500, -900);      // settle at rest
+    feed(1500, 25000);                                  // a real down press
+    CHECK(got.size() == 2 && got[1] == kt::STICK_DOWN);
+    for (int k = 0; k < 20; k++) feed(1500, 25000);     // under the repeat delay
+    CHECK(got.size() == 2);
+    for (int k = 0; k < 60; k++) feed(1500, 25000);     // held: repeats
+    CHECK(got.size() >= 4 && got.back() == kt::STICK_DOWN);
+    size_t n = got.size(); for (int k = 0; k < 20; k++) feed(1500, -900);
+    feed(21000, 20000);                                 // dead diagonal: no press
+    CHECK(got.size() == n);
+    printf("stick: %zu presses, no jitter\n", got.size());
   }
   printf(fails ? "%d FAILURES\n" : "all core tests passed\n", fails); return fails != 0;
 }

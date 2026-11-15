@@ -142,8 +142,10 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   every 100 ms and App::showOsd draws our own card on the top screen (1.8 s).
 - Confetti: App::celebrate(ms, both) on newly known kana (top), stage unlocked / daily goal / timed best (both screens).
   tick() runs every timer each call (an early return once froze the timed clock during confetti).
-- Sticks: main.cpp StickPad turns either analogue stick into d-pad presses (fires at 16000, releases under 9000,
-  repeats after 380 ms every 130 ms). Triggers ignored.
+- Sticks: src/stickpad.h (tested in test_core) turns either analogue stick into d-pad presses. v0.1.1 jumped around
+  (user 2026-11-15): now ON 20000 + 1.5x dominant axis, held axis only until under OFF 11000, re-arm only after
+  120 ms at centre (kills spring-back), rest point calibrated, repeat 400/140 ms. KT_STICKS=0 disables; launch.log
+  logs the first 30 stick presses with raw values. Triggers ignored.
 - On-screen keyboards (kana + romaji) have a d-pad cursor (keyRow/keyCol, kbMove skips gaps), A types, X checks, B deletes.
 - Sound effects (src/sound.cpp): synthesised at start-up (Tap, Right, Wrong, Known, Unlock, Goal, Tick), SDL queue audio,
   Settings > Display > Sound (off/quiet/normal/loud). Not yet heard on device.
