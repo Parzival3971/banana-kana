@@ -3,7 +3,7 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
-## 0.7.2 - unreleased
+## 0.7.2 - 2026-11-16
 
 - The streak flame is gone for good: Kitsu now sits in the Streak box on Stats too, as she does on Home. This week's
   goal days on Home still change colour as your streak grows.

@@ -279,6 +279,7 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   self-test checks), FoxLook stage/mood/accessory/season/t. app: Home streak card fox (z's when asleep, hop on goal),
   Screen::Pet (Stats START / chip; 4x2 accessory tiles, Back/Rename/Take it off), PetEvolve (go(Home) redirects while
   petEvolvePending), PetName (drill kana keyboard, 6 kana max, Cancel/Save name).
+- RELEASED 0.7.2 on 2026-11-16 (streak flame removed, Kitsu on Stats; user said "release").
 - RELEASED 0.7.1 on 2026-11-16 (maple leaves for autumn; user said "release").
 - RELEASED 0.7.0 on 2026-11-16 (Kitsu streak fox, background step + Run setup again; PR #3 merged after device test; user said "release to main").
 - RELEASED 0.6.0 on 2026-11-16 (Home grid, Seasons of Japan, scrolling settings, theme on first launch; PR #2; user said "release to main").
