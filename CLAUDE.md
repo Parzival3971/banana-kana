@@ -232,7 +232,8 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   left 3 columns -> pill, from the right column -> script switch. Tapping a tile opens it. The slider, its glide and the
   stylus swipe were removed (git history has them: 0.5.0).
 - Seasons (0.6.0, user asked 2026-11-16 for a "four seasons of Japan" background with gentle motion): Settings.backdrop
-  0 plain (default) / 1 seasons by calendar month (Mar-May spring, Jun-Aug summer, Sep-Nov autumn, Dec-Feb winter) / 2-5
+  0 plain / 1 seasons by calendar month (DEFAULT since 0.6.0: user said drift is smooth on device, 2026-11-16; self-test
+  forces 0 so README shots don't change by month) (Mar-May spring, Jun-Aug summer, Sep-Nov autumn, Dec-Feb winter) / 2-5
   fixed; "set backdrop". gfx setSeason() tints BG/BG2 (after applyTheme; render calls setSeason(seasonNow()) every
   frame), drawBackdrop draws the season's cached pattern (sakura blossoms, seigaiha arcs, momiji stars, snow dots),
   drawSeasonParticles(t) draws 12 top / 8 bottom drifting particles as a pure function of time (fireflies rise).

@@ -80,7 +80,7 @@ struct Settings {
   int strict = 1;         // stroke checking: 0 relaxed, 1 normal, 2 strict
   int sound = 2;          // sound effects: 0 off, 1 quiet, 2 normal, 3 loud
   int rumble = 1;         // gamepad rumble on answers: 0 off, 1 light, 2 strong
-  int backdrop = 0;       // background: 0 plain, 1 seasons (follows the calendar), 2-5 spring/summer/autumn/winter
+  int backdrop = 1;       // background: 0 plain, 1 seasons (follows the calendar; the default since 0.6.0), 2-5 spring/summer/autumn/winter
   Script script = Script::Hiragana;
   bool light = true;   // UI theme: the Handheld design in light (default) or dark
 };

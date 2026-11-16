@@ -14,6 +14,7 @@ int App::selfTest(const std::string& shotDir) {
   auto CHECK = [&](bool c, const char* m) { if (!c) { printf("FAIL: %s\n", m); fails++; } };
   rng.seed(12345);
   motion = false;  // screenshots and clicks see settled screens; motion has its own check at the end
+  prog.settings.backdrop = 0;  // README shots stay the same whatever the month (the season shots set their own)
   auto frame = [&]() { render(); };
   auto find = [&](int id) -> const Button* { frame(); for (auto& b : buttons) if (b.id == id) return &b; return nullptr; };
   auto click = [&](int id) {
@@ -483,7 +484,8 @@ int App::selfTest(const std::string& shotDir) {
     CHECK(click(B_SROW0 + 5), "select reset settings"); CHECK(click(B_SROW0 + 5), "reset settings once");
     CHECK(resetSetArmed && prog.settings.sessionLen == 20, "first press only arms"); shot("settings_reset_settings");
     CHECK(click(B_FOOT_R), "confirm settings reset");
-    CHECK(!resetSetArmed && prog.settings.sessionLen == 10 && prog.settings.light && prog.settings.sound == 2, "settings back to defaults");
+    CHECK(!resetSetArmed && prog.settings.sessionLen == 10 && prog.settings.light && prog.settings.sound == 2 && prog.settings.backdrop == 1, "settings back to defaults (Seasons on)");
+    prog.settings.backdrop = 0;  // keep the remaining shots plain
     CHECK(prog.step("h:あ") == 3, "progress kept after settings reset"); }
   if (getenv("KT_PERF")) {  // frame cost per screen (KT_PERF=1): helps find what makes motion stutter on the device
     for (Screen sc : {Screen::Home, Screen::Settings, Screen::Stats, Screen::Chart}) {

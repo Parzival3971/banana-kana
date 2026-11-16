@@ -9,8 +9,9 @@ the release notes come from the matching section below.
   all eight modes below as tiles (Review, Mix-ups, Words, Timed, Stats, Stages, Kana chart, Settings). Everything is
   visible and one tap away, and the d-pad moves around the grid in all four directions.
 - Seasons of Japan backgrounds (Settings > Display > Background): sakura in spring, seigaiha waves and fireflies in
-  summer, momiji in autumn, snow in winter, in light and dark. "Seasons" follows the calendar, or pick one season.
-  Petals, fireflies, leaves and snow drift gently over menus (never in drills or writing). Plain stays the default.
+  summer, momiji in autumn, snow in winter, in light and dark. On by default ("Auto" follows the calendar), or pick
+  one season, or Plain for the old stripes. Petals, fireflies, leaves and snow drift gently over menus (never in drills
+  or writing).
 - Settings groups with more than five rows scroll (with ▲ ▼ buttons) instead of squeezing the rows.
 
 ## 0.5.0 - 2026-11-15
