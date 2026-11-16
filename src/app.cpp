@@ -80,6 +80,7 @@ void App::go(Screen s) {
   if (s == Screen::Result || s == Screen::Unlocked) backup(true);
   if (s == Screen::Result) countStart = motion ? (SDL_GetTicks() | 1) : 0;  // the score counts up
   if (s == Screen::Result && mode == Mode::Timed && timedNewBest) celebrate(2400, true);
+  if (s == Screen::Welcome && screen != Screen::Welcome) welcomeStep = 0;
   if (s == Screen::Stages) { mapScript = prog.settings.script; mapSel = prog.currentStage(mapScript); }
   if (s == Screen::Chart) {
     chartScroll = 0; chartSel = -1;
@@ -580,7 +581,10 @@ void App::press(int id) {
       else if (id == B_BACK) go(Screen::Chart);
       break; }
     case Screen::Welcome:
-      if (id >= B_WELCOME0 && id < B_WELCOME0 + 4) welcomeChoice(id - B_WELCOME0);
+      if (welcomeStep == 0) {  // pick a look: applies straight away, so the whole app shows it
+        if (id == B_WTHEME0 || id == B_WTHEME0 + 1) { prog.settings.light = id == B_WTHEME0; applyTheme(prog.settings.light); save(); }
+        else if (id == B_WEL_NEXT) { welcomeStep = 1; welcomeSel = 0; }
+      } else if (id >= B_WELCOME0 && id < B_WELCOME0 + 4) welcomeChoice(id - B_WELCOME0);
       break;
     case Screen::Stats:
       if (id >= B_HEAT0 && id < B_HEAT0 + int(data.kana.size())) {  // open that kana in the chart
@@ -762,8 +766,14 @@ void App::padButton(SDL_GameControllerButton b) {
       else if (b == L || b == LS) press(B_FW_PREV); else if (b == R || b == RS) press(B_FW_NEXT); else if (b == B) press(B_BACK);
       break;
     case Screen::Welcome:
-      if (b == U) welcomeSel = (welcomeSel + 3) % 4; else if (b == D) welcomeSel = (welcomeSel + 1) % 4;
-      else if (b == A || b == ST) press(B_WELCOME0 + welcomeSel);
+      if (welcomeStep == 0) {
+        if (b == L) press(B_WTHEME0); else if (b == R) press(B_WTHEME0 + 1);
+        else if (b == A || b == ST) press(B_WEL_NEXT);
+      } else {
+        if (b == U) welcomeSel = (welcomeSel + 3) % 4; else if (b == D) welcomeSel = (welcomeSel + 1) % 4;
+        else if (b == A || b == ST) press(B_WELCOME0 + welcomeSel);
+        else if (b == B) welcomeStep = 0;  // back to the look
+      }
       break;
     case Screen::Stats:
       if (b == B) press(B_BACK);
@@ -1617,17 +1627,43 @@ void App::drawDrill() {
 void App::drawWelcome() {
   appTile(top, 270, 8, 96);
   drawText(top, "Welcome to Banana Kana", SDL_Rect{20, 112, 600, 60}, FG, F_MID);
+  if (welcomeStep == 0) {  // step 1 of 2: light or dark, shown live
+    drawWrapped(top, "First, pick a look. Tap one to try it: the whole app changes straight away.",
+                SDL_Rect{60, 190, 520, 100}, DIM, F_TINY);
+    drawText(top, "Step 1 of 2 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+    for (int k = 0; k < 2; k++) {
+      bool light = k == 0, on = prog.settings.light == light;
+      SDL_Rect r{16 + k * 312, 16, 296, 300};
+      if (on) { fillRound(bot, SDL_Rect{r.x - 6, r.y - 6, r.w + 12, r.h + 12}, 30, ACC_LINE); fillRound(bot, SDL_Rect{r.x - 2, r.y - 2, r.w + 4, r.h + 4}, 26, BG2); }
+      card(bot, r, 24);
+      // a little preview of Home in that look
+      SDL_Rect m{r.x + 24, r.y + 22, r.w - 48, 190};
+      fillRound(bot, m, 16, light ? hex(0xEEF1F4) : hex(0x1A1E25));
+      fillRound(bot, SDL_Rect{m.x + 14, m.y + 14, m.w - 28, 70}, 12, light ? hex(0xFFFFFF) : hex(0x262C36));
+      fillRound(bot, SDL_Rect{m.x + 28, m.y + 30, 110, 12}, 6, light ? hex(0x2B2F36) : hex(0xE8EAEE));
+      fillRound(bot, SDL_Rect{m.x + 28, m.y + 54, 160, 9}, 4, light ? hex(0xA0A7B0) : hex(0x6B7380));
+      fillRound(bot, SDL_Rect{m.x + 14, m.y + 98, m.w - 28, 34}, 17, hex(0xF28C28));
+      const Col tiles[4] = {hex(0x2F7BEA), hex(0x7C4DDB), hex(0x2FA65A), hex(0xE0453A)};
+      for (int t = 0; t < 4; t++) fillRound(bot, SDL_Rect{m.x + 14 + t * ((m.w - 28) / 4), m.y + 142, (m.w - 28) / 4 - 8, 36}, 9, tiles[t]);
+      setBold(true); drawText(bot, light ? "Light" : "Dark", SDL_Rect{r.x, r.y + 222, r.w, 40}, FG, F_SMALL); setBold(false);
+      drawText(bot, light ? "bright and clear" : "easy on the eyes at night", SDL_Rect{r.x, r.y + 260, r.w, 28}, DIM, F_MICRO);
+      addBtn(r, B_WTHEME0 + k, light ? "Light" : "Dark", F_SMALL); lastBtn().hidden = true;
+    }
+    addBtn(SDL_Rect{16, 336, 608, 84}, B_WEL_NEXT, "Next", F_SMALL); accent(lastBtn()); lastBtn().radius = 30;
+    chips({{"+", "Light / Dark"}, {"A", "Next"}});
+    return;
+  }
   drawWrapped(top, "Learn hiragana, then katakana, a few kana at a time: a short lesson, then drills. "
                    "Already know some? Skip ahead. Kana you skip count as known, with a quick review soon to check.",
               SDL_Rect{60, 190, 520, 140}, DIM, F_TINY);
-  drawText(top, "You can change this later in Settings > Script.", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+  drawText(top, "Step 2 of 2 · you can change this later in Settings > Script", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
   const char* l[4] = {"New to kana", "I know hiragana", "I know both", "I know some"};
   const char* sub[4] = {"start at \u3042 \u3044 \u3046 \u3048 \u304a", "all 105, start on katakana", "straight to reviews", "choose the stages in Settings"};
   for (int i = 0; i < 4; i++) {
     addBtn(SDL_Rect{16, 16 + i * 102, 608, 94}, B_WELCOME0 + i, l[i], F_SMALL); lastBtn().sub = sub[i];
     if (i == welcomeSel) accent(lastBtn());
   }
-  chips({{"+", "Choose"}, {"A", "Start"}});
+  chips({{"+", "Choose"}, {"A", "Start"}, {"B", "Back"}});
 }
 
 void App::drawFreeWrite() {

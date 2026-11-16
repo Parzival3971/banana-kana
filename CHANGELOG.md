@@ -13,6 +13,7 @@ the release notes come from the matching section below.
   one season, or Plain for the old stripes. Petals, fireflies, leaves and snow drift gently over menus (never in drills
   or writing).
 - Settings groups with more than five rows scroll (with ▲ ▼ buttons) instead of squeezing the rows.
+- First launch now starts by picking Light or Dark (it changes the whole app as you tap), then what you already know.
 
 ## 0.5.0 - 2026-11-15
 

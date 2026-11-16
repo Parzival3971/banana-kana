@@ -89,7 +89,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 | <img src="docs/img/timed.png" width="250"><br>Timed challenge | <img src="docs/img/result.png" width="250"><br>Results | <img src="docs/img/unlocked.png" width="250"><br>Stage unlocked |
 | <img src="docs/img/stages.png" width="250"><br>Stage map | <img src="docs/img/chart.png" width="250"><br>Kana chart | <img src="docs/img/stats.png" width="250"><br>Stats |
 | <img src="docs/img/settings.png" width="250"><br>Settings | <img src="docs/img/dark-home.png" width="250"><br>Dark theme | <img src="docs/img/dark-stats.png" width="250"><br>Dark theme stats |
-| <img src="docs/img/welcome.png" width="250"><br>First launch | <img src="docs/img/practice-set.png" width="250"><br>Practice set | <img src="docs/img/free-write.png" width="250"><br>Free writing |
+| <img src="docs/img/welcome-theme.png" width="250"><br>First launch: pick a look | <img src="docs/img/practice-set.png" width="250"><br>Practice set | <img src="docs/img/free-write.png" width="250"><br>Free writing |
 | <img src="docs/img/skip.png" width="250"><br>Skipping ahead | <img src="docs/img/guided.png" width="250"><br>Guided writing | <img src="docs/img/credits.png" width="250"><br>Credits |
 | <img src="docs/img/draw-any.png" width="250"><br>Draw any kana | <img src="docs/img/extras.png" width="250"><br>Extras stage | <img src="docs/img/handwriting.png" width="250"><br>Handwriting font and grid |
 | <img src="docs/img/match.png" width="250"><br>Hiragana ↔ katakana | <img src="docs/img/packs.png" width="250"><br>Word packs | <img src="docs/img/words.png" width="250"><br>Word pack quiz |

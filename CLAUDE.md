@@ -241,6 +241,8 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   Summer stuttered on device (2026-11-16): seigaiha was ~51k triangles/frame; now R 34/40, 2 rings, 8 segments (~10k,
   like spring). Self-test budget: <= 8000 pattern triangles per screen per season (backdropTriangles()).
   Display row 6 "Background" (segments Plain/Auto/春/夏/秋/冬; 春夏秋冬 added to fallback.ttf) + settingPreview row 6.
+- Welcome has 2 steps (user asked 2026-11-16): welcomeStep 0 = Light/Dark tiles (B_WTHEME0/+1, applied + saved at once,
+  d-pad L/R) and Next (B_WEL_NEXT / A); step 1 = the 4 "what do you know" choices (B goes back to step 0).
 - Settings groups with more than 5 rows scroll (user: rows looked squished on device, 2026-11-16): rows keep PITCH 66,
   5 visible, window follows setRow; ▲ / ▼ footer buttons (B_SUP/B_SDOWN) + "n/N" between Back and Change.
 - Old v1 look (kept for history): BananaOS palette (banana yellow #FFD23F on warm neutrals), button-hint chips, cartridge tiles.
