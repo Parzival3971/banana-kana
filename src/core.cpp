@@ -269,6 +269,7 @@ void Progress::record(const std::string& key, bool ok) {
 void Progress::countAnswer(bool ok, Time t) {  // daily goal, streak and history
   goalJustMet = false;
   int d = dayNumber(t);
+  if (d != pet.lastDay) { pet.days++; pet.lastDay = d; }  // Kitsu grows with days practised
   if (d != today) { today = d; todayCount = 0; }
   todayCount++;
   Day& dh = days[d]; dh.answers++; if (ok) dh.correct++;
@@ -277,6 +278,24 @@ void Progress::countAnswer(bool ok, Time t) {  // daily goal, streak and history
     streak = lastGoalDay == dayNumber(t - 86400) ? streak + 1 : 1;
     lastGoalDay = d; bestStreak = std::max(bestStreak, streak); goalJustMet = true;
   }
+}
+
+const std::vector<PetAccessory>& petAccessories() {
+  static const std::vector<PetAccessory> A = {
+    {"bell", "Suzu bell", "answers10"}, {"hachimaki", "Hachimaki", "perfect"}, {"omamori", "Omamori", "streak7"},
+    {"lantern", "Lantern", "timed20"}, {"mask", "Fox mask", "hira_all"}, {"scroll", "Scroll", "words50"},
+    {"kanzashi", "Kanzashi", "kata_all"}, {"daruma", "Daruma", "answers1000"},
+  };
+  return A;
+}
+int Progress::petStage() const {
+  if (!petHatched()) return 0;
+  int s = 1; for (int i = 2; i < 5; i++) if (pet.days >= PET_STAGE_DAYS[i]) s = i;
+  return s;
+}
+bool Progress::petAwake() const { return lastGoalDay == dayNumber(now()); }
+bool Progress::petAccUnlocked(int i) const {
+  return i >= 0 && i < int(petAccessories().size()) && achieved.count(petAccessories()[i].achievement) > 0;
 }
 
 void Progress::recordWrite(const std::string& key, bool ok, int level) {
@@ -431,6 +450,13 @@ bool Progress::load(const std::string& path, const Data* d) {
       else if (k == "lessons_k") lessons[1] = std::clamp(v, 0, STAGE_COUNT);
     } else if (tag == "day") {
       int dd = 0; Day x; if (is >> dd >> x.answers >> x.correct) days[dd] = x;
+    } else if (tag == "pet") {  // pet <seenStage> <acc> <days> <lastDay> <name...>
+      Pet p; if (is >> p.seenStage >> p.acc >> p.days >> p.lastDay) {
+        std::string nm; std::getline(is, nm); while (!nm.empty() && nm[0] == ' ') nm.erase(0, 1);
+        if (!nm.empty()) p.name = nm;
+        p.days = std::max(0, p.days); p.acc = std::clamp(p.acc, -1, int(petAccessories().size()) - 1);
+        pet = p; petLoaded = true;
+      }
     } else if (tag == "ach") {
       std::string id; int day = 0; if (is >> id >> day) achieved[id] = day;
     } else if (tag == "mix") {
@@ -456,6 +482,10 @@ bool Progress::load(const std::string& path, const Data* d) {
   for (auto& [k, s] : stats)
     if (s.step >= KNOWN_STEP && s.srs == 0 && k.size() > 2 && k[1] == ':') { s.srs = 1; s.due = now() + Time(86400) * (1 + spread++ % 3); }
   if (!scriptUnlocked(settings.script)) settings.script = Script::Hiragana;
+  if (!petLoaded) {  // an older file: Kitsu arrives already grown for the days in the history, without a celebration
+    for (auto& [dd, x] : days) if (x.answers > 0) { pet.days++; pet.lastDay = std::max(pet.lastDay, dd); }
+    pet.seenStage = petStage();
+  }
   return true;
 }
 
@@ -478,6 +508,7 @@ bool Progress::save(const std::string& path) const {
     for (const auto& [dd, x] : days) f << "day " << dd << ' ' << x.answers << ' ' << x.correct << '\n';
     for (const auto& [k, n] : confusions) { auto bar = k.find('|'); f << "mix " << k.substr(0, bar) << ' ' << k.substr(bar + 1) << ' ' << n << '\n'; }
     for (const auto& [id, day] : achieved) f << "ach " << id << ' ' << day << '\n';
+    f << "pet " << pet.seenStage << ' ' << pet.acc << ' ' << pet.days << ' ' << pet.lastDay << ' ' << pet.name << '\n';
     if (!f) return false; }
   return std::rename(tmp.c_str(), path.c_str()) == 0;
 }

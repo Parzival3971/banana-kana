@@ -6,10 +6,11 @@
 
 #include "core.h"
 #include "gfx.h"
+#include "fox.h"
 
 namespace kt {
 
-enum class Screen { Home, Stages, Lesson, Unlocked, Drill, Result, Chart, Settings, SettingsGroup, Credits, Stats, Welcome, FreeWrite, Packs, PackWords, Awards };
+enum class Screen { Home, Stages, Lesson, Unlocked, Drill, Result, Chart, Settings, SettingsGroup, Credits, Stats, Welcome, FreeWrite, Packs, PackWords, Awards, Pet, PetEvolve, PetName };
 
 // What a practice session draws from.
 enum class Mode { Normal, Focus, Review, Mixup, Timed, Pack };
@@ -40,7 +41,7 @@ enum BtnId {
   // keyboard
   B_KEY0 = 300, B_KANA0 = 400, B_DAKU = 460, B_HANDAKU, B_SMALLK, B_CHOON,
   // stats heatmap
-  B_HEAT0 = 2000, B_PACK0 = 2600, B_PACK_START = 2650, B_PACK_BROWSE, B_WORD0 = 2700, B_WPREV = 2720, B_WNEXT, B_AWARDS = 2730, B_AWARD0 = 2740,
+  B_HEAT0 = 2000, B_PACK0 = 2600, B_PACK_START = 2650, B_PACK_BROWSE, B_WORD0 = 2700, B_WPREV = 2720, B_WNEXT, B_AWARDS = 2730, B_AWARD0 = 2740, B_PET = 2780, B_ACC0 = 2790, B_PET_RENAME = 2800, B_PET_NONE, B_PET_CONT,
 };
 
 struct Button {
@@ -157,6 +158,11 @@ struct App {
   void chips(const std::vector<std::pair<std::string, std::string>>& items);
   void segBar(Win& w, SDL_Rect r, int total, int done, const std::vector<int>& res);
   void settingPreview(int row);
+  // Kitsu the streak pet (0.7.0; fox.h draws it): Home streak card, evolution celebration, Your fox page, renaming
+  FoxLook petLook(FoxMood mood) const;
+  bool petEvolvePending() const { return prog.petStage() >= 1 && prog.petStage() > prog.pet.seenStage; }
+  void drawPet(); void drawPetEvolve(); void drawPetName();
+  int petSel = 0; bool petHopPending = false; Uint32 petHopStart = 0, petLast = 0;
   int seasonNow() const;      // -1 plain, 0-3 the season to show (Settings.backdrop; 1 = by the calendar month)
   bool menuScreen() const;    // screens where the season's petals/leaves/snow drift (not drills, lessons or writing)
   Uint32 seasonLast = 0;      // last drift redraw

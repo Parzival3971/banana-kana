@@ -74,7 +74,14 @@ bool isKataText(const std::string& s) { auto c = utf8Codepoints(s); return !c.em
 
 // ================================================================== flow
 void App::go(Screen s) {
+  if (s == Screen::Home && petEvolvePending()) s = Screen::PetEvolve;  // a new stage is celebrated on the way Home
   if (motion && s != screen) transStart = SDL_GetTicks() | 1;  // soft fade-in of the new screen
+  if (s == Screen::Home && petHopPending) { petHopPending = false; petHopStart = SDL_GetTicks() | 1; }
+  if (s == Screen::PetEvolve && screen != Screen::PetEvolve) { snd::play(snd::Sfx::Unlock); celebrate(3200, true); }
+  if (s == Screen::PetName) {  // reuse the drill's kana keyboard: a blank hiragana typing question
+    q = Question{}; q.type = QType::Type; q.kanaInput = true; checked = false; keyRow = keyCol = 0;
+    typed = isKataText(prog.pet.name) || utf8Codepoints(prog.pet.name).empty() || utf8Codepoints(prog.pet.name)[0] >= 0x3040 ? prog.pet.name : "";
+  }
   screen = s; pressedId = -1; drawing = false; cur.clear(); paused = false; animStart = 0;
   if (s == Screen::Unlocked) { snd::play(snd::Sfx::Unlock); celebrate(3200, true); }
   if (s == Screen::Result || s == Screen::Unlocked) backup(true);
@@ -198,6 +205,7 @@ bool App::tick(Uint32 now) {  // every timer runs every time; true if anything n
   if (confStart && now - confLast >= 33) { confLast = now; redraw = true; }  // confetti at ~30 fps
   if (animStart && !paused && now - animLast >= 33) { animLast = now; redraw = true; }  // stroke-order animation
   if (transStart) { if (now - transStart >= TRANS_MS) transStart = 0; redraw = true; }
+  if (motion && !paused && (screen == Screen::Home || screen == Screen::Pet || screen == Screen::PetEvolve) && now - petLast >= 70) { petLast = now; redraw = true; }  // Kitsu breathes, blinks and sways
   if (motion && prog.settings.backdrop > 0 && menuScreen() && now - seasonLast >= 90) { seasonLast = now; redraw = true; }  // gentle drift, ~11 fps
   if (countStart) { if (now - countStart >= 900) countStart = 0; redraw = true; }
   if (answerAnim) { if (now - answerAnim >= ANSWER_MS) answerAnim = 0; redraw = true; }
@@ -378,6 +386,7 @@ void App::check() {
   }
   snd::play(wordKnown || (!newlyKnown.empty() && newlyKnown.back() == (k ? k->glyph : "") && ok) ? snd::Sfx::Known : ok ? snd::Sfx::Right : snd::Sfx::Wrong);
   if (prog.goalJustMet) {
+    petHopPending = true;  // Kitsu wakes up and hops when you're back on Home
     snd::play(snd::Sfx::Goal);
     if (mode != Mode::Timed) celebrate(2400, true);
     goalMet = true;
@@ -594,7 +603,27 @@ void App::press(int id) {
       } else if (id == B_SCRIPT_H) setScript(Script::Hiragana);
       else if (id == B_SCRIPT_K) setScript(Script::Katakana);
       else if (id == B_AWARDS) go(Screen::Awards);
+      else if (id == B_PET) go(Screen::Pet);
       else if (id == B_BACK) go(Screen::Home);
+      break;
+    case Screen::Pet:
+      if (id >= B_ACC0 && id < B_ACC0 + int(petAccessories().size())) {
+        int i = id - B_ACC0; petSel = i;
+        if (prog.petAccUnlocked(i)) { prog.pet.acc = prog.pet.acc == i ? -1 : i; save(); snd::play(snd::Sfx::Tap); }
+      } else if (id == B_PET_NONE) { prog.pet.acc = -1; save(); }
+      else if (id == B_PET_RENAME) go(Screen::PetName);
+      else if (id == B_BACK) go(Screen::Stats);
+      break;
+    case Screen::PetEvolve:
+      if (id == B_PET_CONT) { prog.pet.seenStage = prog.petStage(); save(); go(Screen::Home); }
+      break;
+    case Screen::PetName:
+      if (id >= B_KANA0 && id < B_KANA0 + 50 && int(Data::partNames(typed).size()) < PET_NAME_MAX) typed += kanaKeyAt(id - B_KANA0, false);
+      else if (id >= B_DAKU && id <= B_SMALLK) typed = modifyLast(typed, id - B_DAKU, false);
+      else if (id == B_CHOON && !typed.empty() && int(Data::partNames(typed).size()) < PET_NAME_MAX) typed += "ー";
+      else if (id == B_BKSP && !typed.empty()) popChar(typed);
+      else if (id == B_CHECK && !typed.empty()) { prog.pet.name = typed; save(); go(Screen::Pet); }
+      else if (id == B_BACK) go(Screen::Pet);
       break;
     case Screen::Awards:
       if (id >= B_AWARD0 && id < B_AWARD0 + int(achievementList().size())) awardSel = id - B_AWARD0;
@@ -779,6 +808,23 @@ void App::padButton(SDL_GameControllerButton b) {
       if (b == B) press(B_BACK);
       else if (b == Y) press(sc == Script::Hiragana ? B_SCRIPT_K : B_SCRIPT_H);
       else if (b == X) press(B_AWARDS);
+      else if (b == ST) press(B_PET);
+      break;
+    case Screen::Pet: {
+      int n = int(petAccessories().size());
+      if (b == L && petSel % 4 > 0) petSel--; else if (b == R && petSel % 4 < 3 && petSel < n - 1) petSel++;
+      else if (b == U && petSel >= 4) petSel -= 4; else if (b == D && petSel + 4 < n) petSel += 4;
+      else if (b == A) press(B_ACC0 + petSel); else if (b == Y) press(B_PET_RENAME); else if (b == X) press(B_PET_NONE);
+      else if (b == B) press(B_BACK);
+      break; }
+    case Screen::PetEvolve:
+      if (b == A || b == B || b == ST || b == X) press(B_PET_CONT);
+      break;
+    case Screen::PetName:
+      if (b == L) kbMove(-1, 0); else if (b == R) kbMove(1, 0); else if (b == U) kbMove(0, -1); else if (b == D) kbMove(0, 1);
+      else if (b == A) { int id = kbItemId(keyRow, keyCol); if (id >= 0) press(id); }
+      else if (b == X || b == ST) press(B_CHECK);
+      else if (b == B) { if (typed.empty()) press(B_BACK); else press(B_BKSP); }
       break;
     case Screen::Awards: {
       int n = int(achievementList().size());
@@ -947,6 +993,7 @@ void App::chips(const std::vector<std::pair<std::string, std::string>>& items) {
     } else drawText(bot, k, SDL_Rect{x + 3, 441, kw, 28}, BG, F_MICRO);
     drawText(bot, label, SDL_Rect{x + 4 + kw + (tight ? 6 : 8), 438, lw + 4, 34}, FG, F_MICRO, A_LEFT);
     if (label == "Awards" && screen == Screen::Stats) { addBtn(SDL_Rect{x - 4, 432, w + 8, 46}, B_AWARDS, ""); lastBtn().hidden = true; }
+    if (label == "Your fox" && screen == Screen::Stats) { addBtn(SDL_Rect{x - 4, 432, w + 8, 46}, B_PET, ""); lastBtn().hidden = true; }
     if (label == "Pause" && screen == Screen::Drill && !paused) {  // tap the hint to pause, too (in case F never reaches us)
       addBtn(SDL_Rect{x - 4, 432, w + 8, 46}, B_PAUSE, ""); lastBtn().hidden = true;
     }
@@ -1058,6 +1105,7 @@ void App::render() {
       case Screen::Drill: case Screen::Result: mc = byMode(); break;
       case Screen::Stats: case Screen::Awards: case Screen::Settings: case Screen::SettingsGroup: mc = MC_TEAL; break;
       case Screen::Packs: case Screen::PackWords: mc = MC_GREEN; break;
+      case Screen::Pet: case Screen::PetEvolve: case Screen::PetName: mc = MC_ORANGE; break;
       default: break;
     }
     setAccent(mc);
@@ -1082,6 +1130,9 @@ void App::render() {
     case Screen::Packs: drawPacks(); break;
     case Screen::PackWords: drawPackWords(); break;
     case Screen::Awards: drawAwards(); break;
+    case Screen::Pet: drawPet(); break;
+    case Screen::PetEvolve: drawPetEvolve(); break;
+    case Screen::PetName: drawPetName(); break;
   }
   drawButtons();
   if (season() >= 0 && menuScreen()) {  // petals / fireflies / leaves / snow drift over menus (still when motion is off)
@@ -1232,12 +1283,23 @@ void App::drawHome() {
     // the flame grows up with the streak; it stays an outline until today's goal is met (a nudge to keep it alive)
     const FlameTier* tier = flameTier(streak);
     const bool lit = streak > 0 && prog.lastGoalDay == dayNumber(prog.now());
-    const int fs = tier ? tier->size : 48;
-    streakFlame(top, SDL_Rect{r.x + 42 - fs / 2, r.y + 76 - fs, fs, fs}, streak, lit);
-    setBold(true); drawText(top, std::to_string(streak) + "-day streak", SDL_Rect{r.x + 74, r.y + 18, 220, 36}, FG, F_TINY, A_LEFT); setBold(false);
-    std::string sub = "best " + std::to_string(std::max(streak, prog.bestStreak));
-    if (tier && !lit) sub = "today's goal keeps it lit"; else if (tier) sub += " · " + std::string(tier->name);
-    drawText(top, sub, SDL_Rect{r.x + 74, r.y + 54, 210, 24}, tier && !lit ? ACCENT_TXT : DIM, F_MICRO, A_LEFT);
+    // Kitsu sits in the streak card: asleep until today's goal is met, then awake (with a hop just after)
+    const int st = prog.petStage(); const Uint32 nowT = SDL_GetTicks();
+    const bool hop = petHopStart && nowT - petHopStart < 1500;
+    if (!hop) petHopStart = 0;
+    FoxMood mood = !lit ? FoxMood::Asleep : hop ? FoxMood::Happy : FoxMood::Awake;
+    float hopY = hop ? -std::fabs(std::sin((nowT - petHopStart) / 1000.f * 7.f)) * 10.f : 0.f;
+    drawFox(top, r.x + 48, r.y + r.h - 6 + hopY, 112, petLook(mood));
+    if (!lit && prog.petStage() > 0) { float zt = motion ? nowT / 1000.f : 0.f;
+      for (int k = 0; k < 2; k++) drawText(top, "z", SDL_Rect{r.x + 78 + k * 8, r.y + 6 - k * 10 - int(std::fmod(zt * 6 + k * 5, 10.f)), 20, 20}, DIM, F_MICRO); }
+    const std::string& nm = prog.pet.name;
+    std::string title, sub; Col subCol = DIM;
+    int left = std::max(0, prog.settings.dailyGoal - (prog.today == dayNumber(prog.now()) ? prog.todayCount : 0));
+    if (st == 0) { title = "An egg!"; sub = "Hatches at today's goal"; subCol = ACCENT_TXT; }
+    else if (!lit) { title = nm + " is asleep"; sub = std::to_string(left) + (left == 1 ? " more answer" : " more answers") + " to wake her"; subCol = ACCENT_TXT; }
+    else { title = nm + " · " + std::to_string(PET_TAILS[st]) + (st == 1 ? " tail" : " tails"); sub = std::to_string(streak) + "-day streak · best " + std::to_string(std::max(streak, prog.bestStreak)); }
+    setBold(true); drawText(top, title, SDL_Rect{r.x + 100, r.y + 18, 196, 36}, FG, F_TINY, A_LEFT); setBold(false);
+    drawText(top, sub, SDL_Rect{r.x + 100, r.y + 54, 196, 24}, subCol, F_MICRO, A_LEFT);
     static const char* KJ[7] = {"月", "火", "水", "木", "金", "土", "日"};
     static const char* EN[7] = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
     int todayIdx = (lt.tm_wday + 6) % 7;
@@ -1666,6 +1728,103 @@ void App::drawWelcome() {
   chips({{"+", "Choose"}, {"A", "Start"}, {"B", "Back"}});
 }
 
+// ================================================================== Kitsu, the streak pet
+namespace {
+const char* PET_STAGE_NAME[5] = {"Egg", "Kit · 1 tail", "3 tails", "5 tails", "Kyūbi · 9 tails"};
+const char* PET_STAGE_TEXT[5] = {
+  "Meet today's goal to hatch it.",
+  "A tiny kit with one fluffy tail. She grows more tails as you keep practising.",
+  "Three tails and a red scarf: a week of practice!",
+  "Five tails with glowing tips: 30 days of practice!",
+  "Nine tails and fox-fire. A true kyūbi: 100 days of practice!"};
+}
+
+FoxLook App::petLook(FoxMood mood) const {
+  FoxLook L; L.stage = prog.petStage(); L.mood = mood; L.accessory = prog.pet.acc; L.season = seasonNow();
+  L.t = motion ? SDL_GetTicks() / 1000.f : 0.f;
+  return L;
+}
+
+void App::drawPet() {
+  const int st = prog.petStage(), days = prog.pet.days;
+  header("きつね · Your fox", std::to_string(days) + (days == 1 ? " day practised" : " days practised"));
+  card(top, SDL_Rect{16, 62, 272, 400}, 20);
+  drawFox(top, 152, 446, 330, petLook(st == 0 ? FoxMood::Awake : prog.petAwake() ? FoxMood::Awake : FoxMood::Asleep));
+  const int X = 306, W = 318;
+  setBold(true); drawText(top, prog.pet.name, SDL_Rect{X, 66, W, 56}, FG, F_MID, A_LEFT); setBold(false);
+  std::string line = PET_STAGE_NAME[st];
+  if (prog.pet.acc >= 0) line += " · wearing " + std::string(petAccessories()[prog.pet.acc].name);
+  drawText(top, line, SDL_Rect{X, 124, W, 30}, ACCENT_TXT, F_TINY, A_LEFT);
+  if (st == 0) drawWrapped(top, "Meet today's goal to hatch your egg.", SDL_Rect{X, 170, W, 60}, DIM, F_TINY);
+  else if (st < 4) {
+    int next = PET_STAGE_DAYS[st + 1];
+    drawText(top, "Next: " + std::to_string(PET_TAILS[st + 1]) + " tails at " + std::to_string(next) + " days", SDL_Rect{X, 170, W, 28}, DIM, F_MICRO, A_LEFT);
+    bar(top, SDL_Rect{X, 204, W - 10, 14}, float(days) / float(next));
+    drawText(top, std::to_string(days) + " / " + std::to_string(next) + " days", SDL_Rect{X, 222, W, 26}, DIM, F_MICRO, A_LEFT);
+  } else drawText(top, "Fully grown: all nine tails!", SDL_Rect{X, 170, W, 28}, ACCENT_TXT, F_TINY, A_LEFT);
+  int streak = prog.currentStreak(), have = 0;
+  for (int i = 0; i < int(petAccessories().size()); i++) have += prog.petAccUnlocked(i);
+  const std::string facts[3] = {"Streak: " + std::to_string(streak) + (streak == 1 ? " day" : " days") + " (best " + std::to_string(std::max(streak, prog.bestStreak)) + ")",
+                                std::string(prog.petAwake() ? "Awake: today's goal is met" : "Asleep until today's goal"),
+                                "Accessories: " + std::to_string(have) + " of " + std::to_string(petAccessories().size())};
+  for (int i = 0; i < 3; i++) drawText(top, facts[i], SDL_Rect{X, 270 + i * 34, W, 30}, DIM, F_MICRO, A_LEFT);
+  drawText(top, "Tails grow with days practised and are never lost.", SDL_Rect{X, 390, W, 30}, DIM, F_MICRO, A_LEFT);
+
+  // bottom: the eight accessories (a little kit wearing each one), Rename / Take it off
+  const auto& acc = petAccessories();
+  for (int i = 0; i < int(acc.size()); i++) {
+    SDL_Rect r{16 + (i % 4) * 155, 14 + (i / 4) * 152, 143, 140};
+    bool have1 = prog.petAccUnlocked(i), wearing = prog.pet.acc == i;
+    if (i == petSel) { fillRound(bot, SDL_Rect{r.x - 6, r.y - 6, r.w + 12, r.h + 12}, 26, ACC_LINE); fillRound(bot, SDL_Rect{r.x - 2, r.y - 2, r.w + 4, r.h + 4}, 22, BG2); }
+    if (have1) {
+      card(bot, r, 18, wearing ? mix(PANEL, ACCENT, 0.18f) : PANEL);
+      FoxLook L; L.stage = 1; L.mood = FoxMood::Awake; L.accessory = i; L.t = 0;
+      drawFox(bot, r.x + r.w / 2, r.y + 92, 96, L);
+      setBold(true); drawText(bot, acc[i].name, SDL_Rect{r.x + 4, r.y + 98, r.w - 8, 22}, FG, F_MICRO); setBold(false);
+      drawText(bot, wearing ? "wearing" : "tap to wear", SDL_Rect{r.x + 4, r.y + 116, r.w - 8, 20}, wearing ? ACCENT_TXT : DIM, F_MICRO);
+    } else {
+      fillRound(bot, r, 18, mix(BG2, FG, 0.06f));
+      lineIcon(bot, "lock", SDL_Rect{r.x + r.w / 2 - 16, r.y + 22, 32, 32}, DIM, 2.4f);
+      setBold(true); drawText(bot, acc[i].name, SDL_Rect{r.x + 4, r.y + 64, r.w - 8, 24}, DIM, F_MICRO); setBold(false);
+      std::string ach; for (auto& a : achievementList()) if (a.id == acc[i].achievement) ach = a.title;
+      drawWrapped(bot, ach, SDL_Rect{r.x + 8, r.y + 90, r.w - 16, 44}, DIM, F_MICRO, A_CENTER);
+    }
+    addBtn(r, B_ACC0 + i, acc[i].name, F_MICRO); lastBtn().hidden = true;
+  }
+  addBtn(SDL_Rect{16, 324, 192, 72}, B_BACK, "Back", F_SMALL);
+  addBtn(SDL_Rect{224, 324, 192, 72}, B_PET_RENAME, "Rename", F_SMALL);
+  addBtn(SDL_Rect{432, 324, 192, 72}, B_PET_NONE, "Take it off", F_SMALL, prog.pet.acc >= 0);
+  chips({{"A", "Wear"}, {"Y", "Rename"}, {"X", "Take off"}, {"B", "Back"}});
+}
+
+void App::drawPetEvolve() {
+  const int st = prog.petStage();
+  const bool hatched = prog.pet.seenStage < 1;
+  setBold(true); drawText(top, hatched ? "うまれた! " + prog.pet.name + " hatched" : "しんか! " + prog.pet.name + " evolved", SDL_Rect{20, 14, 600, 56}, FG, F_MID); setBold(false);
+  drawFox(top, 320, 462, 360, petLook(FoxMood::Happy));
+  card(bot, SDL_Rect{24, 24, 592, 270}, 22);
+  setBold(true); drawText(bot, PET_STAGE_NAME[st], SDL_Rect{40, 40, 560, 52}, FG, F_MID); setBold(false);
+  drawWrapped(bot, PET_STAGE_TEXT[st], SDL_Rect{60, 100, 520, 90}, DIM, F_TINY, A_CENTER);
+  if (st < 4) {
+    int next = PET_STAGE_DAYS[st + 1], days = prog.pet.days;
+    drawText(bot, "Next: " + std::to_string(PET_TAILS[st + 1]) + " tails at " + std::to_string(next) + " days", SDL_Rect{60, 196, 520, 28}, DIM, F_MICRO);
+    bar(bot, SDL_Rect{120, 232, 400, 14}, float(days) / float(next));
+  }
+  addBtn(SDL_Rect{24, 320, 592, 84}, B_PET_CONT, "Continue", F_SMALL); accent(lastBtn()); lastBtn().radius = 30;
+  chips({{"A", "Continue"}});
+}
+
+void App::drawPetName() {
+  header("なまえ · Name your fox");
+  setBold(true); drawText(top, "Type a new name", SDL_Rect{20, 70, 600, 40}, DIM, F_TINY); setBold(false);
+  SDL_Rect box{100, 120, 440, 110}; card(top, box, 20);
+  if (typed.empty()) drawText(top, "type with the kana keys", box, DIM, F_TINY);
+  else drawText(top, typed, box, FG, F_BIG);
+  drawText(top, "Up to " + std::to_string(PET_NAME_MAX) + " kana · now: " + prog.pet.name, SDL_Rect{20, 244, 600, 30}, DIM, F_MICRO);
+  FoxLook L = petLook(FoxMood::Happy); drawFox(top, 320, 466, 180, L);
+  drawKanaKeyboard();
+}
+
 void App::drawFreeWrite() {
   if (fwList.empty()) {  // draw any kana: it guesses what you drew
     header("かく · Draw any kana", "any kana · no progress");
@@ -1781,9 +1940,13 @@ void App::drawKanaKeyboard() {
   }
   addBtn(SDL_Rect{448, 286, 176, 62}, B_BKSP, "Delete", F_TINY, !checked && !typed.empty());
   if (checked) { addBtn(SDL_Rect{16, 356, 608, 72}, B_CONTINUE, "Continue", F_SMALL); accent(lastBtn()); }
-  else { addBtn(SDL_Rect{16, 356, 608, 72}, B_CHECK, "Check answer", F_SMALL, !typed.empty()); if (!typed.empty()) accent(lastBtn()); }
+  else if (screen == Screen::PetName) {
+    addBtn(SDL_Rect{16, 356, 192, 72}, B_BACK, "Cancel", F_SMALL);
+    addBtn(SDL_Rect{224, 356, 400, 72}, B_CHECK, "Save name", F_SMALL, !typed.empty()); if (!typed.empty()) accent(lastBtn());
+  } else { addBtn(SDL_Rect{16, 356, 608, 72}, B_CHECK, "Check answer", F_SMALL, !typed.empty()); if (!typed.empty()) accent(lastBtn()); }
   if (!checked) { int cid = kbItemId(keyRow, keyCol); for (auto& b : buttons) if (b.id == cid) { b.line = ACC_LINE; b.lineW = 4; } }
-  chips({{"A", "Type"}, {"X", "Check"}, {"B", "Delete"}, {"F", "Pause"}, {"+", "Move"}});
+  if (screen == Screen::PetName) chips({{"A", "Type"}, {"X", "Save"}, {"B", "Delete / Back"}, {"+", "Move"}});
+  else chips({{"A", "Type"}, {"X", "Check"}, {"B", "Delete"}, {"F", "Pause"}, {"+", "Move"}});
 }
 
 void App::drawStats() {
@@ -1851,7 +2014,7 @@ void App::drawStats() {
     fillRound(bot, SDL_Rect{x, 396, 22, 22}, 5, c); drawText(bot, l, SDL_Rect{x + 28, 392, 130, 30}, DIM, F_MICRO, A_LEFT);
     x += 28 + textWidth(bot, F_MICRO, l) + 24;
   }
-  chips({{"X", "Awards"}, {"Y", "Script"}, {"B", "Back"}});
+  chips({{"X", "Awards"}, {"START", "Your fox"}, {"Y", "Script"}, {"B", "Back"}});
 }
 
 void App::drawResult() {

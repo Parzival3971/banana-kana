@@ -3,6 +3,19 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
+## 0.7.0 - unreleased
+
+- Meet Kitsu, your streak fox 🦊. She starts as an egg that hatches on your first day meeting the daily goal, then grows
+  with the days you practise: 1 tail, 3 tails and a red scarf (7 days), 5 glowing tails (30 days) and a nine-tailed
+  kyūbi with fox-fire (100 days). Tails are never lost, even if a streak breaks.
+- She lives on the Home streak card: asleep until today's goal is met, awake after, with a happy hop the moment you hit it.
+- Seasonal looks follow the background: a sakura blossom in spring, an uchiwa fan in summer, a momiji leaf in autumn
+  and a blue scarf in winter.
+- 8 accessories (suzu bell, hachimaki, omamori, lantern, fox mask, scroll, kanzashi, daruma) unlocked by achievements.
+- New "Your fox" page (Stats, then START): her stage, progress to the next one, accessories, and Rename (up to 6 kana).
+- A celebration screen when she hatches or grows. Existing players start with a fox that has already grown to match
+  the days they have practised.
+
 ## 0.6.0 - 2026-11-16
 
 - New Home grid: the scrolling strip is gone. A big Lesson / Practise button and the あ → ア switch sit on top, with

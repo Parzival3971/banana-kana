@@ -136,7 +136,14 @@ int App::selfTest(const std::string& shotDir) {
 
   // ---- 3. pause -> back to menu
   startSession(); togglePause(); pauseSel = 1; padButton(SDL_CONTROLLER_BUTTON_A);
-  CHECK(screen == Screen::Home && !paused, "pause -> menu");
+  CHECK((screen == Screen::Home || screen == Screen::PetEvolve) && !paused, "pause -> menu");
+  // ---- 3b. Kitsu: the first goal-met day hatches the egg; the celebration shows on the way Home
+  CHECK(prog.petStage() >= 1, "kitsu hatched after the first goal");
+  CHECK(screen == Screen::PetEvolve, "hatch celebrated on the way home");
+  shot("pet_hatch");
+  padButton(SDL_CONTROLLER_BUTTON_A);
+  CHECK(screen == Screen::Home && prog.pet.seenStage == prog.petStage(), "hatch continue -> home");
+  go(Screen::Home); CHECK(screen == Screen::Home, "no second celebration");
   shot("home");
 
   // ---- 4. stage map: passed stage replays its lesson, locked stage cannot start
@@ -331,6 +338,29 @@ int App::selfTest(const std::string& shotDir) {
     earned({ti}); CHECK(toastUntil && toastAch == ti, "achievement toast"); shot("achievement_toast");
     tick(toastUntil + 10); CHECK(!toastUntil && toastAch < 0, "toast goes away"); }
   CHECK(click(B_BACK) && screen == Screen::Stats, "achievements -> stats");
+  // ---- 13c. Kitsu: Your fox page (START / chip from Stats), accessories, rename with the kana keys
+  padButton(SDL_CONTROLLER_BUTTON_START); CHECK(screen == Screen::Pet, "START opens your fox");
+  CHECK(prog.petAccUnlocked(0) && !prog.petAccUnlocked(7), "bell unlocked by answers10, daruma locked");
+  CHECK(click(B_ACC0) && prog.pet.acc == 0, "tap to wear the bell"); shot("pet");
+  click(B_ACC0 + 7); CHECK(prog.pet.acc == 0, "locked accessory can't be worn");
+  CHECK(click(B_PET_NONE) && prog.pet.acc == -1, "take it off");
+  petSel = 0; padButton(SDL_CONTROLLER_BUTTON_A); CHECK(prog.pet.acc == 0, "A wears the selected one");
+  padButton(SDL_CONTROLLER_BUTTON_Y); CHECK(screen == Screen::PetName && q.kanaInput, "Y renames");
+  typed.clear(); click(B_KANA0 + 5); click(B_KANA0 + 35); CHECK(typed == "かや", "name typed with kana keys");
+  for (int i = 0; i < 8; i++) click(B_KANA0 + 1);
+  CHECK(int(utf8Codepoints(typed).size()) == PET_NAME_MAX, "name capped at 6 kana"); shot("pet_name");
+  while (!typed.empty()) click(B_BKSP);
+  click(B_KANA0 + 10); click(B_KANA0 + 1); click(B_KANA0 + 15);
+  CHECK(click(B_CHECK) && screen == Screen::Pet && prog.pet.name == "さいた", "name saved");
+  { Progress p2; p2.load(statePath, &data); CHECK(p2.pet.name == "さいた" && p2.pet.acc == 0, "pet saved to disk"); }
+  CHECK(click(B_BACK) && screen == Screen::Stats, "your fox -> stats");
+  { // every stage, mood and accessory stays within a sane triangle budget
+    int worst = 0;
+    for (int st = 0; st < 5; st++) for (int a = -1; a < 8; a++) for (int se = 0; se < 4; se++) {
+      FoxLook L; L.stage = st; L.accessory = a; L.season = se; L.mood = FoxMood::Happy;
+      worst = std::max(worst, drawFox(top, 320, 460, 340, L)); }
+    printf("fox: worst %d triangles\n", worst);
+    CHECK(worst > 200 && worst <= 3500, "fox triangle budget"); }
   go(Screen::Home);
 
   // ---- 14. kana keyboard

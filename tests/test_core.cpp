@@ -522,5 +522,25 @@ int main(int argc, char** argv) {
     Progress q; CHECK(q.load(path, &d)); CHECK(q.achieved == p.achieved && q.checkAchievements(d).empty());
     printf("achievements: %zu earned in the test\n", p.achieved.size());
   }
+  {  // Kitsu: hatches on the first goal-met day, grows with days practised (never shrinks), mood from today's goal
+    Progress p; p.settings.dailyGoal = 5; Time t0 = 1790000000; p.clock = t0;
+    CHECK(p.petStage() == 0 && p.pet.name == "Kitsu" && !p.petAwake());
+    for (int i = 0; i < 4; i++) p.countAnswer(true, t0); CHECK(p.petStage() == 0 && p.pet.days == 1);  // practised, egg still
+    p.countAnswer(true, t0); CHECK(p.petHatched() && p.petStage() == 1 && p.petAwake());
+    for (int day = 1; day < 7; day++) p.countAnswer(true, t0 + day * 86400);  // one answer a day: goal not met, still counts
+    CHECK(p.pet.days == 7 && p.petStage() == 2);
+    p.clock = t0 + 7 * 86400; CHECK(!p.petAwake());                            // asleep until today's goal
+    for (int day = 7; day < 100; day++) p.countAnswer(true, t0 + day * 86400);
+    CHECK(p.pet.days == 100 && p.petStage() == 4 && PET_TAILS[p.petStage()] == 9);
+    p.streak = 0; CHECK(p.petStage() == 4);                                    // a broken streak never costs a tail
+    CHECK(!p.petAccUnlocked(1)); p.award("perfect"); CHECK(p.petAccUnlocked(1) && petAccessories().size() == 8);
+    for (auto& a : petAccessories()) { bool found = false; for (auto& x : achievementList()) found |= x.id == a.achievement; CHECK(found); }
+    p.pet.name = "こはく"; p.pet.acc = 1; p.pet.seenStage = 4;
+    std::string path = "/tmp/kt_pet_test.txt"; CHECK(p.save(path));
+    Progress q; CHECK(q.load(path, &d)); CHECK(q.pet.name == "こはく" && q.pet.acc == 1 && q.pet.days == 100 && q.pet.seenStage == 4 && q.petLoaded);
+    // an older file (no pet line): Kitsu arrives grown for the days in the history, already "seen" (no celebration)
+    std::ofstream(path) << "set version 2\nset last_goal_day 20260101\nday 20260101 12 10\nday 20260102 3 3\nday 20260103 0 0\n";
+    Progress r; CHECK(r.load(path, &d)); CHECK(!r.petLoaded && r.pet.days == 2 && r.petStage() == 1 && r.pet.seenStage == 1);
+  }
   printf(fails ? "%d FAILURES\n" : "all core tests passed\n", fails); return fails != 0;
 }

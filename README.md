@@ -58,6 +58,10 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 ### 📈 Keep going
 - 🔥 **Daily goal and streak**, from 5 to 30 answers a day. The flame grows (and changes colour) the longer you keep it lit.
 - 🌸 **Seasons of Japan backgrounds**: sakura, summer waves and fireflies, autumn leaves or snow, drifting gently on the menus (follows the calendar; switch to Plain in Settings › Display).
+- 🦊 **Kitsu, your streak fox.** Hatch an egg on your first goal day, then watch her grow: 1 tail, 3 tails and a red
+  scarf at 7 days practised, 5 glowing tails at 30, and a nine-tailed kyūbi with fox-fire at 100. Tails are never lost.
+  She naps until today's goal is met, dresses for the season, and wears accessories you win with achievements. Rename
+  her with the kana keys (Stats, then START).
 - 🏅 **Achievements.** 17 badges for learning kana and words, streaks, timed scores and perfect sessions, with your
   progress towards each one (Stats, then X).
 - 📊 **Stats.** Your last 14 days and an accuracy heatmap of every kana. Tap one to see it in the chart.
@@ -94,6 +98,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 | <img src="docs/img/draw-any.png" width="250"><br>Draw any kana | <img src="docs/img/extras.png" width="250"><br>Extras stage | <img src="docs/img/handwriting.png" width="250"><br>Handwriting font and grid |
 | <img src="docs/img/match.png" width="250"><br>Hiragana ↔ katakana | <img src="docs/img/packs.png" width="250"><br>Word packs | <img src="docs/img/words.png" width="250"><br>Word pack quiz |
 | <img src="docs/img/new-word.png" width="250"><br>New word card | <img src="docs/img/word-list.png" width="250"><br>A pack's word list | <img src="docs/img/achievements.png" width="250"><br>Achievements |
+| <img src="docs/img/kitsu.png" width="250"><br>Kitsu, your fox | <img src="docs/img/kitsu-hatch.png" width="250"><br>Kitsu hatches | <img src="docs/img/kitsu-name.png" width="250"><br>Naming your fox |
 
 </details>
 
@@ -123,7 +128,7 @@ A backup copy is also kept in `roms/ports/BananaKana/progress-backup.txt`: copy 
 | ✛ **D-pad** or the analogue **stick** (shown as a cross in the hint chips) | Move around the Home grid, stages, chart cells, settings and keyboard keys |
 | **A** | Choose / confirm (press again on a chosen answer to check it) |
 | **B** | Back. In drills: undo a stroke or delete a letter |
-| **X** | Check the answer. On Stats: achievements |
+| **X** | Check the answer. On Stats: achievements. On Your fox: take the accessory off |
 | **Y** | Hint while writing, guide in free writing. On Home and stats: switch hiragana / katakana |
 | ▶️ **START** | On Home: start your lesson or practice. Show me (stroke-order animation) when writing; in the chart, write the practice set freely |
 | **L / R** | Switch tabs, scripts or settings groups |
