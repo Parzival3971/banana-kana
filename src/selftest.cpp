@@ -489,16 +489,25 @@ int App::selfTest(const std::string& shotDir) {
     go(Screen::Welcome); CHECK(welcomeStep == 0, "first launch starts with the look"); shot("welcome_theme");
     CHECK(click(B_WTHEME0 + 1) && !prog.settings.light, "pick dark: applies straight away"); shot("welcome_theme_dark");
     padButton(SDL_CONTROLLER_BUTTON_DPAD_LEFT); CHECK(prog.settings.light, "d-pad left: light again");
-    padButton(SDL_CONTROLLER_BUTTON_A); CHECK(welcomeStep == 1, "A: on to step 2");
+    padButton(SDL_CONTROLLER_BUTTON_A); CHECK(welcomeStep == 1, "A: on to the background");
     padButton(SDL_CONTROLLER_BUTTON_B); CHECK(welcomeStep == 0, "B: back to the look");
-    CHECK(click(B_WEL_NEXT) && welcomeStep == 1, "Next"); shot("welcome");
+    CHECK(click(B_WEL_NEXT) && welcomeStep == 1, "Next: background");
+    { int keep = prog.settings.backdrop;
+      CHECK(click(B_WBG0) && prog.settings.backdrop == 1, "pick seasons (auto)");
+      prog.settings.backdrop = 2; shot("welcome_background");  // a fixed season so the README shot doesn't change by month
+      padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); CHECK(prog.settings.backdrop == 0, "d-pad right: plain");
+      { Progress re; re.load(statePath, &data); CHECK(re.settings.backdrop == 0, "background saved straight away"); }
+      prog.settings.backdrop = keep; }
+    padButton(SDL_CONTROLLER_BUTTON_A); CHECK(welcomeStep == 2, "A: on to what you know");
+    padButton(SDL_CONTROLLER_BUTTON_B); CHECK(welcomeStep == 1, "B: back to the background");
+    CHECK(click(B_WEL_NEXT) && welcomeStep == 2, "Next"); shot("welcome");
     padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); CHECK(welcomeSel == 1, "welcome move");
     CHECK(click(B_WELCOME0 + 1), "I know hiragana");
     CHECK(screen == Screen::Home && prog.knownCount(data, Script::Hiragana) == data.scriptCount(Script::Hiragana) && prog.settings.script == Script::Katakana &&
           prog.lessonPending(Script::Katakana), "hiragana skipped, katakana lesson next");
     shot("home_after_welcome");
     prog = Progress{}; prog.settings = keep.settings; prog.settings.script = Script::Hiragana;
-    go(Screen::Welcome); click(B_WEL_NEXT); CHECK(click(B_WELCOME0 + 3), "I know some"); CHECK(screen == Screen::SettingsGroup && setGroup == 2 && setRow == 1, "to script settings");
+    go(Screen::Welcome); click(B_WEL_NEXT); click(B_WEL_NEXT); CHECK(click(B_WELCOME0 + 3), "I know some"); CHECK(screen == Screen::SettingsGroup && setGroup == 2 && setRow == 1, "to script settings");
     for (int i = 0; i < 3; i++) click(B_SINC0 + 1);
     CHECK(skipPending[0] == 4 && prog.unlocked[0] == 1, "pending only"); shot("settings_skip");
     CHECK(click(B_FOOT_R), "confirm skip"); CHECK(prog.unlocked[0] == 4 && prog.lessons[0] == 3 && prog.stageKnown(data, Script::Hiragana, 2) == 5, "skipped to stage 4");

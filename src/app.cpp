@@ -592,7 +592,10 @@ void App::press(int id) {
     case Screen::Welcome:
       if (welcomeStep == 0) {  // pick a look: applies straight away, so the whole app shows it
         if (id == B_WTHEME0 || id == B_WTHEME0 + 1) { prog.settings.light = id == B_WTHEME0; applyTheme(prog.settings.light); save(); }
-        else if (id == B_WEL_NEXT) { welcomeStep = 1; welcomeSel = 0; }
+        else if (id == B_WEL_NEXT) welcomeStep = 1;
+      } else if (welcomeStep == 1) {  // background: also live, the real backdrop changes behind the tiles
+        if (id == B_WBG0 || id == B_WBG0 + 1) { prog.settings.backdrop = id == B_WBG0 ? 1 : 0; save(); }
+        else if (id == B_WEL_NEXT) { welcomeStep = 2; welcomeSel = 0; }
       } else if (id >= B_WELCOME0 && id < B_WELCOME0 + 4) welcomeChoice(id - B_WELCOME0);
       break;
     case Screen::Stats:
@@ -798,10 +801,14 @@ void App::padButton(SDL_GameControllerButton b) {
       if (welcomeStep == 0) {
         if (b == L) press(B_WTHEME0); else if (b == R) press(B_WTHEME0 + 1);
         else if (b == A || b == ST) press(B_WEL_NEXT);
+      } else if (welcomeStep == 1) {
+        if (b == L) press(B_WBG0); else if (b == R) press(B_WBG0 + 1);
+        else if (b == A || b == ST) press(B_WEL_NEXT);
+        else if (b == B) welcomeStep = 0;
       } else {
         if (b == U) welcomeSel = (welcomeSel + 3) % 4; else if (b == D) welcomeSel = (welcomeSel + 1) % 4;
         else if (b == A || b == ST) press(B_WELCOME0 + welcomeSel);
-        else if (b == B) welcomeStep = 0;  // back to the look
+        else if (b == B) welcomeStep = 1;  // back to the background
       }
       break;
     case Screen::Stats:
@@ -1689,10 +1696,10 @@ void App::drawDrill() {
 void App::drawWelcome() {
   appTile(top, 270, 8, 96);
   drawText(top, "Welcome to Banana Kana", SDL_Rect{20, 112, 600, 60}, FG, F_MID);
-  if (welcomeStep == 0) {  // step 1 of 2: light or dark, shown live
+  if (welcomeStep == 0) {  // step 1 of 3: light or dark, shown live
     drawWrapped(top, "First, pick a look. Tap one to try it: the whole app changes straight away.",
                 SDL_Rect{60, 190, 520, 100}, DIM, F_TINY);
-    drawText(top, "Step 1 of 2 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+    drawText(top, "Step 1 of 3 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
     for (int k = 0; k < 2; k++) {
       bool light = k == 0, on = prog.settings.light == light;
       SDL_Rect r{16 + k * 312, 16, 296, 300};
@@ -1715,10 +1722,42 @@ void App::drawWelcome() {
     chips({{"+", "Light / Dark"}, {"A", "Next"}});
     return;
   }
+  if (welcomeStep == 1) {  // step 2 of 3: seasons of Japan or plain, shown live behind the tiles
+    drawWrapped(top, "And a background. Seasons of Japan follows the calendar: sakura, summer waves, autumn leaves, snow.",
+                SDL_Rect{60, 190, 520, 100}, DIM, F_TINY);
+    drawText(top, "Step 2 of 3 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+    const Col SEAS[4] = {hex(0xF29BB4), hex(0x3F8FD8), hex(0xE2683A), hex(0x5F8FC6)};
+    const char* SK[4] = {"春", "夏", "秋", "冬"};
+    for (int k = 0; k < 2; k++) {
+      bool seasons = k == 0, on = (prog.settings.backdrop > 0) == seasons;
+      SDL_Rect r{16 + k * 312, 16, 296, 300};
+      if (on) { fillRound(bot, SDL_Rect{r.x - 6, r.y - 6, r.w + 12, r.h + 12}, 30, ACC_LINE); fillRound(bot, SDL_Rect{r.x - 2, r.y - 2, r.w + 4, r.h + 4}, 26, BG2); }
+      card(bot, r, 24);
+      SDL_Rect m{r.x + 24, r.y + 22, r.w - 48, 190};
+      if (seasons) {  // four little season panels
+        int pw = (m.w - 12) / 2, ph = (m.h - 12) / 2;
+        for (int i = 0; i < 4; i++) {
+          SDL_Rect c{m.x + (i % 2) * (pw + 12), m.y + (i / 2) * (ph + 12), pw, ph};
+          fillRound(bot, c, 14, mix(PANEL, SEAS[i], 0.22f));
+          for (int d = 0; d < 3; d++) fillRound(bot, SDL_Rect{c.x + 12 + d * 34, c.y + 12 + (d % 2) * 50, 12, 12}, 6, mix(PANEL, SEAS[i], 0.6f));
+          setBold(true); drawText(bot, SK[i], c, SEAS[i], F_MID); setBold(false);
+        }
+      } else {  // the calm stripes
+        fillRound(bot, m, 16, BG2);
+        for (int y = m.y + 14; y < m.y + m.h - 10; y += 22) fillRound(bot, SDL_Rect{m.x + 16, y, m.w - 32, 6}, 3, mix(BG2, FG, 0.08f));
+      }
+      setBold(true); drawText(bot, seasons ? "Seasons" : "Plain", SDL_Rect{r.x, r.y + 222, r.w, 40}, FG, F_SMALL); setBold(false);
+      drawText(bot, seasons ? "petals and snow drift gently" : "clean and still", SDL_Rect{r.x, r.y + 260, r.w, 28}, DIM, F_MICRO);
+      addBtn(r, B_WBG0 + k, seasons ? "Seasons" : "Plain", F_SMALL); lastBtn().hidden = true;
+    }
+    addBtn(SDL_Rect{16, 336, 608, 84}, B_WEL_NEXT, "Next", F_SMALL); accent(lastBtn()); lastBtn().radius = 30;
+    chips({{"+", "Seasons / Plain"}, {"A", "Next"}, {"B", "Back"}});
+    return;
+  }
   drawWrapped(top, "Learn hiragana, then katakana, a few kana at a time: a short lesson, then drills. "
                    "Already know some? Skip ahead. Kana you skip count as known, with a quick review soon to check.",
               SDL_Rect{60, 190, 520, 140}, DIM, F_TINY);
-  drawText(top, "Step 2 of 2 · you can change this later in Settings > Script", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+  drawText(top, "Step 3 of 3 · you can change this later in Settings > Script", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
   const char* l[4] = {"New to kana", "I know hiragana", "I know both", "I know some"};
   const char* sub[4] = {"start at \u3042 \u3044 \u3046 \u3048 \u304a", "all 105, start on katakana", "straight to reviews", "choose the stages in Settings"};
   for (int i = 0; i < 4; i++) {

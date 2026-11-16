@@ -15,6 +15,8 @@ the release notes come from the matching section below.
 - New "Your fox" page (Stats, then START): her stage, progress to the next one, accessories, and Rename (up to 6 kana).
 - A celebration screen when she hatches or grows. Existing players start with a fox that has already grown to match
   the days they have practised.
+- First launch now also asks for a background: Seasons of Japan or Plain (shown live as you tap), between picking
+  Light or Dark and saying what you already know.
 
 ## 0.6.0 - 2026-11-16
 
