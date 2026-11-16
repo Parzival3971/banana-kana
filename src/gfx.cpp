@@ -421,7 +421,6 @@ const std::map<std::string, std::vector<Poly>>& icons() {
     {"display", {L({5.5f, 4, 18.5f, 4}), arc(18.5f, 6.5f, 2.5f, -90, 0, 5), L({21, 6.5f, 21, 13.5f}), arc(18.5f, 13.5f, 2.5f, 0, 90, 5), L({18.5f, 16, 5.5f, 16}),
                  arc(5.5f, 13.5f, 2.5f, 90, 180, 5), L({3, 13.5f, 3, 6.5f}), arc(5.5f, 6.5f, 2.5f, 180, 270, 5), L({8, 20, 16, 20}), L({12, 16, 12, 20})}},
     {"info", {arc(12, 12, 9, 0, 360, 30), L({12, 11, 12, 17}), L({12, 7.5f, 12, 8})}},
-    {"flame", {L({12, 3, 13, 6.5f, 17, 9, 17, 13}), arc(12, 13, 5, 0, 180, 12), L({7, 13, 7.5f, 11, 9.4f, 8.4f, 10.5f, 10.5f, 11.5f, 11.4f, 11.6f, 7, 12, 3})}},
     {"medal", {L({8, 3, 10, 8}), L({16, 3, 14, 8}), arc(12, 14, 6, 0, 360, 24)}},
     {"lock", {L({7.5f, 11, 16.5f, 11}), arc(16.5f, 13.5f, 2.5f, -90, 0, 4), L({19, 13.5f, 19, 18.5f}), arc(16.5f, 18.5f, 2.5f, 0, 90, 4), L({16.5f, 21, 7.5f, 21}),
               arc(7.5f, 18.5f, 2.5f, 90, 180, 4), L({5, 18.5f, 5, 13.5f}), arc(7.5f, 13.5f, 2.5f, 180, 270, 4), L({8, 11, 8, 8}), arc(12, 8, 4, 180, 360, 10), L({16, 8, 16, 11})}},
@@ -579,28 +578,6 @@ void drawStrokeIn(Win& w, const Stroke& s, SDL_Rect box, Col c, float thick) {
     put(a1); put(a2); put(b2); put(a1); put(b2); put(b1);
     disc(b);
   }
-  SDL_RenderGeometry(w.r, nullptr, v.data(), int(v.size()), nullptr, 0);
-}
-
-void drawFlame(Win& w, SDL_Rect box, Col outer, Col inner, float flick) {
-  const float sx = box.w / 24.f, sy = box.h / 24.f;
-  std::vector<SDL_Vertex> v;
-  auto fan = [&](std::vector<SDL_FPoint> pts, SDL_FPoint c, Col edge, Col mid, float grow) {
-    auto P = [&](SDL_FPoint q) {  // grow around the base so the flame breathes upwards
-      return SDL_FPoint{box.x + (c.x + (q.x - c.x) * grow) * sx, box.y + (21.5f + (q.y - 21.5f) * grow) * sy}; };
-    SDL_Color ce{edge.r, edge.g, edge.b, 255}, cm{mid.r, mid.g, mid.b, 255};
-    SDL_FPoint pc = P(c);
-    for (size_t i = 0; i < pts.size(); i++) {
-      SDL_FPoint a = P(pts[i]), b = P(pts[(i + 1) % pts.size()]);
-      v.push_back({pc, cm, {0, 0}}); v.push_back({a, ce, {0, 0}}); v.push_back({b, ce, {0, 0}});
-    }
-  };
-  const float f = flick;
-  fan({{12 + 1.4f * f, 1.2f}, {14.2f, 4.8f}, {16.6f, 7.8f}, {18.1f, 11}, {18.5f, 14.2f}, {17.6f, 17.6f}, {15.5f, 20.2f},
-       {12, 21.5f}, {8.5f, 20.2f}, {6.4f, 17.6f}, {5.5f, 14.2f}, {6, 10.8f}, {7.5f, 7.6f}, {9.3f, 10.2f}, {10.2f, 6.2f}},
-      {12, 15}, outer, mix(outer, inner, 0.35f), 1.f + 0.03f * f);
-  fan({{12 - 1.2f * f, 8.6f}, {14.1f, 12.4f}, {15.3f, 15.6f}, {14.5f, 18.6f}, {12, 19.9f}, {9.5f, 18.6f}, {8.7f, 15.6f}, {9.9f, 12.4f}},
-      {12, 16.2f}, inner, mix(inner, Col{255, 255, 255, 255}, 0.45f), 1.f + 0.07f * f);
   SDL_RenderGeometry(w.r, nullptr, v.data(), int(v.size()), nullptr, 0);
 }
 

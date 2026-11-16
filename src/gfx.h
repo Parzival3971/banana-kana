@@ -69,10 +69,8 @@ void drawSeasonParticles(Win& w, bool topScreen, float t);
 const std::vector<SDL_FPoint>& mapleLeaf();
 int backdropTriangles();  // triangles in the last backdrop drawn (the self-test keeps every season under a budget)
 // Line icons (24x24 design grid, round strokes): review mixups words timed stats pencil clock script display chart
-// info flame medal lock check cross play pause gear arrow back star book map grid pen eraser
+// info medal lock check cross play pause gear arrow back star book map grid pen eraser
 void lineIcon(Win& w, const std::string& name, SDL_Rect box, Col c, float thick = 2.2f);
-// Filled streak flame (24-grid shape scaled to box): outer + inner tongue, soft centre glow. flick -1..1 sways the tips.
-void drawFlame(Win& w, SDL_Rect box, Col outer, Col inner, float flick = 0.f);
 int textWidth(Win& w, int font, const std::string& s);  // logical px
 // Draws text in `box`, using the biggest font <= maxFont that fits on one line.
 void drawText(Win& w, const std::string& s, SDL_Rect box, Col c, int maxFont = F_MID, Align al = A_CENTER);

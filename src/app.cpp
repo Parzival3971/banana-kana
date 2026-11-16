@@ -209,8 +209,6 @@ bool App::tick(Uint32 now) {  // every timer runs every time; true if anything n
   if (motion && prog.settings.backdrop > 0 && menuScreen() && now - seasonLast >= 90) { seasonLast = now; redraw = true; }  // gentle drift, ~11 fps
   if (countStart) { if (now - countStart >= 900) countStart = 0; redraw = true; }
   if (answerAnim) { if (now - answerAnim >= ANSWER_MS) answerAnim = 0; redraw = true; }
-  if (screen == Screen::Home && !paused && now - flameLast >= 100 && prog.currentStreak() > 0 &&
-      prog.lastGoalDay == dayNumber(prog.now())) { flameLast = now; redraw = true; }  // lit flame flickers
   if (screen == Screen::Credits && !paused && now - creditsLast >= 80) { creditsLast = now; redraw = true; }
   if (screen == Screen::Drill && mode == Mode::Timed) {
     Uint32 dt = now - timedLast; timedLast = now;
@@ -943,19 +941,9 @@ void App::medal(Win& w, SDL_Rect box, bool earned) {
   lineIcon(w, "star", SDL_Rect{cx - int(5 * s), cy - int(5 * s), int(10 * s), int(10 * s)}, ink, 2.f);
 }
 
-// streak flame tiers: it grows up with the streak (Home, Stats)
-struct FlameTier { int from; Col outer, inner; int size; const char* name; };
-static const FlameTier* flameTier(int streak) {
-  static const FlameTier TIERS[] = {{100, hex(0x7C4DDB), hex(0xF1C6FF), 58, "legendary"}, {30, hex(0x2F7BEA), hex(0xBFE6FF), 56, "blue flame"},
-                                    {7, hex(0xE0451B), hex(0xFFC23D), 54, "on fire"}, {1, hex(0xF07A1A), hex(0xFFD45C), 48, "warming up"}};
-  for (const FlameTier& t : TIERS) if (streak >= t.from) return &t;
-  return nullptr;
-}
-static void streakFlame(Win& w, SDL_Rect box, int streak, bool lit) {  // ghost until today's goal is met, then lit and flickering
-  const FlameTier* t = flameTier(streak);
-  if (!t) drawFlame(w, box, mix(PANEL, DIS_TXT, 0.35f), mix(PANEL, DIS_TXT, 0.15f));
-  else if (!lit) drawFlame(w, box, mix(PANEL, t->outer, 0.3f), mix(PANEL, t->outer, 0.12f));
-  else { float tt = SDL_GetTicks() / 1000.f; drawFlame(w, box, t->outer, t->inner, 0.6f * std::sin(tt * 9.f) + 0.4f * std::sin(tt * 23.f)); }
+// streak colour: this week's goal days on Home warm up as the streak grows (orange, red at 7, blue at 30, purple at 100)
+static Col streakColour(int streak) {
+  return streak >= 100 ? hex(0x7C4DDB) : streak >= 30 ? hex(0x2F7BEA) : streak >= 7 ? hex(0xE0451B) : hex(0xF07A1A);
 }
 
 int App::seasonNow() const {
@@ -1289,8 +1277,6 @@ void App::drawHome() {
   // ---- streak strip: this week, Monday to Sunday
   { SDL_Rect r{22, 310, 596, 100}; card(top, r, 20);
     int streak = prog.currentStreak();
-    // the flame grows up with the streak; it stays an outline until today's goal is met (a nudge to keep it alive)
-    const FlameTier* tier = flameTier(streak);
     const bool lit = streak > 0 && prog.lastGoalDay == dayNumber(prog.now());
     // Kitsu sits in the streak card: asleep until today's goal is met, then awake (with a hop just after)
     const int st = prog.petStage(); const Uint32 nowT = SDL_GetTicks();
@@ -1316,7 +1302,7 @@ void App::drawHome() {
       int dayOff = i - todayIdx; int d = dayNumber(prog.now() + Time(dayOff) * 86400);
       auto it = prog.days.find(d); bool met = it != prog.days.end() && it->second.answers >= goal && dayOff <= 0;
       int cx = r.x + 300 + i * 42, cy = r.y + 40;
-      const Col dayCol = tier ? tier->outer : hex(0xF07A1A);  // week dots follow the flame's colour
+      const Col dayCol = streakColour(streak);
       if (met) { drawRing(top, cx, cy, 17, 17, 1.f, dayCol, dayCol); drawText(top, KJ[i], SDL_Rect{cx - 17, cy - 17, 34, 34}, hex(0xFFFFFF), F_MICRO); }
       else if (dayOff == 0) { drawRing(top, cx, cy, 17, 3, 1.f, dayCol, dayCol); drawText(top, KJ[i], SDL_Rect{cx - 17, cy - 17, 34, 34}, FG, F_MICRO); }
       else { drawRing(top, cx, cy, 17, 17, 1.f, PANEL2, PANEL2); drawText(top, KJ[i], SDL_Rect{cx - 17, cy - 17, 34, 34}, DIM, F_MICRO); }
@@ -2001,7 +1987,7 @@ void App::drawStats() {
   statBox(top, SDL_Rect{174, 58, 140, 96}, "ACCURACY", tot ? std::to_string(cor * 100 / tot) + "%" : "-");
   statBox(top, SDL_Rect{324, 58, 140, 96}, "STREAK", "", F_TINY);
   { bool lit = streak > 0 && prog.lastGoalDay == dayNumber(prog.now());
-    streakFlame(top, SDL_Rect{336, 96, 40, 40}, streak, lit);
+    drawFox(top, 356, 143, 50, petLook(prog.petStage() == 0 || lit ? FoxMood::Awake : FoxMood::Asleep));  // Kitsu keeps the streak
     setBold(true); drawText(top, std::to_string(streak), SDL_Rect{380, 92, 76, 28}, FG, F_SMALL, A_LEFT); setBold(false);
     drawText(top, "best " + std::to_string(std::max(streak, prog.bestStreak)), SDL_Rect{380, 120, 80, 20}, DIM, F_MICRO, A_LEFT); }
   statBox(top, SDL_Rect{474, 58, 140, 96}, "TIMED BEST", std::to_string(prog.timedBest[scI]));

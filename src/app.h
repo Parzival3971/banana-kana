@@ -92,7 +92,6 @@ struct App {
   std::vector<int> fwList; int fwIdx = 0, fwGuide = 0;  // fwGuide 0 full, 1 outline, 2 none; empty list = draw any kana
   std::vector<Guess> guesses;  // draw-any: what it looks like, best first
   // first launch, settings skip-ahead
-  Uint32 flameLast = 0;  // Home streak flame flicker
   // motion (0.5.0 polish): screen fade-in, Home strip glide, answer pop/shake. KT_MOTION=0 or the self-test turn it off.
   bool motion = true; Uint32 countStart = 0; Uint32 transStart = 0, answerAnim = 0;
 

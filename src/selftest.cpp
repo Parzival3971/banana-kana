@@ -275,13 +275,12 @@ int App::selfTest(const std::string& shotDir) {
   { int n = 0; for (int ki : data.stages[0][0].kana) { Stat& st = prog.stats[Progress::keyKana(data.kana[ki])]; st.step = KNOWN_STEP; st.srs = 2; st.due = prog.now() - 60; n++; }
     CHECK(int(prog.dueKana(data, Script::Hiragana).size()) >= n, "reviews due"); }
   homeSel = homeItemIndex(B_MODE0); shot("home_reviews");
-  { // streak flame: outline until today's goal is met, then a filled flame that changes colour with the streak
+  { // streak card: Kitsu asleep until today's goal is met; the week days change colour with the streak
     int ks = prog.streak, kb = prog.bestStreak, kl = prog.lastGoalDay;
     const int today = dayNumber(prog.now()), yesterday = dayNumber(prog.now() - 86400);
     prog.streak = 5; prog.bestStreak = 9; prog.lastGoalDay = yesterday; CHECK(prog.currentStreak() == 5, "streak alive before today's goal");
-    CHECK(!tick(SDL_GetTicks() + 1000) || true, "tick"); shot("flame_unlit");
-    for (int n : {3, 12, 45, 120}) { prog.streak = n; prog.lastGoalDay = today; shot("flame_" + std::to_string(n)); }
-    flameLast = 0; CHECK(tick(5000), "lit flame flickers on Home");
+    CHECK(!tick(SDL_GetTicks() + 1000) || true, "tick"); shot("streak_unlit");
+    for (int n : {3, 12, 45, 120}) { prog.streak = n; prog.lastGoalDay = today; shot("streak_" + std::to_string(n)); }
     prog.streak = ks; prog.bestStreak = kb; prog.lastGoalDay = kl; }
   { const Button* rb = find(B_MODE0); CHECK(rb && rb->enabled && rb->sub.find("due") != std::string::npos, "review button shows due"); }
   int dueBefore = int(prog.dueKana(data, Script::Hiragana).size());

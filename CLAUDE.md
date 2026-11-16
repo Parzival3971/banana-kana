@@ -171,7 +171,7 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   makeWordQuestion turns Meaning into ReadKana when no eligible word is introduced. Screen::PackWords (15 a page,
   B_WORD0/B_WPREV/B_WNEXT; Words button or Y on Packs).
 - Home redesign (user, 2026-11-15): sticker colours per cartridge (STICKER[]), MODE_ICONS pixel icons indexed by
-  B_MODE0 id, selected mode tile = yellow fill, goal ring (gfx drawRing), streak FLAME, bilingual greeting by local hour
+  B_MODE0 id, selected mode tile = yellow fill, goal ring (gfx drawRing), streak flame (since removed, see below), bilingual greeting by local hour
   + hinomaru drawn next to it (user asked for "a japanese flag or something").
 - Word SRS + achievements (user picked from my list 2026-11-15): record() schedules w: keys like kana; dueWords/dueCount;
   makeReviewQuestion mixes due words (wordQuiz, shared with packs). Achievements: achievementList() (17), Progress::
@@ -208,8 +208,9 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   kanji added to fallback.ttf), script bars; Home bottom: see Home grid below.
   Settings rows: SRow.opts -> segmented pills (B_SSEG0 + row*8 + opt). Medals: App::medal; app tile: App::appTile.
   Icon: tools/make_icon.py (option A "kana tile") -> launcher/media/box/Banana Kana.png.
-- Review polish (user said "do all", 2026-11-15): streak flame = gfx drawFlame + app flameTier/streakFlame (1/7/30/100
-  tiers; pale ghost until today's goal is met; flickers on Home via tick flameLast; week dots use the tier colour).
+- Review polish (user said "do all", 2026-11-15): the streak flame (drawFlame, flameTier) was REMOVED 2026-11-16 (user:
+  "the flame was replaced with the fox"): Kitsu shows on Home and in the Stats Streak box; app streakColour() keeps the
+  1/7/30/100 colours for the Home week dots. Don't bring the flame back.
   Motion (App::motion; KT_MOTION=0 / self-test off): go() fade-in (transStart, TRANS_MS), Home glide (homePos eases to
   homeSel in tick), answer pop/shake (answerAnim), result count-up (countStart) + medal on a perfect session.
   Feedback banner grows with wrappedHeight(). Selection rings = ACC_LINE (no black outlines). Header right side is
