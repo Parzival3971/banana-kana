@@ -1,5 +1,6 @@
 // Scripted UI run with dummy video: drives the real screens with synthetic touches and buttons,
 // checks the flows, and saves screenshots of every screen (both themes) when --shots is given.
+#include <ctime>
 #include <algorithm>
 #include <cstdio>
 #include <set>
@@ -493,6 +494,23 @@ int App::selfTest(const std::string& shotDir) {
     }
     go(Screen::Home);
   }
+  // ---- 20. seasons: the Background setting, calendar seasons, a shot of each season (light) and winter (dark)
+  { int keepB = prog.settings.backdrop; Time keepC = prog.clock;
+    go(Screen::Settings); setGroup = 3; go(Screen::SettingsGroup); setRow = 6;
+    CHECK(click(B_SSEG0 + 6 * 8 + 1) && prog.settings.backdrop == 1, "Background: Seasons");
+    tm d{}; d.tm_year = 2027 - 1900; d.tm_mday = 15; d.tm_hour = 12;
+    const int MONTH_SEASON[12] = {3, 3, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3};
+    for (int m = 0; m < 12; m++) { d.tm_mon = m; prog.clock = mktime(&d); CHECK(seasonNow() == MONTH_SEASON[m], "season follows the calendar"); }
+    prog.clock = keepC;
+    shot("settings_background");
+    for (int sn = 0; sn < 4; sn++) { prog.settings.backdrop = 2 + sn; go(Screen::Home); transStart = 0; shot("season_" + std::to_string(sn)); }
+    prog.settings.backdrop = 5; prog.settings.light = false; applyTheme(false); go(Screen::Home); transStart = 0; shot("season_dark_3");
+    prog.settings.backdrop = 3; go(Screen::Home); transStart = 0; shot("season_dark_1");
+    prog.settings.light = true; applyTheme(true);
+    motion = true; go(Screen::Home); seasonLast = 0; CHECK(tick(SDL_GetTicks() + 200), "the season drifts on menus");
+    go(Screen::Drill); seasonLast = 0; CHECK(!menuScreen(), "no drifting in drills");
+    motion = false; prog.settings.backdrop = 0; go(Screen::Home); CHECK(season() == -1, "plain again");
+    prog.settings.backdrop = keepB; }
   // ---- 19. motion (fade-in on screen change) and the Home grid
   { motion = true; go(Screen::Settings); go(Screen::Home);
     CHECK(transStart != 0 && tick(transStart + 20), "screen fades in"); tick(transStart + TRANS_MS + 1); CHECK(transStart == 0, "fade ends");

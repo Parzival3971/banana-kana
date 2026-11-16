@@ -197,6 +197,7 @@ bool App::tick(Uint32 now) {  // every timer runs every time; true if anything n
   if (confStart && now - confLast >= 33) { confLast = now; redraw = true; }  // confetti at ~30 fps
   if (animStart && !paused && now - animLast >= 33) { animLast = now; redraw = true; }  // stroke-order animation
   if (transStart) { if (now - transStart >= TRANS_MS) transStart = 0; redraw = true; }
+  if (motion && prog.settings.backdrop > 0 && menuScreen() && now - seasonLast >= 90) { seasonLast = now; redraw = true; }  // gentle drift, ~11 fps
   if (countStart) { if (now - countStart >= 900) countStart = 0; redraw = true; }
   if (answerAnim) { if (now - answerAnim >= ANSWER_MS) answerAnim = 0; redraw = true; }
   if (screen == Screen::Home && !paused && now - flameLast >= 100 && prog.currentStreak() > 0 &&
@@ -890,6 +891,18 @@ static void streakFlame(Win& w, SDL_Rect box, int streak, bool lit) {  // ghost 
   else { float tt = SDL_GetTicks() / 1000.f; drawFlame(w, box, t->outer, t->inner, 0.6f * std::sin(tt * 9.f) + 0.4f * std::sin(tt * 23.f)); }
 }
 
+int App::seasonNow() const {
+  int b = prog.settings.backdrop;
+  if (b <= 0) return -1;
+  if (b >= 2) return b - 2;
+  time_t now = prog.now(); tm lt{}; localtime_r(&now, &lt);
+  int m = lt.tm_mon + 1;  // spring Mar-May, summer Jun-Aug, autumn Sep-Nov, winter Dec-Feb
+  return m >= 3 && m <= 5 ? 0 : m >= 6 && m <= 8 ? 1 : m >= 9 && m <= 11 ? 2 : 3;
+}
+bool App::menuScreen() const {
+  return screen != Screen::Drill && screen != Screen::Lesson && screen != Screen::FreeWrite && !paused;
+}
+
 static std::string stageLabel(int st) { return st == STAGE_COUNT - 1 ? "Extras" : "Stage " + std::to_string(st + 1); }
 
 void App::header(const std::string& title, const std::string& right, bool coloured, int indent) {
@@ -1037,6 +1050,7 @@ void App::render() {
     }
     setAccent(mc);
   }
+  setSeason(seasonNow());
   drawBackdrop(top, true); drawBackdrop(bot, false); buttons.clear();
   if (paused) drawPause();
   else switch (screen) {
@@ -1058,6 +1072,10 @@ void App::render() {
     case Screen::Awards: drawAwards(); break;
   }
   drawButtons();
+  if (season() >= 0 && menuScreen()) {  // petals / fireflies / leaves / snow drift over menus (still when motion is off)
+    float t = motion ? SDL_GetTicks() / 1000.f : 0.f;
+    drawSeasonParticles(top, true, t); drawSeasonParticles(bot, false, t);
+  }
   if (transStart) {  // new screen fades in from the backdrop colour
     float t = std::clamp((SDL_GetTicks() - transStart) / float(TRANS_MS), 0.f, 1.f), a = (1.f - t) * (1.f - t);
     for (Win* w : {&top, &bot}) {
@@ -2207,6 +2225,9 @@ std::vector<App::SRow> App::settingRows(int g) const {
       choice("Sound", st.sound, 4, SO[st.sound], "Sound effects for taps, right and wrong answers, unlocks and your daily goal.", {SO[0], SO[1], SO[2], SO[3]});
       const char* RU[3] = {"Off", "Light", "Strong"};
       choice("Rumble", st.rumble, 3, RU[st.rumble], "One tick for a right answer, two buzzes for a wrong one, three quick ticks when you learn something, and a long rumble for unlocks.", {RU[0], RU[1], RU[2]});
+      const char* BD[6] = {"Plain", "Seasons", "春", "夏", "秋", "冬"};
+      const char* BDN[6] = {"Plain", "Seasons (by the calendar)", "Spring 春", "Summer 夏", "Autumn 秋", "Winter 冬"};
+      choice("Background", st.backdrop, 6, BDN[st.backdrop], "Seasons of Japan: sakura in spring, waves and fireflies in summer, maple leaves in autumn, snow in winter. Seasons follows the calendar, or pick one.", {BD[0], BD[1], BD[2], BD[3], BD[4], BD[5]});
       break; }
     case 4:
       info("Sessions played", std::to_string(prog.session), "Every practice session you've started.");
@@ -2269,7 +2290,8 @@ void App::changeSetting(int g, int r, int dir) {
       else if (r == 2) st.guideLines = std::clamp(st.guideLines + dir, 0, 2);
       else if (r == 3) st.ink = std::clamp(st.ink + dir, 0, 2);
       else if (r == 4) { st.sound = std::clamp(st.sound + dir, 0, 3); snd::setVolume(st.sound); snd::play(snd::Sfx::Right); }
-      else { st.rumble = std::clamp(st.rumble + dir, 0, 2); snd::setRumble(st.rumble); snd::rumble(snd::Sfx::Wrong); }
+      else if (r == 5) { st.rumble = std::clamp(st.rumble + dir, 0, 2); snd::setRumble(st.rumble); snd::rumble(snd::Sfx::Wrong); }
+      else st.backdrop = std::clamp(st.backdrop + dir, 0, 5);
       break;
     case 4:
       if (r == 4) {
@@ -2356,6 +2378,14 @@ void App::settingPreview(int row) {
     // the drill pad is about 400 px wide: scale its ink so the sample looks the same weight
     if (const Glyph* g = data.glyphFor("あ")) for (auto& stroke : g->strokes)
       drawStrokeIn(top, stroke, SDL_Rect{pad.x + 8, pad.y + 8, pad.w - 16, pad.h - 16}, FG, 400 * INK[std::clamp(st.ink, 0, 2)] * 0.42f);
+  } else if (row == 6) {  // background: the season's motif, drifting
+    int sn = seasonNow();
+    if (sn < 0) drawWrapped(top, "The plain striped look. Pick Seasons or a season to see it on both screens.", SDL_Rect{area.x + 24, area.y + 40, area.w - 48, 60}, FG, F_TINY);
+    else {
+      const char* NAME[4] = {"春 Spring: sakura", "夏 Summer: waves and fireflies", "秋 Autumn: momiji", "冬 Winter: snow"};
+      setBold(true); drawText(top, NAME[sn], SDL_Rect{area.x + 24, area.y + 34, area.w - 48, 34}, FG, F_TINY, A_LEFT); setBold(false);
+      drawWrapped(top, "Drifts gently on menus; stays still in drills and writing.", SDL_Rect{area.x + 24, area.y + 70, area.w - 48, 40}, DIM, F_MICRO);
+    }
   } else {  // sound / rumble: what you get when it plays
     lineIcon(top, row == 4 ? "play" : "timed", SDL_Rect{area.x + 110, area.y + 32, 56, 56}, ACCENT_TXT, 2.6f);
     drawWrapped(top, row == 4 ? (st.sound ? "Changing it plays a sample at the new volume." : "Sound effects are off.")

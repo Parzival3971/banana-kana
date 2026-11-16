@@ -156,6 +156,9 @@ struct App {
   void chips(const std::vector<std::pair<std::string, std::string>>& items);
   void segBar(Win& w, SDL_Rect r, int total, int done, const std::vector<int>& res);
   void settingPreview(int row);
+  int seasonNow() const;      // -1 plain, 0-3 the season to show (Settings.backdrop; 1 = by the calendar month)
+  bool menuScreen() const;    // screens where the season's petals/leaves/snow drift (not drills, lessons or writing)
+  Uint32 seasonLast = 0;      // last drift redraw
   void statBox(Win& w, SDL_Rect r, const std::string& label, const std::string& value, int font = F_SMALL);
   void bar(Win& w, SDL_Rect r, float frac);
   void stepPips(Win& w, int x, int y, int step, int size = 12);

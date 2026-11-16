@@ -231,6 +231,13 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   homeSel = focus index from homeFocus() (0 pill, 1 script, 2-9 tiles); d-pad moves in 4 directions, no wrap; up from the
   left 3 columns -> pill, from the right column -> script switch. Tapping a tile opens it. The slider, its glide and the
   stylus swipe were removed (git history has them: 0.5.0).
+- Seasons (0.6.0, user asked 2026-11-16 for a "four seasons of Japan" background with gentle motion): Settings.backdrop
+  0 plain (default) / 1 seasons by calendar month (Mar-May spring, Jun-Aug summer, Sep-Nov autumn, Dec-Feb winter) / 2-5
+  fixed; "set backdrop". gfx setSeason() tints BG/BG2 (after applyTheme; render calls setSeason(seasonNow()) every
+  frame), drawBackdrop draws the season's cached pattern (sakura blossoms, seigaiha arcs, momiji stars, snow dots),
+  drawSeasonParticles(t) draws 12 top / 8 bottom drifting particles as a pure function of time (fireflies rise).
+  Particles only on menuScreen() (not Drill/Lesson/FreeWrite/pause); tick redraws every 90 ms there when motion is on.
+  Display row 6 "Background" (segments Plain/Seasons/春/夏/秋/冬) + settingPreview row 6.
 - Old v1 look (kept for history): BananaOS palette (banana yellow #FFD23F on warm neutrals), button-hint chips, cartridge tiles.
   Fonts: kana in Zen Maru Gothic Bold (or Klee One SemiBold, setting), English/UI/keyboard in Zen Maru Gothic Medium (all OFL). Pixelify Sans (Banana
   Player's pixel font) was tried and DROPPED 2026-11-15: user found it hard to read. Don't reintroduce pixel fonts.
