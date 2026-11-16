@@ -3,7 +3,7 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
-## 0.7.1 - unreleased
+## 0.7.1 - 2026-11-16
 
 - Autumn now has proper maple (momiji) leaves: seven pointed lobes and a stem, in the background pattern, the falling
   leaves and on Kitsu's head. They used to be five-point stars.
