@@ -25,7 +25,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
   before it's tested.
 - 🪜 **One step at a time.** A brand-new kana is only asked as multiple choice. Typing comes once you've got it right,
   then writing: first over the full guide, then over a faint outline, then from memory, one level per session.
-- ⏩ **Already know some?** On first launch, pick light or dark and a background, then say how much you know (or skip ahead later in Settings > Script).
+- ⏩ **Already know some?** On first launch, pick light or dark and a background, then say how much you know (or skip ahead later in Settings > Script). Settings › Progress › Run setup again goes through it any time.
   Skipped kana count as known, with a quick review in a day or two to check.
 
 ### 🎮 Practise
@@ -166,7 +166,7 @@ Six groups. Most settings are a row of options you can tap directly:
 | ⏳ **Sessions** | Session length, how much older stages come back, the daily goal and how strict the writing check is |
 | あ **Script** | Which script you practise, and skipping ahead to a later stage (or unlocking katakana early) |
 | 🎨 **Display** | Light or dark theme, kana font (rounded or handwriting), canvas lines, ink, sound effects and rumble |
-| 📊 **Progress** | Your stats, resetting progress (press twice; settings are kept) and where the backup lives |
+| 📊 **Progress** | Your stats, resetting progress or settings (press twice), running the first-launch setup again, and where the backup lives |
 | ℹ️ **About** | Version and credits |
 
 ## 🛠️ Troubleshooting

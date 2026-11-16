@@ -17,6 +17,8 @@ the release notes come from the matching section below.
   the days they have practised.
 - First launch now also asks for a background: Seasons of Japan or Plain (shown live as you tap), between picking
   Light or Dark and saying what you already know.
+- Settings > Progress > Run setup again: go back through the first-launch steps any time. Your progress and streak
+  stay, and skipping ahead only ever moves you forwards.
 
 ## 0.6.0 - 2026-11-16
 

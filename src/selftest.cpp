@@ -507,6 +507,15 @@ int App::selfTest(const std::string& shotDir) {
           prog.lessonPending(Script::Katakana), "hiragana skipped, katakana lesson next");
     shot("home_after_welcome");
     prog = Progress{}; prog.settings = keep.settings; prog.settings.script = Script::Hiragana;
+    { // Settings > Progress > Run setup again: the same steps, progress kept, Back returns to Settings
+      int known = prog.knownCount(data, Script::Hiragana), streak = prog.bestStreak;
+      setGroup = 4; setRow = 6; go(Screen::SettingsGroup); padButton(SDL_CONTROLLER_BUTTON_A);
+      CHECK(screen == Screen::Welcome && welcomeStep == 0 && welcomeAgain, "run setup again opens the welcome");
+      shot("welcome_again");
+      CHECK(click(B_BACK) && screen == Screen::SettingsGroup && !welcomeAgain, "back to settings");
+      padButton(SDL_CONTROLLER_BUTTON_A); click(B_WEL_NEXT); click(B_WEL_NEXT);
+      CHECK(click(B_WELCOME0) && screen == Screen::Home, "new to kana -> home");
+      CHECK(prog.knownCount(data, Script::Hiragana) == known && prog.bestStreak == streak, "setup again keeps progress"); }
     go(Screen::Welcome); click(B_WEL_NEXT); click(B_WEL_NEXT); CHECK(click(B_WELCOME0 + 3), "I know some"); CHECK(screen == Screen::SettingsGroup && setGroup == 2 && setRow == 1, "to script settings");
     for (int i = 0; i < 3; i++) click(B_SINC0 + 1);
     CHECK(skipPending[0] == 4 && prog.unlocked[0] == 1, "pending only"); shot("settings_skip");

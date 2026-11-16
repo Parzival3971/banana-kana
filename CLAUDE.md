@@ -243,7 +243,8 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   Display row 6 "Background" (segments Plain/Auto/春/夏/秋/冬; 春夏秋冬 added to fallback.ttf) + settingPreview row 6.
 - Welcome has 3 steps (user asked 2026-11-16): welcomeStep 0 = Light/Dark tiles (B_WTHEME0/+1, applied + saved at once,
   d-pad L/R) and Next (B_WEL_NEXT / A); step 1 = background Seasons (backdrop 1 = Auto) / Plain (0) tiles (B_WBG0/+1,
-  live + saved, added for 0.7.0); step 2 = the 4 "what do you know" choices. B goes back a step.
+  live + saved, added for 0.7.0); step 2 = the 4 "what do you know" choices. B goes back a step. Settings > Progress row 6
+  "Run setup again" (welcomeAgain: title "Set up Banana Kana", Back on step 0 returns to Settings; progress kept).
 - Settings groups with more than 5 rows scroll (user: rows looked squished on device, 2026-11-16): rows keep PITCH 66,
   5 visible, window follows setRow; ▲ / ▼ footer buttons (B_SUP/B_SDOWN) + "n/N" between Back and Change.
 - Old v1 look (kept for history): BananaOS palette (banana yellow #FFD23F on warm neutrals), button-hint chips, cartridge tiles.

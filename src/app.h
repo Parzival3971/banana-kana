@@ -107,7 +107,7 @@ struct App {
   int keyRow = 0, keyCol = 0;  // d-pad cursor on the on-screen keyboards
   int kbRows() const; int kbRowLen(int r) const; int kbItemId(int r, int c) const; void kbMove(int dc, int dr);
   bool inPractice() const { return screen == Screen::Drill || screen == Screen::Lesson || screen == Screen::FreeWrite; }
-  bool firstRun = false; int welcomeSel = 0; int welcomeStep = 0;  // first launch: 0 pick light/dark, 1 background (seasons/plain), 2 what you know
+  bool firstRun = false; int welcomeSel = 0; int welcomeStep = 0; bool welcomeAgain = false;  // first launch: 0 pick light/dark, 1 background (seasons/plain), 2 what you know
   int skipPending[2] = {0, 0};
   // timed challenge
   int timedLeft = 0; Uint32 timedLast = 0; bool timedNewBest = false; int flash = 0; std::string flashText;  // flash 1 right, 2 wrong

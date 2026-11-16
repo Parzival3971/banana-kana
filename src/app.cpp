@@ -82,12 +82,12 @@ void App::go(Screen s) {
     q = Question{}; q.type = QType::Type; q.kanaInput = true; checked = false; keyRow = keyCol = 0;
     typed = isKataText(prog.pet.name) || utf8Codepoints(prog.pet.name).empty() || utf8Codepoints(prog.pet.name)[0] >= 0x3040 ? prog.pet.name : "";
   }
+  if (s == Screen::Welcome && screen != Screen::Welcome) welcomeStep = 0;
   screen = s; pressedId = -1; drawing = false; cur.clear(); paused = false; animStart = 0;
   if (s == Screen::Unlocked) { snd::play(snd::Sfx::Unlock); celebrate(3200, true); }
   if (s == Screen::Result || s == Screen::Unlocked) backup(true);
   if (s == Screen::Result) countStart = motion ? (SDL_GetTicks() | 1) : 0;  // the score counts up
   if (s == Screen::Result && mode == Mode::Timed && timedNewBest) celebrate(2400, true);
-  if (s == Screen::Welcome && screen != Screen::Welcome) welcomeStep = 0;
   if (s == Screen::Stages) { mapScript = prog.settings.script; mapSel = prog.currentStage(mapScript); }
   if (s == Screen::Chart) {
     chartScroll = 0; chartSel = -1;
@@ -121,7 +121,7 @@ void App::openFreeWrite(const std::vector<int>& list) {  // an empty list: draw 
 }
 
 void App::welcomeChoice(int i) {
-  firstRun = false;
+  firstRun = false; welcomeAgain = false;
   if (i == 1) { prog.skipTo(data, Script::Hiragana, SKIP_ALL); prog.settings.script = Script::Katakana; }
   if (i == 2) { prog.skipTo(data, Script::Hiragana, SKIP_ALL); prog.skipTo(data, Script::Katakana, SKIP_ALL); }
   pendingUnlocks.clear(); save();
@@ -593,6 +593,7 @@ void App::press(int id) {
       if (welcomeStep == 0) {  // pick a look: applies straight away, so the whole app shows it
         if (id == B_WTHEME0 || id == B_WTHEME0 + 1) { prog.settings.light = id == B_WTHEME0; applyTheme(prog.settings.light); save(); }
         else if (id == B_WEL_NEXT) welcomeStep = 1;
+        else if (id == B_BACK && welcomeAgain) { welcomeAgain = false; go(Screen::SettingsGroup); }
       } else if (welcomeStep == 1) {  // background: also live, the real backdrop changes behind the tiles
         if (id == B_WBG0 || id == B_WBG0 + 1) { prog.settings.backdrop = id == B_WBG0 ? 1 : 0; save(); }
         else if (id == B_WEL_NEXT) { welcomeStep = 2; welcomeSel = 0; }
@@ -801,6 +802,7 @@ void App::padButton(SDL_GameControllerButton b) {
       if (welcomeStep == 0) {
         if (b == L) press(B_WTHEME0); else if (b == R) press(B_WTHEME0 + 1);
         else if (b == A || b == ST) press(B_WEL_NEXT);
+        else if (b == B && welcomeAgain) press(B_BACK);
       } else if (welcomeStep == 1) {
         if (b == L) press(B_WBG0); else if (b == R) press(B_WBG0 + 1);
         else if (b == A || b == ST) press(B_WEL_NEXT);
@@ -1695,7 +1697,7 @@ void App::drawDrill() {
 
 void App::drawWelcome() {
   appTile(top, 270, 8, 96);
-  drawText(top, "Welcome to Banana Kana", SDL_Rect{20, 112, 600, 60}, FG, F_MID);
+  drawText(top, welcomeAgain ? "Set up Banana Kana" : "Welcome to Banana Kana", SDL_Rect{20, 112, 600, 60}, FG, F_MID);
   if (welcomeStep == 0) {  // step 1 of 3: light or dark, shown live
     drawWrapped(top, "First, pick a look. Tap one to try it: the whole app changes straight away.",
                 SDL_Rect{60, 190, 520, 100}, DIM, F_TINY);
@@ -1718,8 +1720,10 @@ void App::drawWelcome() {
       drawText(bot, light ? "bright and clear" : "easy on the eyes at night", SDL_Rect{r.x, r.y + 260, r.w, 28}, DIM, F_MICRO);
       addBtn(r, B_WTHEME0 + k, light ? "Light" : "Dark", F_SMALL); lastBtn().hidden = true;
     }
-    addBtn(SDL_Rect{16, 336, 608, 84}, B_WEL_NEXT, "Next", F_SMALL); accent(lastBtn()); lastBtn().radius = 30;
-    chips({{"+", "Light / Dark"}, {"A", "Next"}});
+    if (welcomeAgain) addBtn(SDL_Rect{16, 336, 192, 84}, B_BACK, "Back", F_SMALL);
+    addBtn(welcomeAgain ? SDL_Rect{224, 336, 400, 84} : SDL_Rect{16, 336, 608, 84}, B_WEL_NEXT, "Next", F_SMALL); accent(lastBtn()); lastBtn().radius = 30;
+    if (welcomeAgain) chips({{"+", "Light / Dark"}, {"A", "Next"}, {"B", "Back to Settings"}});
+    else chips({{"+", "Light / Dark"}, {"A", "Next"}});
     return;
   }
   if (welcomeStep == 1) {  // step 2 of 3: seasons of Japan or plain, shown live behind the tiles
@@ -2481,6 +2485,8 @@ std::vector<App::SRow> App::settingRows(int g) const {
              "Forget every answer, streak and best, and lock all stages again. Your settings stay. This can't be undone.");
       action("Reset settings", resetSetArmed ? "Press A again to confirm" : "Reset",
              "Put every setting back to how it started: drills, sessions, theme, fonts, sound and rumble. Your progress stays.");
+      action("Run setup again", "Open",
+             "Go through the first-launch steps again: light or dark, background, and what you already know. Your progress and streak stay; skipping ahead only ever moves you forwards.");
       info("Backup", backupPath.empty() ? "Off" : "On the SD card",
            backupPath.empty() ? "No backup copy is kept (only in the installed app)."
                               : "A copy of your progress is kept in roms/ports/BananaKana/progress-backup.txt. It's restored automatically after a reinstall or reflash.");
@@ -2549,6 +2555,7 @@ void App::changeSetting(int g, int r, int dir) {
       break;
     case 5: if (r == 1) { go(Screen::Credits); return; } break;
   }
+  if (g == 4 && r == 6) { welcomeAgain = true; go(Screen::Welcome); return; }
   save();
 }
 
