@@ -3,7 +3,7 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
-## 0.6.0 - unreleased
+## 0.6.0 - 2026-11-16
 
 - New Home grid: the scrolling strip is gone. A big Lesson / Practise button and the あ → ア switch sit on top, with
   all eight modes below as tiles (Review, Mix-ups, Words, Timed, Stats, Stages, Kana chart, Settings). Everything is
