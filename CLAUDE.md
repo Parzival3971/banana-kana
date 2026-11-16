@@ -238,6 +238,8 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   frame), drawBackdrop draws the season's cached pattern (sakura blossoms, seigaiha arcs, momiji stars, snow dots),
   drawSeasonParticles(t) draws 12 top / 8 bottom drifting particles as a pure function of time (fireflies rise).
   Particles only on menuScreen() (not Drill/Lesson/FreeWrite/pause); tick redraws every 90 ms there when motion is on.
+  Summer stuttered on device (2026-11-16): seigaiha was ~51k triangles/frame; now R 34/40, 2 rings, 8 segments (~10k,
+  like spring). Self-test budget: <= 8000 pattern triangles per screen per season (backdropTriangles()).
   Display row 6 "Background" (segments Plain/Auto/春/夏/秋/冬; 春夏秋冬 added to fallback.ttf) + settingPreview row 6.
 - Settings groups with more than 5 rows scroll (user: rows looked squished on device, 2026-11-16): rows keep PITCH 66,
   5 visible, window follows setRow; ▲ / ▼ footer buttons (B_SUP/B_SDOWN) + "n/N" between Back and Change.

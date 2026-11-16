@@ -64,6 +64,7 @@ void drawBackdrop(Win& w, bool topScreen);  // stripes (top) / dots (bottom), or
 void setSeason(int season);
 int season();
 void drawSeasonParticles(Win& w, bool topScreen, float t);
+int backdropTriangles();  // triangles in the last backdrop drawn (the self-test keeps every season under a budget)
 // Line icons (24x24 design grid, round strokes): review mixups words timed stats pencil clock script display chart
 // info flame medal lock check cross play pause gear arrow back star book map grid pen eraser
 void lineIcon(Win& w, const std::string& name, SDL_Rect box, Col c, float thick = 2.2f);

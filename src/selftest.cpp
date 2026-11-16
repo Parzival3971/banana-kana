@@ -505,7 +505,13 @@ int App::selfTest(const std::string& shotDir) {
     for (int m = 0; m < 12; m++) { d.tm_mon = m; prog.clock = mktime(&d); CHECK(seasonNow() == MONTH_SEASON[m], "season follows the calendar"); }
     prog.clock = keepC;
     shot("settings_background");
-    for (int sn = 0; sn < 4; sn++) { prog.settings.backdrop = 2 + sn; go(Screen::Home); transStart = 0; shot("season_" + std::to_string(sn)); }
+    for (int sn = 0; sn < 4; sn++) {
+      prog.settings.backdrop = 2 + sn; go(Screen::Home); transStart = 0; shot("season_" + std::to_string(sn));
+      drawBackdrop(top, true); int tt = backdropTriangles(); drawBackdrop(bot, false); int tb = backdropTriangles();
+      // budget per screen: summer once drew ~30k (top) and stuttered on the device; spring is ~6.5k and smooth
+      printf("season %d pattern: %d / %d triangles\n", sn, tt, tb);
+      CHECK(tt <= 8000 && tb <= 8000, "season pattern stays light");
+    }
     prog.settings.backdrop = 5; prog.settings.light = false; applyTheme(false); go(Screen::Home); transStart = 0; shot("season_dark_3");
     prog.settings.backdrop = 3; go(Screen::Home); transStart = 0; shot("season_dark_1");
     prog.settings.light = true; applyTheme(true);

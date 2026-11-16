@@ -25,7 +25,7 @@ Col BG, PANEL, PANEL2, LINE, FG, DIM, ACCENT, ACCENT_TXT, ON_ACCENT, GOOD, GOOD_
     DIS_LINE, DIS_TXT, TRACK;
 Col BG2, CARD_SH, PILL_LINE, PILL_SH, PILL_HI, PILL_LO, ACC_LINE, ACC_SH, ACC_HI, ACC_LO, PAPER_LINE, PAPER_MARGIN;
 bool gLight = true;
-Col gBaseBG, gBaseBG2; int gSeason = -1;  // theme backdrop colours before any season tint
+Col gBaseBG, gBaseBG2; int gSeason = -1; int gBackdropTris = 0;  // theme backdrop colours before any season tint
 namespace {
 // per mode: fill, outline, shadow, gloss top, gloss bottom, text on light, text on dark, text on the fill
 struct Acc { unsigned fill, line, sh, hi, lo, txtL, txtD, on; };
@@ -283,12 +283,13 @@ void drawBackdrop(Win& w, bool topScreen) {
     };
     const float step = topScreen ? 56.f : 72.f;
     if (gSeason == 1) {  // seigaiha: rows of overlapping wave arcs (three rings each)
-      const float R = topScreen ? 22.f : 26.f;
+      // kept light: the first version (small arcs, 3 rings, 12 segments) was ~51k triangles and stuttered on the device
+      const float R = topScreen ? 34.f : 40.f;
       for (int row = 0; row * R * 0.9f < LH + R; row++) {
         float y = row * R * 0.9f, off = row % 2 ? R : 0;
-        for (float x = -R + off; x < LW + R; x += 2 * R) for (float rr : {R, R * 0.7f, R * 0.4f}) {
-          for (int i = 0; i < 12; i++) {
-            float a0 = 3.14159f + i * 3.14159f / 12, a1 = 3.14159f + (i + 1) * 3.14159f / 12, t = 1.1f;
+        for (float x = -R + off; x < LW + R; x += 2 * R) for (float rr : {R, R * 0.62f}) {
+          for (int i = 0; i < 8; i++) {
+            float a0 = 3.14159f + i * 3.14159f / 8, a1 = 3.14159f + (i + 1) * 3.14159f / 8, t = 1.3f;
             SDL_FPoint p0{x + rr * std::cos(a0), y + rr * std::sin(a0)}, p1{x + rr * std::cos(a1), y + rr * std::sin(a1)};
             SDL_FPoint q0{x + (rr - t) * std::cos(a0), y + (rr - t) * std::sin(a0)}, q1{x + (rr - t) * std::cos(a1), y + (rr - t) * std::sin(a1)};
             tri(p0, p1, q1); tri(p0, q1, q0);
@@ -320,7 +321,9 @@ void drawBackdrop(Win& w, bool topScreen) {
     }
   }
   SDL_RenderGeometry(w.r, nullptr, v.data(), int(v.size()), nullptr, 0);
+  gBackdropTris = int(v.size()) / 3;
 }
+int backdropTriangles() { return gBackdropTris; }
 
 // Drifting particles for the season, drawn over a menu screen. Positions are a pure function of time (no state):
 // each particle falls (or, for fireflies, wanders upwards) across the screen and wraps round.
