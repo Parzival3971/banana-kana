@@ -484,6 +484,7 @@ bool Progress::load(const std::string& path, const Data* d) {
   if (!scriptUnlocked(settings.script)) settings.script = Script::Hiragana;
   if (!petLoaded) {  // an older file: Kitsu arrives already grown for the days in the history, without a celebration
     for (auto& [dd, x] : days) if (x.answers > 0) { pet.days++; pet.lastDay = std::max(pet.lastDay, dd); }
+    pet.days = std::max(pet.days, bestStreak);  // history keeps 90 days; a longer best streak proves more practice
     pet.seenStage = petStage();
   }
   return true;

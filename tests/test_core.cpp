@@ -541,6 +541,9 @@ int main(int argc, char** argv) {
     // an older file (no pet line): Kitsu arrives grown for the days in the history, already "seen" (no celebration)
     std::ofstream(path) << "set version 2\nset last_goal_day 20260101\nday 20260101 12 10\nday 20260102 3 3\nday 20260103 0 0\n";
     Progress r; CHECK(r.load(path, &d)); CHECK(!r.petLoaded && r.pet.days == 2 && r.petStage() == 1 && r.pet.seenStage == 1);
+    // history keeps only 90 days: a 120-day best streak still proves 120 days of practice (nine tails)
+    std::ofstream(path) << "set version 2\nset best_streak 120\nset last_goal_day 20260101\nday 20260101 12 10\n";
+    Progress m; CHECK(m.load(path, &d)); CHECK(m.pet.days == 120 && m.petStage() == 4 && m.pet.seenStage == 4);
   }
   printf(fails ? "%d FAILURES\n" : "all core tests passed\n", fails); return fails != 0;
 }
