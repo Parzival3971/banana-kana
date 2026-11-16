@@ -237,7 +237,9 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   frame), drawBackdrop draws the season's cached pattern (sakura blossoms, seigaiha arcs, momiji stars, snow dots),
   drawSeasonParticles(t) draws 12 top / 8 bottom drifting particles as a pure function of time (fireflies rise).
   Particles only on menuScreen() (not Drill/Lesson/FreeWrite/pause); tick redraws every 90 ms there when motion is on.
-  Display row 6 "Background" (segments Plain/Seasons/春/夏/秋/冬) + settingPreview row 6.
+  Display row 6 "Background" (segments Plain/Auto/春/夏/秋/冬; 春夏秋冬 added to fallback.ttf) + settingPreview row 6.
+- Settings groups with more than 5 rows scroll (user: rows looked squished on device, 2026-11-16): rows keep PITCH 66,
+  5 visible, window follows setRow; ▲ / ▼ footer buttons (B_SUP/B_SDOWN) + "n/N" between Back and Change.
 - Old v1 look (kept for history): BananaOS palette (banana yellow #FFD23F on warm neutrals), button-hint chips, cartridge tiles.
   Fonts: kana in Zen Maru Gothic Bold (or Klee One SemiBold, setting), English/UI/keyboard in Zen Maru Gothic Medium (all OFL). Pixelify Sans (Banana
   Player's pixel font) was tried and DROPPED 2026-11-15: user found it hard to read. Don't reintroduce pixel fonts.

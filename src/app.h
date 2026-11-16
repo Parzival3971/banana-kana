@@ -36,7 +36,7 @@ enum BtnId {
   // free writing, welcome
   B_FW_GUIDE = 130, B_FW_NEXT, B_FW_PREV, B_SHOWME, B_WELCOME0 = 140,
   // settings (BananaOS style: group tiles -> rows with < value >)
-  B_GROUP0 = 200, B_SROW0 = 220, B_SDEC0 = 240, B_SINC0 = 260, B_FOOT_L = 280, B_FOOT_R, B_SSEG0 = 3000,  // B_SSEG0 + row * 8 + option
+  B_GROUP0 = 200, B_SROW0 = 220, B_SDEC0 = 240, B_SINC0 = 260, B_FOOT_L = 280, B_FOOT_R, B_SUP = 290, B_SDOWN, B_SSEG0 = 3000,  // B_SSEG0 + row * 8 + option
   // keyboard
   B_KEY0 = 300, B_KANA0 = 400, B_DAKU = 460, B_HANDAKU, B_SMALLK, B_CHOON,
   // stats heatmap

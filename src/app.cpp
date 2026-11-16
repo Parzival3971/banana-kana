@@ -542,6 +542,8 @@ void App::press(int id) {
         (void)rows;
       } else if (id >= B_SDEC0 && id < B_SDEC0 + n) { setRow = id - B_SDEC0; changeSetting(setGroup, setRow, -1); }
       else if (id >= B_SINC0 && id < B_SINC0 + n) { setRow = id - B_SINC0; changeSetting(setGroup, setRow, +1); }
+      else if (id == B_SUP && setRow > 0) { setRow--; resetArmed = resetSetArmed = false; }
+      else if (id == B_SDOWN && setRow < n - 1) { setRow++; resetArmed = resetSetArmed = false; }
       else if (id == B_FOOT_L) go(Screen::Settings);
       else if (id == B_FOOT_R) confirmSetting(setGroup, setRow);
       break; }
@@ -2225,7 +2227,7 @@ std::vector<App::SRow> App::settingRows(int g) const {
       choice("Sound", st.sound, 4, SO[st.sound], "Sound effects for taps, right and wrong answers, unlocks and your daily goal.", {SO[0], SO[1], SO[2], SO[3]});
       const char* RU[3] = {"Off", "Light", "Strong"};
       choice("Rumble", st.rumble, 3, RU[st.rumble], "One tick for a right answer, two buzzes for a wrong one, three quick ticks when you learn something, and a long rumble for unlocks.", {RU[0], RU[1], RU[2]});
-      const char* BD[6] = {"Plain", "Seasons", "春", "夏", "秋", "冬"};
+      const char* BD[6] = {"Plain", "Auto", "春", "夏", "秋", "冬"};
       const char* BDN[6] = {"Plain", "Seasons (by the calendar)", "Spring 春", "Summer 夏", "Autumn 秋", "Winter 冬"};
       choice("Background", st.backdrop, 6, BDN[st.backdrop], "Seasons of Japan: sakura in spring, waves and fireflies in summer, maple leaves in autumn, snow in winter. Seasons follows the calendar, or pick one.", {BD[0], BD[1], BD[2], BD[3], BD[4], BD[5]});
       break; }
@@ -2425,10 +2427,12 @@ void App::drawSettingsGroup() {
   card(bot, SDL_Rect{16, 8, 608, 46}, 16);
   setBold(true); drawText(bot, groupName(setGroup), SDL_Rect{34, 8, 300, 46}, FG, F_TINY, A_LEFT); setBold(false);
   drawText(bot, "L / R: other groups", SDL_Rect{300, 8, 306, 46}, DIM, F_MICRO, A_RIGHT);
-  for (int i = 0; i < int(rows.size()); i++) {
+  // rows keep a comfortable height; groups with more than 5 rows scroll (the selected row stays in view)
+  const int VIS = 5, PITCH = 66, nRows = int(rows.size());
+  const int first = nRows <= VIS ? 0 : std::clamp(setRow - 2, 0, nRows - VIS);
+  for (int i = first; i < std::min(nRows, first + VIS); i++) {
     const SRow& row = rows[i];
-    int pitch = rows.size() <= 5 ? 68 : 350 / int(rows.size());  // 6+ rows squeeze up to stay clear of the footer pills
-    SDL_Rect r{16, 68 + i * pitch, 608, pitch - 12};
+    SDL_Rect r{16, 68 + (i - first) * PITCH, 608, PITCH - 12};
     bool on = i == setRow;
     if (on) fillRound(bot, SDL_Rect{r.x - 4, r.y - 4, r.w + 8, r.h + 13}, 20, ACCENT);
     card(bot, r, 16, pressedId == B_SROW0 + i ? mix(PANEL, FG, 0.08f) : PANEL);
@@ -2461,6 +2465,11 @@ void App::drawSettingsGroup() {
   std::string act = cur.kind == 0 ? "Change" : cur.kind == 1 ? (cur.label.rfind("Reset", 0) == 0 ? "Reset" : "Open")
                   : cur.kind == 3 ? (cur.canDec ? "Confirm" : "") : "";
   footer("B", "Back", "A", act);
+  if (nRows > VIS) {  // more rows than fit: up/down buttons between the footer pills, plus "3 of 7"
+    addBtn(SDL_Rect{234, 410, 64, 56}, B_SUP, "▲", F_TINY, setRow > 0); lastBtn().radius = 28;
+    addBtn(SDL_Rect{342, 410, 64, 56}, B_SDOWN, "▼", F_TINY, setRow < nRows - 1); lastBtn().radius = 28;
+    drawText(bot, std::to_string(setRow + 1) + "/" + std::to_string(nRows), SDL_Rect{298, 410, 44, 56}, DIM, F_MICRO);
+  }
 }
 
 void App::drawCredits() {

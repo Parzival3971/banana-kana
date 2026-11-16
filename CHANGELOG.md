@@ -11,6 +11,7 @@ the release notes come from the matching section below.
 - Seasons of Japan backgrounds (Settings > Display > Background): sakura in spring, seigaiha waves and fireflies in
   summer, momiji in autumn, snow in winter, in light and dark. "Seasons" follows the calendar, or pick one season.
   Petals, fireflies, leaves and snow drift gently over menus (never in drills or writing). Plain stays the default.
+- Settings groups with more than five rows scroll (with ▲ ▼ buttons) instead of squeezing the rows.
 
 ## 0.5.0 - 2026-11-15
 
