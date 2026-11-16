@@ -204,9 +204,8 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   shadow; kind 0 plain/1 accent/2 disabled), drawBackdrop (stripes top, dots bottom, cached texture), lineIcon (24-grid
   polylines drawn with drawStrokeIn; NO pixel icons: user said they clash), drawRing. ui_bold.ttf (Zen Maru Gothic Bold)
   for F_HUGE..F_SMALL and setBold(). drawButtons draws PANEL/ACCENT buttons as pills, custom fills stay flat.
-  header(title, right, coloured, indent): bar with bilingual title. Home = homeItems() strip (9 tiles, homeSel = centred; tapping a side tile
-  recentres it, tapping the centred tile opens it - Codex PR #1 caught touch couldn't reach far tiles;
-  B_HOME_GO big pill), goal ring card, week streak strip (weekday kanji added to fallback.ttf), script bars.
+  header(title, right, coloured, indent): bar with bilingual title. Home top: goal ring card, week streak strip (weekday
+  kanji added to fallback.ttf), script bars; Home bottom: see Home grid below.
   Settings rows: SRow.opts -> segmented pills (B_SSEG0 + row*8 + opt). Medals: App::medal; app tile: App::appTile.
   Icon: tools/make_icon.py (option A "kana tile") -> launcher/media/box/Banana Kana.png.
 - Review polish (user said "do all", 2026-11-15): streak flame = gfx drawFlame + app flameTier/streakFlame (1/7/30/100
@@ -227,6 +226,11 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   homeTouch/homeDrag in pointer(), strip follows the stylus (140 px per tile), settles on the nearest, a flick > 40 px moves one.
   (6) Home lost its "F+START Quit" hint in the redesign (chips() silently dropped what didn't fit): restored; chips()
   now tightens spacing when a row is too wide and KT_TEXTLOG=1 logs any dropped chip.
+- Home grid (0.6.0, user picked mockup "B" and said drop the slider, 2026-11-16): bottom = B_HOME_GO pill (452x84) +
+  script switch, then homeItems() as 4x2 tiles (modes solid colour, Stages/Chart/Settings white with a coloured icon).
+  homeSel = focus index from homeFocus() (0 pill, 1 script, 2-9 tiles); d-pad moves in 4 directions, no wrap; up from the
+  left 3 columns -> pill, from the right column -> script switch. Tapping a tile opens it. The slider, its glide and the
+  stylus swipe were removed (git history has them: 0.5.0).
 - Old v1 look (kept for history): BananaOS palette (banana yellow #FFD23F on warm neutrals), button-hint chips, cartridge tiles.
   Fonts: kana in Zen Maru Gothic Bold (or Klee One SemiBold, setting), English/UI/keyboard in Zen Maru Gothic Medium (all OFL). Pixelify Sans (Banana
   Player's pixel font) was tried and DROPPED 2026-11-15: user found it hard to read. Don't reintroduce pixel fonts.

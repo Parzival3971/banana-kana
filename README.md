@@ -119,7 +119,7 @@ A backup copy is also kept in `roms/ports/BananaKana/progress-backup.txt`: copy 
 | | |
 |---|---|
 | ✏️ **Stylus / touch** (bottom screen) | Tap answers, keys and buttons. Buttons act when you lift, so slide off to cancel. Trace on the canvas. |
-| ✛ **D-pad** or the analogue **stick** (shown as a cross in the hint chips) | Scroll the Home mode strip; move between tiles, stages, chart cells, settings and keyboard keys |
+| ✛ **D-pad** or the analogue **stick** (shown as a cross in the hint chips) | Move around the Home grid, stages, chart cells, settings and keyboard keys |
 | **A** | Choose / confirm (press again on a chosen answer to check it) |
 | **B** | Back. In drills: undo a stroke or delete a letter |
 | **X** | Check the answer. On Stats: achievements |

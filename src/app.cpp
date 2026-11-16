@@ -75,7 +75,6 @@ bool isKataText(const std::string& s) { auto c = utf8Codepoints(s); return !c.em
 // ================================================================== flow
 void App::go(Screen s) {
   if (motion && s != screen) transStart = SDL_GetTicks() | 1;  // soft fade-in of the new screen
-  if (s == Screen::Home && screen != Screen::Home) { homePos = float(homeSel); glideTo = homeSel; glideStart = 0; homeDrag = homeTouch = false; }  // arrive centred, no glide
   screen = s; pressedId = -1; drawing = false; cur.clear(); paused = false; animStart = 0;
   if (s == Screen::Unlocked) { snd::play(snd::Sfx::Unlock); celebrate(3200, true); }
   if (s == Screen::Result || s == Screen::Unlocked) backup(true);
@@ -87,7 +86,7 @@ void App::go(Screen s) {
     auto cells = chartCells(prog.settings.script, chartTab);
     if (!cells.empty()) chartSel = cells[0].kana;
   }
-  if (s == Screen::Home) { homeSel = std::clamp(homeSel, 0, int(homeItems().size()) - 1); earned(prog.checkAchievements(data)); }  // e.g. after skipping ahead
+  if (s == Screen::Home) { homeSel = std::clamp(homeSel, 0, int(homeFocus().size()) - 1); earned(prog.checkAchievements(data)); }  // e.g. after skipping ahead
   if (s == Screen::SettingsGroup) { skipPending[0] = skipCurrent(Script::Hiragana); skipPending[1] = skipCurrent(Script::Katakana); resetArmed = resetSetArmed = false; setRow = std::clamp(setRow, 0, std::max(0, int(settingRows(setGroup).size()) - 1)); }
 }
 
@@ -200,15 +199,6 @@ bool App::tick(Uint32 now) {  // every timer runs every time; true if anything n
   if (transStart) { if (now - transStart >= TRANS_MS) transStart = 0; redraw = true; }
   if (countStart) { if (now - countStart >= 900) countStart = 0; redraw = true; }
   if (answerAnim) { if (now - answerAnim >= ANSWER_MS) answerAnim = 0; redraw = true; }
-  if (screen == Screen::Home && !homeDrag) {  // the mode strip glides to its new centre in a fixed time, however slow frames are
-    if (homeSel != glideTo) { glideFrom = homePos; glideTo = homeSel; glideStart = now ? now : 1; }
-    if (glideStart) {
-      float t = std::clamp((now - glideStart) / float(GLIDE_MS), 0.f, 1.f), e = 1.f - (1.f - t) * (1.f - t) * (1.f - t);
-      homePos = motion ? glideFrom + (float(glideTo) - glideFrom) * e : float(glideTo);
-      if (t >= 1.f || !motion) { homePos = float(glideTo); glideStart = 0; }
-      redraw = true;
-    }
-  }
   if (screen == Screen::Home && !paused && now - flameLast >= 100 && prog.currentStreak() > 0 &&
       prog.lastGoalDay == dayNumber(prog.now())) { flameLast = now; redraw = true; }  // lit flame flickers
   if (screen == Screen::Credits && !paused && now - creditsLast >= 80) { creditsLast = now; redraw = true; }
@@ -431,7 +421,7 @@ void App::press(int id) {
   }
   switch (screen) {
     case Screen::Home:
-      if (int idx = homeItemIndex(id); idx >= 0 && idx != homeSel) { homeSel = idx; break; }  // tap a side tile: slide it to the centre
+      if (int idx = homeItemIndex(id); idx >= 0) homeSel = idx;  // the focus follows taps
       if (id == B_CART0 || id == B_HOME_GO) { if (prog.lessonPending(sc)) openLesson(sc, prog.lessons[si(sc)], false); else startSession(); }
       else if (id == B_CART0 + 1) go(Screen::Stages);
       else if (id == B_CART0 + 2) go(Screen::Chart);
@@ -621,22 +611,6 @@ void App::pointer(int type, int x, int y) {
     if (type == 1 && drawing) { cur.push_back(boxToGlyph(x, y, c)); return; }
     if (type == 2 && drawing) { drawing = false; if (cur.size() >= 2) strokes.push_back(cur); cur.clear(); return; }
   }
-  if (screen == Screen::Home && !paused) {  // swipe the mode strip: it follows the stylus, then settles on the nearest tile
-    if (type == 0 && y >= 70 && y < 260) { homeTouch = true; homeDrag = false; dragX0 = x; dragPos0 = homePos; }
-    else if (type == 1 && homeTouch) {
-      if (!homeDrag && std::abs(x - dragX0) > 14) { homeDrag = true; pressedId = -1; }
-      if (homeDrag) { homePos = std::clamp(dragPos0 - (x - dragX0) / 140.f, -0.4f, float(homeItems().size()) - 0.6f); return; }
-    } else if (type == 2 && homeTouch) {
-      homeTouch = false;
-      if (homeDrag) {
-        homeDrag = false; int n = int(homeItems().size());
-        int target = int(std::lround(homePos));
-        if (target == int(std::lround(dragPos0)) && std::abs(x - dragX0) > 40) target += x < dragX0 ? 1 : -1;  // a quick flick still moves one
-        homeSel = std::clamp(target, 0, n - 1); glideFrom = homePos; glideTo = homeSel; glideStart = SDL_GetTicks() | 1;
-        snd::play(snd::Sfx::Tap); return;
-      }
-    }
-  }
   auto hit = [&](const Button& b) { return b.enabled && x >= b.r.x && x < b.r.x + b.r.w && y >= b.r.y && y < b.r.y + b.r.h; };
   if (type == 0) { pressedId = -1; for (auto& b : buttons) if (hit(b)) { pressedId = b.id; return; } }
   if (type == 1 && pressedId >= 0) { for (auto& b : buttons) if (b.id == pressedId && !hit(b)) pressedId = -1; }
@@ -660,13 +634,25 @@ void App::padButton(SDL_GameControllerButton b) {
     return;
   }
   switch (screen) {
-    case Screen::Home:
-      if (b == L || b == U) homeSel = std::max(0, homeSel - 1);
-      else if (b == R || b == D) homeSel = std::min(int(homeItems().size()) - 1, homeSel + 1);
-      else if (b == A) press(homeItems()[std::clamp(homeSel, 0, int(homeItems().size()) - 1)].id);
+    case Screen::Home: {
+      // focus: 0 pill, 1 script switch (top row); 2-5 and 6-9 the two tile rows (4 columns)
+      auto f = homeFocus(); int n = int(f.size()); homeSel = std::clamp(homeSel, 0, n - 1);
+      int s = homeSel;
+      if (s <= 1) {
+        if (b == L) s = 0; else if (b == R) s = 1;
+        else if (b == D) s = s == 0 ? 2 : 5;
+      } else {
+        int t = s - 2, row = t / 4, col = t % 4;
+        if (b == L && col > 0) s--; else if (b == R && col < 3) s++;
+        else if (b == U) s = row == 0 ? (col < 3 ? 0 : 1) : s - 4;
+        else if (b == D && row == 0) s += 4;
+      }
+      if (s != homeSel) { homeSel = s; break; }
+      if (b == A) press(f[homeSel]);
       else if (b == ST) press(B_HOME_GO);
       else if (b == Y) setScript(sc == Script::Hiragana ? Script::Katakana : Script::Hiragana);
       break;
+    }
     case Screen::Stages:
       if (b == L) mapSel = std::max(0, mapSel - 1); else if (b == R) mapSel = std::min(STAGE_COUNT - 1, mapSel + 1);
       else if (b == U) mapSel = std::max(0, mapSel - 8); else if (b == D) mapSel = std::min(STAGE_COUNT - 1, mapSel + 8);
@@ -1131,23 +1117,26 @@ std::vector<App::HomeItem> App::homeItems() const {
   Script sc = prog.settings.script; int scI = si(sc);
   int due = prog.dueCount(data, sc), mixN = int(mixupSets(data, prog, sc).size()), best = prog.timedBest[scI], streak = prog.currentStreak();
   int packsReady = 0; for (int i = 0; i < int(data.packs.size()); i++) if (int(readyWords(data, prog, i).size()) >= PACK_MIN) packsReady++;
-  bool lesson = prog.lessonPending(sc);
   int curSt = prog.currentStage(sc);
-  return {
-    {B_CART0, lesson ? "Lesson" : "Practise", "pencil", stageLabel(curSt), MC_ORANGE, true},
-    {B_MODE0, "Review", "review", due ? std::to_string(due) + " due" : "none due", MC_BLUE, modeAvailable(Mode::Review)},
-    {B_MODE0 + 1, "Mix-ups", "mixups", mixN ? std::to_string(mixN) + (mixN == 1 ? " set" : " sets") : "none yet", MC_PURPLE, modeAvailable(Mode::Mixup)},
-    {B_MODE0 + 4, "Words", "words", packsReady ? std::to_string(packsReady) + (packsReady == 1 ? " pack ready" : " packs ready") : "soon", MC_GREEN, !data.packs.empty()},
-    {B_MODE0 + 2, "Timed", "timed", best ? "best " + std::to_string(best) : "60 seconds", MC_RED, true},
-    {B_MODE0 + 3, "Stats", "stats", streak ? std::to_string(streak) + "-day streak" : "your progress", MC_TEAL, true},
-    {B_CART0 + 1, "Stages", "map", std::to_string(curSt) + " of " + std::to_string(STAGE_COUNT) + " passed", MC_ORANGE, true},
-    {B_CART0 + 2, "Kana chart", "grid", std::to_string(prog.knownCount(data, sc)) + " known", MC_BLUE, true},
-    {B_CART0 + 3, "Settings", "gear", "theme, sound, more", MC_TEAL, true},
+  return {  // modes are solid colour tiles; places (stages, chart, settings) are white with a coloured icon
+    {B_MODE0, "Review", "review", due ? std::to_string(due) + " due" : "none due", MC_BLUE, modeAvailable(Mode::Review), true},
+    {B_MODE0 + 1, "Mix-ups", "mixups", mixN ? std::to_string(mixN) + (mixN == 1 ? " set" : " sets") : "none yet", MC_PURPLE, modeAvailable(Mode::Mixup), true},
+    {B_MODE0 + 4, "Words", "words", packsReady ? std::to_string(packsReady) + (packsReady == 1 ? " pack" : " packs") : "soon", MC_GREEN, !data.packs.empty(), true},
+    {B_MODE0 + 2, "Timed", "timed", best ? "best " + std::to_string(best) : "60 seconds", MC_RED, true, true},
+    {B_MODE0 + 3, "Stats", "stats", streak ? std::to_string(streak) + "-day streak" : "your progress", MC_TEAL, true, true},
+    {B_CART0 + 1, "Stages", "map", std::to_string(curSt) + " of " + std::to_string(STAGE_COUNT), MC_ORANGE, true, false},
+    {B_CART0 + 2, "Kana chart", "grid", std::to_string(prog.knownCount(data, sc)) + " known", MC_BLUE, true, false},
+    {B_CART0 + 3, "Settings", "gear", "theme, sound", MC_TEAL, true, false},
   };
 }
+std::vector<int> App::homeFocus() const {
+  std::vector<int> f{B_HOME_GO, prog.settings.script == Script::Hiragana ? B_SCRIPT_K : B_SCRIPT_H};
+  for (auto& it : homeItems()) f.push_back(it.id);
+  return f;
+}
 int App::homeItemIndex(int id) const {
-  auto items = homeItems();
-  for (int i = 0; i < int(items.size()); i++) if (items[i].id == id) return i;
+  auto f = homeFocus();
+  for (int i = 0; i < int(f.size()); i++) if (f[i] == id || (i == 0 && id == B_CART0)) return i;
   return -1;
 }
 
@@ -1248,55 +1237,36 @@ void App::drawHome() {
     }
   }
 
-  // ---- bottom: the mode strip
-  auto items = homeItems(); int ni = int(items.size());
-  homeSel = std::clamp(homeSel, 0, ni - 1);
-  const HomeItem& cur = items[homeSel];
-  { // speech-bubble label above the centred tile
-    std::string lab = cur.name + " · " + cur.sub;
-    int w = std::min(560, textWidth(bot, F_TINY, lab) + 44);
-    SDL_Rect r{(LW - w) / 2, 14, w, 44}; card(bot, r, 16);
-    setBold(true); drawText(bot, lab, r, FG, F_TINY); setBold(false);
-    for (int k = 0; k < 10; k++) fillRect(bot, SDL_Rect{LW / 2 - 10 + k, 58 + k, 20 - 2 * k, 1}, PANEL);
-  }
-  const int cy = 166;
-  if (!motion && !homeDrag) homePos = float(homeSel);
-  if (!homeDrag) homePos = std::clamp(homePos, 0.f, float(ni - 1));
-  // tiles sit at a smooth position (homePos glides towards homeSel): centre 150 px, neighbours 112 px, 150/130 px apart.
-  // Far tiles are drawn first so the centred one sits on top.
-  auto place = [](float off, int& cx, int& size) {
-    float a = std::fabs(off), sg = off < 0 ? -1.f : 1.f;
-    cx = LW / 2 + int(sg * (a <= 1.f ? 150.f * a : 150.f + 130.f * (a - 1.f)));
-    size = int(150.f - 38.f * std::min(1.f, a));
-  };
-  std::vector<int> order;
-  for (int i = 0; i < ni; i++) if (std::fabs(i - homePos) < 2.7f) order.push_back(i);
-  std::sort(order.begin(), order.end(), [&](int a, int b) { return std::fabs(a - homePos) > std::fabs(b - homePos); });
-  for (int i : order) {
+  // ---- bottom: big Lesson/Practise pill + script switch, then a 4x2 grid of mode tiles
+  auto focus = homeFocus(); homeSel = std::clamp(homeSel, 0, int(focus.size()) - 1);
+  bool lesson = prog.lessonPending(sc);
+  setAccent(MC_ORANGE);
+  addBtn(SDL_Rect{16, 16, 452, 84}, B_HOME_GO, lesson ? "Lesson: " + stages[std::min(prog.lessons[scI], STAGE_COUNT - 1)].name : "Practise " + (curSt == STAGE_COUNT - 1 ? std::string("Extras") : "stage " + std::to_string(curSt + 1)), F_SMALL);
+  accent(lastBtn()); lastBtn().radius = 30;
+  if (homeSel == 0) { lastBtn().line = ACC_LINE; lastBtn().lineW = 4; }
+  bool kOpen = prog.scriptUnlocked(Script::Katakana);
+  addBtn(SDL_Rect{482, 16, 142, 84}, sc == Script::Hiragana ? B_SCRIPT_K : B_SCRIPT_H, sc == Script::Hiragana ? "あ → ア" : "ア → あ", F_SMALL, kOpen || sc == Script::Katakana);
+  lastBtn().radius = 30; if (!kOpen) lastBtn().icon = 1;
+  if (homeSel == 1) { lastBtn().line = ACC_LINE; lastBtn().lineW = 4; }
+  auto items = homeItems();
+  const int TW = 143, TH = 150, GAP = 12, X0 = 16, Y0 = 114;
+  for (int i = 0; i < int(items.size()); i++) {
     const HomeItem& it = items[i];
-    float off = i - homePos; int cx, size; place(off, cx, size);
-    SDL_Rect r{cx - size / 2, cy - size / 2, size, size};
+    SDL_Rect r{X0 + (i % 4) * (TW + GAP), Y0 + (i / 4) * (TH + GAP), TW, i / 4 == 1 ? TH - 6 : TH};
     setAccent(it.col);
-    bool pressed = pressedId == it.id, centre = std::fabs(off) < 0.5f;
-    if (centre) { int h = int(7 * (1.f - 2.f * std::fabs(off))); fillRound(bot, SDL_Rect{r.x - h, r.y - h, r.w + 2 * h, r.h + 2 * h + 3}, size / 4 + h, PANEL); }  // white halo round the centred tile
-    SDL_Rect f = pill(bot, r, size / 4, it.enabled ? 1 : 2, pressed);
-    int is = int(size * 0.5f);
-    lineIcon(bot, it.icon, SDL_Rect{f.x + (f.w - is) / 2, f.y + (f.h - is) / 2, is, is}, it.enabled ? ON_ACCENT : DIS_TXT, 2.2f);
+    if (homeSel == i + 2) {  // focus ring in the tile's colour, with a gap like other selections
+      fillRound(bot, SDL_Rect{r.x - 7, r.y - 7, r.w + 14, r.h + 14}, 29, ACC_LINE);
+      fillRound(bot, SDL_Rect{r.x - 3, r.y - 3, r.w + 6, r.h + 6}, 25, BG2);
+    }
+    SDL_Rect f = pill(bot, r, 22, !it.enabled ? 2 : it.solid ? 1 : 0, pressedId == it.id);
+    Col ink = !it.enabled ? DIS_TXT : it.solid ? ON_ACCENT : FG;
+    lineIcon(bot, it.icon, SDL_Rect{f.x + f.w / 2 - 22, f.y + 16, 44, 44}, !it.enabled ? DIS_TXT : it.solid ? ON_ACCENT : ACCENT_TXT, 2.4f);
+    setBold(true); drawText(bot, it.name, SDL_Rect{f.x + 6, f.y + 66, f.w - 12, 32}, ink, F_TINY); setBold(false);
+    drawText(bot, it.sub, SDL_Rect{f.x + 6, f.y + 98, f.w - 12, 24}, it.solid && it.enabled ? mix(ON_ACCENT, ACCENT, 0.15f) : DIM, F_MICRO);
     addBtn(r, it.id, it.name, F_TINY, it.enabled); lastBtn().hidden = true; lastBtn().sub = it.sub;
   }
   setAccent(MC_ORANGE);
-  for (int i = 0; i < ni; i++) {  // page dots
-    int x = LW / 2 - (ni * 18) / 2 + i * 18;
-    if (i == homeSel) fillRound(bot, SDL_Rect{x - 6, 262, 26, 10}, 5, ACCENT); else fillRound(bot, SDL_Rect{x + 2, 262, 10, 10}, 5, mix(BG2, FG, 0.22f));
-  }
-  // ---- the big pill (lesson or practice) and the script switch
-  bool lesson = prog.lessonPending(sc);
-  addBtn(SDL_Rect{22, 302, 420, 70}, B_HOME_GO, lesson ? "Lesson: " + stages[std::min(prog.lessons[scI], STAGE_COUNT - 1)].name : "Practise stage " + std::to_string(curSt + 1), F_SMALL);
-  accent(lastBtn()); lastBtn().radius = 35;
-  bool kOpen = prog.scriptUnlocked(Script::Katakana);
-  addBtn(SDL_Rect{458, 302, 160, 70}, sc == Script::Hiragana ? B_SCRIPT_K : B_SCRIPT_H, sc == Script::Hiragana ? "あ → ア" : "ア → あ", F_SMALL, kOpen || sc == Script::Katakana);
-  lastBtn().radius = 35; if (!kOpen) lastBtn().icon = 1;
-  chips({{"A", "Open"}, {"+", "Scroll"}, {"START", lesson ? "Lesson" : "Practise"}, {"Y", "Script"}, {"F+START", "Quit"}});
+  chips({{"A", "Open"}, {"+", "Move"}, {"START", lesson ? "Lesson" : "Practise"}, {"Y", "Script"}, {"F+START", "Quit"}});
 }
 
 void App::drawStages() {

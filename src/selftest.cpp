@@ -17,14 +17,6 @@ int App::selfTest(const std::string& shotDir) {
   auto find = [&](int id) -> const Button* { frame(); for (auto& b : buttons) if (b.id == id) return &b; return nullptr; };
   auto click = [&](int id) {
     auto tap = [&](const Button* b) { int cx = b->r.x + b->r.w / 2, cy = b->r.y + b->r.h / 2; pointer(0, cx, cy); pointer(2, cx, cy); };
-    for (int guard = 0; screen == Screen::Home && homeItemIndex(id) >= 0 && homeItemIndex(id) != homeSel && guard < 12; guard++) {
-      // scroll the mode strip by touch, like a stylus user: tap the target, or the outermost tile towards it
-      const Button* b = find(id);
-      if (!b) { int step = homeItemIndex(id) > homeSel ? 2 : -2, i = homeSel + step;
-        while (i != homeSel && !(b = find(homeItems()[i].id))) i -= step > 0 ? 1 : -1; }
-      if (!b) return false;
-      tap(b);
-    }
     const Button* b = find(id); if (!b || !b->enabled) return false;
     tap(b); return true;
   };
@@ -89,7 +81,7 @@ int App::selfTest(const std::string& shotDir) {
     if (packSel < int(data.packs.size())) { CHECK(!click(B_PACK_START), "locked pack can't start"); } }
   go(Screen::Home);
   CHECK(prog.lessonPending(Script::Hiragana), "lesson pending at start");
-  CHECK(click(B_CART0), "practice cart"); CHECK(screen == Screen::Lesson && lessonStage == 0, "lesson opens");
+  CHECK(click(B_HOME_GO), "lesson button"); CHECK(screen == Screen::Lesson && lessonStage == 0, "lesson opens");
   shot("lesson");
   trace(*activeGlyph(), 0.5f, 0.5f); CHECK(strokes.size() == activeGlyph()->strokes.size(), "lesson trace strokes");
   shot("lesson_traced");
@@ -501,21 +493,24 @@ int App::selfTest(const std::string& shotDir) {
     }
     go(Screen::Home);
   }
-  // ---- 19. motion: fade-in on screen change, Home strip glide, answer pop
+  // ---- 19. motion (fade-in on screen change) and the Home grid
   { motion = true; go(Screen::Settings); go(Screen::Home);
     CHECK(transStart != 0 && tick(transStart + 20), "screen fades in"); tick(transStart + TRANS_MS + 1); CHECK(transStart == 0, "fade ends");
-    homeSel = 0; homePos = 0; glideTo = 0; glideStart = 0; render();
-    padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
-    Uint32 t0 = SDL_GetTicks(); CHECK(tick(t0), "strip glides"); CHECK(tick(t0 + GLIDE_MS / 2), "glide keeps going");
-    CHECK(homePos > 0.f && homePos < 3.f, "glide is gradual");
-    { float keep = homePos; homePos = 1.5f; flameLast = SDL_GetTicks(); transStart = 0; shot("home_glide"); homePos = keep; }
-    tick(t0 + GLIDE_MS + 1); CHECK(homePos == 3.f, "glide settles on the new tile in a fixed time");
-    // swipe: drag left across the strip moves to later tiles, a short flick moves one
-    pointer(0, 400, 166); pointer(1, 300, 166); CHECK(homeDrag && homePos > 3.f, "strip follows the stylus");
-    pointer(1, 260, 166); pointer(2, 260, 166); CHECK(!homeDrag && homeSel == 4, "swipe settles on the next tile");
-    tick(SDL_GetTicks() + GLIDE_MS + 1);
-    pointer(0, 300, 166); pointer(1, 350, 166); pointer(2, 350, 166); CHECK(homeSel == 3, "a flick right goes back one");
-    tick(SDL_GetTicks() + GLIDE_MS + 1);
+    // grid: the d-pad moves in all four directions; up from the left tiles reaches the big button, up from the right the script switch
+    homeSel = 0; render();
+    auto pad = [&](SDL_GameControllerButton k) { padButton(k); return homeSel; };
+    CHECK(pad(SDL_CONTROLLER_BUTTON_DPAD_DOWN) == homeItemIndex(B_MODE0), "down from the big button: Review");
+    CHECK(pad(SDL_CONTROLLER_BUTTON_DPAD_DOWN) == homeItemIndex(B_MODE0 + 3), "down again: Stats");
+    CHECK(pad(SDL_CONTROLLER_BUTTON_DPAD_RIGHT) == homeItemIndex(B_CART0 + 1), "right: Stages");
+    CHECK(pad(SDL_CONTROLLER_BUTTON_DPAD_RIGHT) == homeItemIndex(B_CART0 + 2), "right: Kana chart");
+    CHECK(pad(SDL_CONTROLLER_BUTTON_DPAD_RIGHT) == homeItemIndex(B_CART0 + 3), "right: Settings");
+    CHECK(pad(SDL_CONTROLLER_BUTTON_DPAD_RIGHT) == homeItemIndex(B_CART0 + 3), "the grid doesn't wrap");
+    CHECK(pad(SDL_CONTROLLER_BUTTON_DPAD_UP) == homeItemIndex(B_MODE0 + 2), "up: Timed");
+    CHECK(pad(SDL_CONTROLLER_BUTTON_DPAD_UP) == 1, "up from the right column: script switch");
+    CHECK(pad(SDL_CONTROLLER_BUTTON_DPAD_LEFT) == 0, "left: big button");
+    homeSel = homeItemIndex(B_MODE0 + 3); shot("home_grid_focus");
+    { const Button* t = find(B_MODE0 + 2); CHECK(t && click(B_MODE0 + 2) && screen == Screen::Drill && mode == Mode::Timed, "tap a tile: it opens straight away");
+      paused = false; go(Screen::Home); }
     motion = false; }
   printf(fails ? "SELFTEST: %d failure(s)\n" : "SELFTEST: all passed (sessions %d, question types %zu)\n", fails ? fails : prog.session, typesSeen.size());
   return fails ? 1 : 0;

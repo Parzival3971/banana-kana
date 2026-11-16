@@ -65,9 +65,12 @@ struct App {
   std::vector<int> toastQ; Uint32 toastUntil = 0; int toastAch = -1, awardSel = 0;
   void earned(const std::vector<int>& newly);
   // Home: a scrolling strip of mode tiles (homeSel = the centred one) over a big "Lesson / Practise" pill
-  struct HomeItem { int id; std::string name, icon, sub; ModeCol col; bool enabled; };
-  std::vector<HomeItem> homeItems() const;
-  int homeItemIndex(int id) const;  // -1 if id isn't a Home tile
+  // Home bottom screen (0.6.0 grid, user picked "B" 2026-11-16): big Lesson/Practise pill + script switch on top,
+  // 4x2 tiles below. homeSel = focus index: 0 the pill, 1 the script switch, 2..9 the tiles (homeFocus()).
+  struct HomeItem { int id; std::string name, icon, sub; ModeCol col; bool enabled, solid; };
+  std::vector<HomeItem> homeItems() const;  // the 8 grid tiles
+  std::vector<int> homeFocus() const;       // button ids in focus order (pill, script, tiles)
+  int homeItemIndex(int id) const;          // focus index of a Home button, -1 if none
   int packSel = 0, packIdx = -1; PackSession packSession; int wordSel = 0;  // wordSel: highlighted word in the pack word list  // word packs: highlighted tile, pack being practised
   void startPack(int pack);
   int homeSel = 0, mapSel = -1, chartTab = 0, chartSel = -1, chartScroll = 0;
@@ -90,10 +93,8 @@ struct App {
   // first launch, settings skip-ahead
   Uint32 flameLast = 0;  // Home streak flame flicker
   // motion (0.5.0 polish): screen fade-in, Home strip glide, answer pop/shake. KT_MOTION=0 or the self-test turn it off.
-  bool motion = true; Uint32 countStart = 0; Uint32 transStart = 0, answerAnim = 0, homeAnimLast = 0; float homePos = 0.f;
-  // Home strip: time-based glide (glideFrom -> glideTo over GLIDE_MS) and stylus swipes (homeDrag)
-  float glideFrom = 0.f; int glideTo = 0; Uint32 glideStart = 0; static constexpr Uint32 GLIDE_MS = 170;
-  bool homeTouch = false, homeDrag = false; int dragX0 = 0; float dragPos0 = 0.f;
+  bool motion = true; Uint32 countStart = 0; Uint32 transStart = 0, answerAnim = 0;
+
   static constexpr Uint32 TRANS_MS = 120, ANSWER_MS = 380;
   Uint32 creditsLast = 0, animStart = 0, animLast = 0;  // stroke-order animation (0 = not playing)
   void playStrokes() { animStart = SDL_GetTicks(); if (!animStart) animStart = 1; }
