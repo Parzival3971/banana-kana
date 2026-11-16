@@ -3,7 +3,7 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
-## 0.7.0 - unreleased
+## 0.7.0 - 2026-11-16
 
 - Meet Kitsu, your streak fox 🦊. She starts as an egg that hatches on your first day meeting the daily goal, then grows
   with the days you practise: 1 tail, 3 tails and a red scarf (7 days), 5 glowing tails (30 days) and a nine-tailed
