@@ -57,6 +57,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 
 ### 📈 Keep going
 - 🔥 **Daily goal and streak**, from 5 to 30 answers a day. The flame grows (and changes colour) the longer you keep it lit.
+- 🌸 **Seasons of Japan backgrounds**: sakura, summer waves and fireflies, autumn leaves or snow, drifting gently on the menus (follows the calendar; switch to Plain in Settings › Display).
 - 🏅 **Achievements.** 17 badges for learning kana and words, streaks, timed scores and perfect sessions, with your
   progress towards each one (Stats, then X).
 - 📊 **Stats.** Your last 14 days and an accuracy heatmap of every kana. Tap one to see it in the chart.
@@ -88,7 +89,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 | <img src="docs/img/timed.png" width="250"><br>Timed challenge | <img src="docs/img/result.png" width="250"><br>Results | <img src="docs/img/unlocked.png" width="250"><br>Stage unlocked |
 | <img src="docs/img/stages.png" width="250"><br>Stage map | <img src="docs/img/chart.png" width="250"><br>Kana chart | <img src="docs/img/stats.png" width="250"><br>Stats |
 | <img src="docs/img/settings.png" width="250"><br>Settings | <img src="docs/img/dark-home.png" width="250"><br>Dark theme | <img src="docs/img/dark-stats.png" width="250"><br>Dark theme stats |
-| <img src="docs/img/welcome.png" width="250"><br>First launch | <img src="docs/img/practice-set.png" width="250"><br>Practice set | <img src="docs/img/free-write.png" width="250"><br>Free writing |
+| <img src="docs/img/welcome-theme.png" width="250"><br>First launch: pick a look | <img src="docs/img/practice-set.png" width="250"><br>Practice set | <img src="docs/img/free-write.png" width="250"><br>Free writing |
 | <img src="docs/img/skip.png" width="250"><br>Skipping ahead | <img src="docs/img/guided.png" width="250"><br>Guided writing | <img src="docs/img/credits.png" width="250"><br>Credits |
 | <img src="docs/img/draw-any.png" width="250"><br>Draw any kana | <img src="docs/img/extras.png" width="250"><br>Extras stage | <img src="docs/img/handwriting.png" width="250"><br>Handwriting font and grid |
 | <img src="docs/img/match.png" width="250"><br>Hiragana ↔ katakana | <img src="docs/img/packs.png" width="250"><br>Word packs | <img src="docs/img/words.png" width="250"><br>Word pack quiz |
@@ -119,7 +120,7 @@ A backup copy is also kept in `roms/ports/BananaKana/progress-backup.txt`: copy 
 | | |
 |---|---|
 | ✏️ **Stylus / touch** (bottom screen) | Tap answers, keys and buttons. Buttons act when you lift, so slide off to cancel. Trace on the canvas. |
-| ✛ **D-pad** or the analogue **stick** (shown as a cross in the hint chips) | Scroll the Home mode strip; move between tiles, stages, chart cells, settings and keyboard keys |
+| ✛ **D-pad** or the analogue **stick** (shown as a cross in the hint chips) | Move around the Home grid, stages, chart cells, settings and keyboard keys |
 | **A** | Choose / confirm (press again on a chosen answer to check it) |
 | **B** | Back. In drills: undo a stroke or delete a letter |
 | **X** | Check the answer. On Stats: achievements |

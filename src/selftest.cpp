@@ -1,5 +1,6 @@
 // Scripted UI run with dummy video: drives the real screens with synthetic touches and buttons,
 // checks the flows, and saves screenshots of every screen (both themes) when --shots is given.
+#include <ctime>
 #include <algorithm>
 #include <cstdio>
 #include <set>
@@ -13,18 +14,11 @@ int App::selfTest(const std::string& shotDir) {
   auto CHECK = [&](bool c, const char* m) { if (!c) { printf("FAIL: %s\n", m); fails++; } };
   rng.seed(12345);
   motion = false;  // screenshots and clicks see settled screens; motion has its own check at the end
+  prog.settings.backdrop = 0;  // README shots stay the same whatever the month (the season shots set their own)
   auto frame = [&]() { render(); };
   auto find = [&](int id) -> const Button* { frame(); for (auto& b : buttons) if (b.id == id) return &b; return nullptr; };
   auto click = [&](int id) {
     auto tap = [&](const Button* b) { int cx = b->r.x + b->r.w / 2, cy = b->r.y + b->r.h / 2; pointer(0, cx, cy); pointer(2, cx, cy); };
-    for (int guard = 0; screen == Screen::Home && homeItemIndex(id) >= 0 && homeItemIndex(id) != homeSel && guard < 12; guard++) {
-      // scroll the mode strip by touch, like a stylus user: tap the target, or the outermost tile towards it
-      const Button* b = find(id);
-      if (!b) { int step = homeItemIndex(id) > homeSel ? 2 : -2, i = homeSel + step;
-        while (i != homeSel && !(b = find(homeItems()[i].id))) i -= step > 0 ? 1 : -1; }
-      if (!b) return false;
-      tap(b);
-    }
     const Button* b = find(id); if (!b || !b->enabled) return false;
     tap(b); return true;
   };
@@ -89,7 +83,7 @@ int App::selfTest(const std::string& shotDir) {
     if (packSel < int(data.packs.size())) { CHECK(!click(B_PACK_START), "locked pack can't start"); } }
   go(Screen::Home);
   CHECK(prog.lessonPending(Script::Hiragana), "lesson pending at start");
-  CHECK(click(B_CART0), "practice cart"); CHECK(screen == Screen::Lesson && lessonStage == 0, "lesson opens");
+  CHECK(click(B_HOME_GO), "lesson button"); CHECK(screen == Screen::Lesson && lessonStage == 0, "lesson opens");
   shot("lesson");
   trace(*activeGlyph(), 0.5f, 0.5f); CHECK(strokes.size() == activeGlyph()->strokes.size(), "lesson trace strokes");
   shot("lesson_traced");
@@ -462,14 +456,19 @@ int App::selfTest(const std::string& shotDir) {
   // ---- 16. first launch and skipping ahead (on a fresh profile, then put back)
   { Progress keep = prog;
     prog = Progress{}; prog.settings = keep.settings; prog.settings.script = Script::Hiragana;
-    go(Screen::Welcome); shot("welcome");
+    go(Screen::Welcome); CHECK(welcomeStep == 0, "first launch starts with the look"); shot("welcome_theme");
+    CHECK(click(B_WTHEME0 + 1) && !prog.settings.light, "pick dark: applies straight away"); shot("welcome_theme_dark");
+    padButton(SDL_CONTROLLER_BUTTON_DPAD_LEFT); CHECK(prog.settings.light, "d-pad left: light again");
+    padButton(SDL_CONTROLLER_BUTTON_A); CHECK(welcomeStep == 1, "A: on to step 2");
+    padButton(SDL_CONTROLLER_BUTTON_B); CHECK(welcomeStep == 0, "B: back to the look");
+    CHECK(click(B_WEL_NEXT) && welcomeStep == 1, "Next"); shot("welcome");
     padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); CHECK(welcomeSel == 1, "welcome move");
     CHECK(click(B_WELCOME0 + 1), "I know hiragana");
     CHECK(screen == Screen::Home && prog.knownCount(data, Script::Hiragana) == data.scriptCount(Script::Hiragana) && prog.settings.script == Script::Katakana &&
           prog.lessonPending(Script::Katakana), "hiragana skipped, katakana lesson next");
     shot("home_after_welcome");
     prog = Progress{}; prog.settings = keep.settings; prog.settings.script = Script::Hiragana;
-    go(Screen::Welcome); CHECK(click(B_WELCOME0 + 3), "I know some"); CHECK(screen == Screen::SettingsGroup && setGroup == 2 && setRow == 1, "to script settings");
+    go(Screen::Welcome); click(B_WEL_NEXT); CHECK(click(B_WELCOME0 + 3), "I know some"); CHECK(screen == Screen::SettingsGroup && setGroup == 2 && setRow == 1, "to script settings");
     for (int i = 0; i < 3; i++) click(B_SINC0 + 1);
     CHECK(skipPending[0] == 4 && prog.unlocked[0] == 1, "pending only"); shot("settings_skip");
     CHECK(click(B_FOOT_R), "confirm skip"); CHECK(prog.unlocked[0] == 4 && prog.lessons[0] == 3 && prog.stageKnown(data, Script::Hiragana, 2) == 5, "skipped to stage 4");
@@ -490,7 +489,8 @@ int App::selfTest(const std::string& shotDir) {
     CHECK(click(B_SROW0 + 5), "select reset settings"); CHECK(click(B_SROW0 + 5), "reset settings once");
     CHECK(resetSetArmed && prog.settings.sessionLen == 20, "first press only arms"); shot("settings_reset_settings");
     CHECK(click(B_FOOT_R), "confirm settings reset");
-    CHECK(!resetSetArmed && prog.settings.sessionLen == 10 && prog.settings.light && prog.settings.sound == 2, "settings back to defaults");
+    CHECK(!resetSetArmed && prog.settings.sessionLen == 10 && prog.settings.light && prog.settings.sound == 2 && prog.settings.backdrop == 1, "settings back to defaults (Seasons on)");
+    prog.settings.backdrop = 0;  // keep the remaining shots plain
     CHECK(prog.step("h:あ") == 3, "progress kept after settings reset"); }
   if (getenv("KT_PERF")) {  // frame cost per screen (KT_PERF=1): helps find what makes motion stutter on the device
     for (Screen sc : {Screen::Home, Screen::Settings, Screen::Stats, Screen::Chart}) {
@@ -501,21 +501,47 @@ int App::selfTest(const std::string& shotDir) {
     }
     go(Screen::Home);
   }
-  // ---- 19. motion: fade-in on screen change, Home strip glide, answer pop
+  // ---- 20. seasons: the Background setting, calendar seasons, a shot of each season (light) and winter (dark)
+  { int keepB = prog.settings.backdrop; Time keepC = prog.clock;
+    go(Screen::Settings); setGroup = 3; go(Screen::SettingsGroup); setRow = 6;
+    CHECK(click(B_SSEG0 + 6 * 8 + 1) && prog.settings.backdrop == 1, "Background: Seasons");
+    tm d{}; d.tm_year = 2027 - 1900; d.tm_mday = 15; d.tm_hour = 12;
+    const int MONTH_SEASON[12] = {3, 3, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3};
+    for (int m = 0; m < 12; m++) { d.tm_mon = m; prog.clock = mktime(&d); CHECK(seasonNow() == MONTH_SEASON[m], "season follows the calendar"); }
+    prog.clock = keepC;
+    shot("settings_background");
+    for (int sn = 0; sn < 4; sn++) {
+      prog.settings.backdrop = 2 + sn; go(Screen::Home); transStart = 0; shot("season_" + std::to_string(sn));
+      drawBackdrop(top, true); int tt = backdropTriangles(); drawBackdrop(bot, false); int tb = backdropTriangles();
+      // budget per screen: summer once drew ~30k (top) and stuttered on the device; spring is ~6.5k and smooth
+      printf("season %d pattern: %d / %d triangles\n", sn, tt, tb);
+      CHECK(tt <= 8000 && tb <= 8000, "season pattern stays light");
+    }
+    prog.settings.backdrop = 5; prog.settings.light = false; applyTheme(false); go(Screen::Home); transStart = 0; shot("season_dark_3");
+    prog.settings.backdrop = 3; go(Screen::Home); transStart = 0; shot("season_dark_1");
+    prog.settings.light = true; applyTheme(true);
+    motion = true; go(Screen::Home); seasonLast = 0; CHECK(tick(SDL_GetTicks() + 200), "the season drifts on menus");
+    go(Screen::Drill); seasonLast = 0; CHECK(!menuScreen(), "no drifting in drills");
+    motion = false; prog.settings.backdrop = 0; go(Screen::Home); CHECK(season() == -1, "plain again");
+    prog.settings.backdrop = keepB; }
+  // ---- 19. motion (fade-in on screen change) and the Home grid
   { motion = true; go(Screen::Settings); go(Screen::Home);
     CHECK(transStart != 0 && tick(transStart + 20), "screen fades in"); tick(transStart + TRANS_MS + 1); CHECK(transStart == 0, "fade ends");
-    homeSel = 0; homePos = 0; glideTo = 0; glideStart = 0; render();
-    padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
-    Uint32 t0 = SDL_GetTicks(); CHECK(tick(t0), "strip glides"); CHECK(tick(t0 + GLIDE_MS / 2), "glide keeps going");
-    CHECK(homePos > 0.f && homePos < 3.f, "glide is gradual");
-    { float keep = homePos; homePos = 1.5f; flameLast = SDL_GetTicks(); transStart = 0; shot("home_glide"); homePos = keep; }
-    tick(t0 + GLIDE_MS + 1); CHECK(homePos == 3.f, "glide settles on the new tile in a fixed time");
-    // swipe: drag left across the strip moves to later tiles, a short flick moves one
-    pointer(0, 400, 166); pointer(1, 300, 166); CHECK(homeDrag && homePos > 3.f, "strip follows the stylus");
-    pointer(1, 260, 166); pointer(2, 260, 166); CHECK(!homeDrag && homeSel == 4, "swipe settles on the next tile");
-    tick(SDL_GetTicks() + GLIDE_MS + 1);
-    pointer(0, 300, 166); pointer(1, 350, 166); pointer(2, 350, 166); CHECK(homeSel == 3, "a flick right goes back one");
-    tick(SDL_GetTicks() + GLIDE_MS + 1);
+    // grid: the d-pad moves in all four directions; up from the left tiles reaches the big button, up from the right the script switch
+    homeSel = 0; render();
+    auto pad = [&](SDL_GameControllerButton k) { padButton(k); return homeSel; };
+    CHECK(pad(SDL_CONTROLLER_BUTTON_DPAD_DOWN) == homeItemIndex(B_MODE0), "down from the big button: Review");
+    CHECK(pad(SDL_CONTROLLER_BUTTON_DPAD_DOWN) == homeItemIndex(B_MODE0 + 3), "down again: Stats");
+    CHECK(pad(SDL_CONTROLLER_BUTTON_DPAD_RIGHT) == homeItemIndex(B_CART0 + 1), "right: Stages");
+    CHECK(pad(SDL_CONTROLLER_BUTTON_DPAD_RIGHT) == homeItemIndex(B_CART0 + 2), "right: Kana chart");
+    CHECK(pad(SDL_CONTROLLER_BUTTON_DPAD_RIGHT) == homeItemIndex(B_CART0 + 3), "right: Settings");
+    CHECK(pad(SDL_CONTROLLER_BUTTON_DPAD_RIGHT) == homeItemIndex(B_CART0 + 3), "the grid doesn't wrap");
+    CHECK(pad(SDL_CONTROLLER_BUTTON_DPAD_UP) == homeItemIndex(B_MODE0 + 2), "up: Timed");
+    CHECK(pad(SDL_CONTROLLER_BUTTON_DPAD_UP) == 1, "up from the right column: script switch");
+    CHECK(pad(SDL_CONTROLLER_BUTTON_DPAD_LEFT) == 0, "left: big button");
+    homeSel = homeItemIndex(B_MODE0 + 3); shot("home_grid_focus");
+    { const Button* t = find(B_MODE0 + 2); CHECK(t && click(B_MODE0 + 2) && screen == Screen::Drill && mode == Mode::Timed, "tap a tile: it opens straight away");
+      paused = false; go(Screen::Home); }
     motion = false; }
   printf(fails ? "SELFTEST: %d failure(s)\n" : "SELFTEST: all passed (sessions %d, question types %zu)\n", fails ? fails : prog.session, typesSeen.size());
   return fails ? 1 : 0;

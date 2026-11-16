@@ -12,7 +12,7 @@ SHOTS = {  # output name -> self-test shot
     "write-combo": "q_write_combo_part2", "type-kana": "q_type_kana_typed", "meaning": "q_meaning_word",
     "mixup": "q_mixup_checked", "timed": "timed", "result": "result", "review": "q_review",
     "stats": "stats", "chart": "chart", "stages": "stages", "unlocked": "unlocked", "settings": "settings_practice",
-    "dark-home": "dark_home", "dark-stats": "dark_stats", "welcome": "welcome", "practice-set": "chart_set",
+    "dark-home": "dark_home", "dark-stats": "dark_stats", "welcome": "welcome", "welcome-theme": "welcome_theme", "practice-set": "chart_set",
     "free-write": "free_write", "skip": "settings_skip", "guided": "q_write", "credits": "credits",
     "draw-any": "draw_any_checked", "extras": "lesson_extras_fa", "match": "q_match", "packs": "packs", "words": "q_pack_recall", "new-word": "q_intro", "word-list": "pack_words", "achievements": "awards", "handwriting": "lesson_handwriting_grid",
 }

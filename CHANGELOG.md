@@ -3,6 +3,18 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
+## 0.6.0 - unreleased
+
+- New Home grid: the scrolling strip is gone. A big Lesson / Practise button and the あ → ア switch sit on top, with
+  all eight modes below as tiles (Review, Mix-ups, Words, Timed, Stats, Stages, Kana chart, Settings). Everything is
+  visible and one tap away, and the d-pad moves around the grid in all four directions.
+- Seasons of Japan backgrounds (Settings > Display > Background): sakura in spring, seigaiha waves and fireflies in
+  summer, momiji in autumn, snow in winter, in light and dark. On by default ("Auto" follows the calendar), or pick
+  one season, or Plain for the old stripes. Petals, fireflies, leaves and snow drift gently over menus (never in drills
+  or writing).
+- Settings groups with more than five rows scroll (with ▲ ▼ buttons) instead of squeezing the rows.
+- First launch now starts by picking Light or Dark (it changes the whole app as you tap), then what you already know.
+
 ## 0.5.0 - 2026-11-15
 
 A whole new look: the "Handheld" design.

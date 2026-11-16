@@ -57,7 +57,14 @@ void card(Win& w, SDL_Rect r, int rad = 20, Col fill = Col{0, 0, 0, 0});  // whi
 // Glossy pill/tile: drop shadow, outline, top-to-bottom gradient. kind 0 = plain (white), 1 = accent (mode colour),
 // 2 = disabled (flat, dashed look). pressed sinks it. Returns the face rect (for placing content).
 SDL_Rect pill(Win& w, SDL_Rect r, int rad, int kind, bool pressed = false);
-void drawBackdrop(Win& w, bool topScreen);  // stripes (top) or dots (bottom), drawn once into a cached texture
+void drawBackdrop(Win& w, bool topScreen);  // stripes (top) / dots (bottom), or the season's pattern; cached geometry
+// Seasons (0.6.0): -1 plain, 0 spring (sakura), 1 summer (seigaiha + fireflies), 2 autumn (momiji), 3 winter (snow).
+// setSeason tints BG/BG2 for the season (call after applyTheme); drawSeasonParticles draws the drifting petals,
+// fireflies, leaves or snow on top of a screen at time t (seconds).
+void setSeason(int season);
+int season();
+void drawSeasonParticles(Win& w, bool topScreen, float t);
+int backdropTriangles();  // triangles in the last backdrop drawn (the self-test keeps every season under a budget)
 // Line icons (24x24 design grid, round strokes): review mixups words timed stats pencil clock script display chart
 // info flame medal lock check cross play pause gear arrow back star book map grid pen eraser
 void lineIcon(Win& w, const std::string& name, SDL_Rect box, Col c, float thick = 2.2f);

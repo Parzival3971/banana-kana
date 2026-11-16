@@ -34,9 +34,9 @@ enum BtnId {
   // chart
   B_TAB0 = 100, B_SCROLL_UP = 110, B_SCROLL_DOWN, B_PICK_DRILL, B_PICK_WRITE, B_PICK_CLEAR, B_PICK_ANY, B_CELL0 = 1000,
   // free writing, welcome
-  B_FW_GUIDE = 130, B_FW_NEXT, B_FW_PREV, B_SHOWME, B_WELCOME0 = 140,
+  B_FW_GUIDE = 130, B_FW_NEXT, B_FW_PREV, B_SHOWME, B_WELCOME0 = 140, B_WTHEME0 = 146, B_WEL_NEXT = 148,
   // settings (BananaOS style: group tiles -> rows with < value >)
-  B_GROUP0 = 200, B_SROW0 = 220, B_SDEC0 = 240, B_SINC0 = 260, B_FOOT_L = 280, B_FOOT_R, B_SSEG0 = 3000,  // B_SSEG0 + row * 8 + option
+  B_GROUP0 = 200, B_SROW0 = 220, B_SDEC0 = 240, B_SINC0 = 260, B_FOOT_L = 280, B_FOOT_R, B_SUP = 290, B_SDOWN, B_SSEG0 = 3000,  // B_SSEG0 + row * 8 + option
   // keyboard
   B_KEY0 = 300, B_KANA0 = 400, B_DAKU = 460, B_HANDAKU, B_SMALLK, B_CHOON,
   // stats heatmap
@@ -65,9 +65,12 @@ struct App {
   std::vector<int> toastQ; Uint32 toastUntil = 0; int toastAch = -1, awardSel = 0;
   void earned(const std::vector<int>& newly);
   // Home: a scrolling strip of mode tiles (homeSel = the centred one) over a big "Lesson / Practise" pill
-  struct HomeItem { int id; std::string name, icon, sub; ModeCol col; bool enabled; };
-  std::vector<HomeItem> homeItems() const;
-  int homeItemIndex(int id) const;  // -1 if id isn't a Home tile
+  // Home bottom screen (0.6.0 grid, user picked "B" 2026-11-16): big Lesson/Practise pill + script switch on top,
+  // 4x2 tiles below. homeSel = focus index: 0 the pill, 1 the script switch, 2..9 the tiles (homeFocus()).
+  struct HomeItem { int id; std::string name, icon, sub; ModeCol col; bool enabled, solid; };
+  std::vector<HomeItem> homeItems() const;  // the 8 grid tiles
+  std::vector<int> homeFocus() const;       // button ids in focus order (pill, script, tiles)
+  int homeItemIndex(int id) const;          // focus index of a Home button, -1 if none
   int packSel = 0, packIdx = -1; PackSession packSession; int wordSel = 0;  // wordSel: highlighted word in the pack word list  // word packs: highlighted tile, pack being practised
   void startPack(int pack);
   int homeSel = 0, mapSel = -1, chartTab = 0, chartSel = -1, chartScroll = 0;
@@ -90,10 +93,8 @@ struct App {
   // first launch, settings skip-ahead
   Uint32 flameLast = 0;  // Home streak flame flicker
   // motion (0.5.0 polish): screen fade-in, Home strip glide, answer pop/shake. KT_MOTION=0 or the self-test turn it off.
-  bool motion = true; Uint32 countStart = 0; Uint32 transStart = 0, answerAnim = 0, homeAnimLast = 0; float homePos = 0.f;
-  // Home strip: time-based glide (glideFrom -> glideTo over GLIDE_MS) and stylus swipes (homeDrag)
-  float glideFrom = 0.f; int glideTo = 0; Uint32 glideStart = 0; static constexpr Uint32 GLIDE_MS = 170;
-  bool homeTouch = false, homeDrag = false; int dragX0 = 0; float dragPos0 = 0.f;
+  bool motion = true; Uint32 countStart = 0; Uint32 transStart = 0, answerAnim = 0;
+
   static constexpr Uint32 TRANS_MS = 120, ANSWER_MS = 380;
   Uint32 creditsLast = 0, animStart = 0, animLast = 0;  // stroke-order animation (0 = not playing)
   void playStrokes() { animStart = SDL_GetTicks(); if (!animStart) animStart = 1; }
@@ -105,7 +106,8 @@ struct App {
   int keyRow = 0, keyCol = 0;  // d-pad cursor on the on-screen keyboards
   int kbRows() const; int kbRowLen(int r) const; int kbItemId(int r, int c) const; void kbMove(int dc, int dr);
   bool inPractice() const { return screen == Screen::Drill || screen == Screen::Lesson || screen == Screen::FreeWrite; }
-  bool firstRun = false; int welcomeSel = 0; int skipPending[2] = {0, 0};
+  bool firstRun = false; int welcomeSel = 0; int welcomeStep = 0;  // first launch: 0 pick light/dark, 1 what you know
+  int skipPending[2] = {0, 0};
   // timed challenge
   int timedLeft = 0; Uint32 timedLast = 0; bool timedNewBest = false; int flash = 0; std::string flashText;  // flash 1 right, 2 wrong
   // writing in parts (combination kana): finished parts and their per-stroke results
@@ -155,6 +157,9 @@ struct App {
   void chips(const std::vector<std::pair<std::string, std::string>>& items);
   void segBar(Win& w, SDL_Rect r, int total, int done, const std::vector<int>& res);
   void settingPreview(int row);
+  int seasonNow() const;      // -1 plain, 0-3 the season to show (Settings.backdrop; 1 = by the calendar month)
+  bool menuScreen() const;    // screens where the season's petals/leaves/snow drift (not drills, lessons or writing)
+  Uint32 seasonLast = 0;      // last drift redraw
   void statBox(Win& w, SDL_Rect r, const std::string& label, const std::string& value, int font = F_SMALL);
   void bar(Win& w, SDL_Rect r, float frac);
   void stepPips(Win& w, int x, int y, int step, int size = 12);

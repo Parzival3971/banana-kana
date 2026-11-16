@@ -852,7 +852,7 @@ def build_fonts(rows):
     subprocess.run([sys.executable, "-m", "fontTools.subset", klee, f"--text={''.join(kana)}{jp_extra}",
                     "--layout-features=*", f"--output-file={os.path.join(DATA, 'kana_hand.ttf')}"], check=True)
     noto = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
-    fb = "".join(kana) + jp_extra + latin + "✓✗▲▼◀▶✛→⇄○" + "月火水木金土日"  # weekday kanji on the Home streak strip
+    fb = "".join(kana) + jp_extra + latin + "✓✗▲▼◀▶✛→⇄○" + "月火水木金土日" + "春夏秋冬"  # weekday kanji (Home streak strip), season kanji (Settings > Background)
     subprocess.run([sys.executable, "-m", "fontTools.subset", noto, "--font-number=0", f"--text={fb}",
                     "--layout-features=*", f"--output-file={os.path.join(DATA, 'fallback.ttf')}"], check=True)
     old = os.path.join(DATA, "font.ttf")

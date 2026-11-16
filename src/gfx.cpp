@@ -25,6 +25,7 @@ Col BG, PANEL, PANEL2, LINE, FG, DIM, ACCENT, ACCENT_TXT, ON_ACCENT, GOOD, GOOD_
     DIS_LINE, DIS_TXT, TRACK;
 Col BG2, CARD_SH, PILL_LINE, PILL_SH, PILL_HI, PILL_LO, ACC_LINE, ACC_SH, ACC_HI, ACC_LO, PAPER_LINE, PAPER_MARGIN;
 bool gLight = true;
+Col gBaseBG, gBaseBG2; int gSeason = -1; int gBackdropTris = 0;  // theme backdrop colours before any season tint
 namespace {
 // per mode: fill, outline, shadow, gloss top, gloss bottom, text on light, text on dark, text on the fill
 struct Acc { unsigned fill, line, sh, hi, lo, txtL, txtD, on; };
@@ -56,7 +57,35 @@ void applyTheme(bool light) {
   PILL_HI = light ? hex(0xFFFFFF) : hex(0x3D4451); PILL_LO = light ? hex(0xECEFF3) : hex(0x2E343F);
   PAPER_LINE = light ? hex(0xCFE0F5) : hex(0x34404F); PAPER_MARGIN = light ? hex(0xF3B0B0) : hex(0x6A3B42);
   setAccent(MC_ORANGE);
+  gBaseBG = BG; gBaseBG2 = BG2; gSeason = -1;
 }
+
+// ------------------------------------------------------------------ seasons
+namespace {
+struct SeasonCols { Col top, bot, mark, p1, p2; };  // backdrop tints, pattern colour, particle colours
+SeasonCols seasonCols(int s) {
+  if (gLight) switch (s) {
+    case 0: return {hex(0xFBEFF2), hex(0xF4E6EA), hex(0xF2C9D5), hex(0xF4A6BE), hex(0xF9C9D7)};
+    case 1: return {hex(0xE6F2F9), hex(0xDCEAF3), hex(0xBFDCEE), hex(0xF5B83D), hex(0xFFD86B)};
+    case 2: return {hex(0xFAF0E3), hex(0xF2E6D7), hex(0xEDCFAE), hex(0xE0533A), hex(0xF28C28)};
+    default: return {hex(0xEBF1F7), hex(0xE2EAF2), hex(0xCCDBEA), hex(0xFFFFFF), hex(0xF4F8FC)};
+  }
+  switch (s) {
+    case 0: return {hex(0x241C22), hex(0x1D171C), hex(0x4A3340), hex(0xE68AA8), hex(0xF2B8CA)};
+    case 1: return {hex(0x16202A), hex(0x111A23), hex(0x2A3D52), hex(0xF7C948), hex(0xFFE58A)};
+    case 2: return {hex(0x241D16), hex(0x1D1712), hex(0x4A3423), hex(0xE0533A), hex(0xF28C28)};
+    default: return {hex(0x182029), hex(0x131A22), hex(0x2E3B4B), hex(0xEAF2FA), hex(0xC9DAEA)};
+  }
+}
+}  // namespace
+
+void setSeason(int s) {
+  s = std::clamp(s, -1, 3);
+  gSeason = s;
+  if (s < 0) { BG = gBaseBG; BG2 = gBaseBG2; return; }
+  SeasonCols c = seasonCols(s); BG = c.top; BG2 = c.bot;
+}
+int season() { return gSeason; }
 
 // ------------------------------------------------------------------ fonts
 namespace {
@@ -236,8 +265,48 @@ void drawBackdrop(Win& w, bool topScreen) {
   SDL_SetRenderDrawColor(w.r, base.r, base.g, base.b, 255);
   SDL_Rect all{0, 0, LW, LH}; SDL_RenderFillRect(w.r, &all);
   static std::map<std::string, std::vector<SDL_Vertex>> cache;
-  std::string key = std::to_string(reinterpret_cast<uintptr_t>(w.r)) + (topScreen ? "T" : "B") + (gLight ? "L" : "D");
+  std::string key = std::to_string(reinterpret_cast<uintptr_t>(w.r)) + (topScreen ? "T" : "B") + (gLight ? "L" : "D") + std::to_string(gSeason);
   std::vector<SDL_Vertex>& v = cache[key];
+  if (v.empty() && gSeason >= 0) {  // a quiet pattern for the season (the bottom screen gets a sparser version)
+    SeasonCols sc = seasonCols(gSeason);
+    Col m = topScreen ? sc.mark : mix(base, sc.mark, 0.7f);
+    SDL_Color c{m.r, m.g, m.b, 255};
+    auto tri = [&](SDL_FPoint a, SDL_FPoint b, SDL_FPoint d) { v.push_back({a, c, {0, 0}}); v.push_back({b, c, {0, 0}}); v.push_back({d, c, {0, 0}}); };
+    auto disc = [&](float x, float y, float r) {
+      for (int i = 0; i < 10; i++) { float a0 = i * 0.6283f, a1 = (i + 1) * 0.6283f;
+        tri({x, y}, {x + r * std::cos(a0), y + r * std::sin(a0)}, {x + r * std::cos(a1), y + r * std::sin(a1)}); }
+    };
+    auto star = [&](float x, float y, float r, float rot, int pts) {  // leaf / snowflake-ish star
+      for (int i = 0; i < pts * 2; i++) { float a0 = rot + i * 3.14159f / pts, a1 = rot + (i + 1) * 3.14159f / pts;
+        float r0 = i % 2 ? r * 0.45f : r, r1 = i % 2 ? r : r * 0.45f;
+        tri({x, y}, {x + r0 * std::cos(a0), y + r0 * std::sin(a0)}, {x + r1 * std::cos(a1), y + r1 * std::sin(a1)}); }
+    };
+    const float step = topScreen ? 56.f : 72.f;
+    if (gSeason == 1) {  // seigaiha: rows of overlapping wave arcs (three rings each)
+      // kept light: the first version (small arcs, 3 rings, 12 segments) was ~51k triangles and stuttered on the device
+      const float R = topScreen ? 34.f : 40.f;
+      for (int row = 0; row * R * 0.9f < LH + R; row++) {
+        float y = row * R * 0.9f, off = row % 2 ? R : 0;
+        for (float x = -R + off; x < LW + R; x += 2 * R) for (float rr : {R, R * 0.62f}) {
+          for (int i = 0; i < 8; i++) {
+            float a0 = 3.14159f + i * 3.14159f / 8, a1 = 3.14159f + (i + 1) * 3.14159f / 8, t = 1.3f;
+            SDL_FPoint p0{x + rr * std::cos(a0), y + rr * std::sin(a0)}, p1{x + rr * std::cos(a1), y + rr * std::sin(a1)};
+            SDL_FPoint q0{x + (rr - t) * std::cos(a0), y + (rr - t) * std::sin(a0)}, q1{x + (rr - t) * std::cos(a1), y + (rr - t) * std::sin(a1)};
+            tri(p0, p1, q1); tri(p0, q1, q0);
+          }
+        }
+      }
+    } else {
+      for (int row = 0; row * step < LH + step; row++) for (int col = 0; col * step < LW + step; col++) {
+        float x = col * step + (row % 2 ? step / 2 : 0), y = row * step + 10;
+        unsigned h = unsigned(row * 73856093u ^ col * 19349663u); float jitter = float(h % 17) - 8.f, rot = float(h % 628) / 100.f;
+        x += jitter; y -= jitter * 0.5f;
+        if (gSeason == 0) { for (int k = 0; k < 5; k++) { float a = rot + k * 1.2566f; disc(x + 3.2f * std::cos(a), y + 3.2f * std::sin(a), 2.4f); } }  // sakura blossom
+        else if (gSeason == 2) star(x, y, 6.f, rot, 5);   // momiji
+        else { disc(x, y, h % 3 == 0 ? 2.6f : 1.7f); }     // snow
+      }
+    }
+  }
   if (v.empty()) {
     SDL_Color c{mark.r, mark.g, mark.b, 255};
     auto quad = [&](SDL_FPoint p0, SDL_FPoint p1, SDL_FPoint p2, SDL_FPoint p3) {
@@ -252,6 +321,53 @@ void drawBackdrop(Win& w, bool topScreen) {
     }
   }
   SDL_RenderGeometry(w.r, nullptr, v.data(), int(v.size()), nullptr, 0);
+  gBackdropTris = int(v.size()) / 3;
+}
+int backdropTriangles() { return gBackdropTris; }
+
+// Drifting particles for the season, drawn over a menu screen. Positions are a pure function of time (no state):
+// each particle falls (or, for fireflies, wanders upwards) across the screen and wraps round.
+void drawSeasonParticles(Win& w, bool topScreen, float t) {
+  if (gSeason < 0) return;
+  SeasonCols sc = seasonCols(gSeason);
+  std::vector<SDL_Vertex> v;
+  auto add = [&](SDL_FPoint a, SDL_FPoint b, SDL_FPoint d, Col col, Uint8 al) {
+    SDL_Color c{col.r, col.g, col.b, al}; v.push_back({a, c, {0, 0}}); v.push_back({b, c, {0, 0}}); v.push_back({d, c, {0, 0}});
+  };
+  const int n = topScreen ? 12 : 8;
+  for (int i = 0; i < n; i++) {
+    unsigned h = unsigned(i * 2654435761u + (topScreen ? 0 : 97u));
+    float speed = 9.f + float(h % 9), phase = float(h % 1000) / 159.f, x0 = float(h % unsigned(LW));
+    float span = LH + 40.f, prog = std::fmod(float(h % 997) + t * speed, span);
+    float y = gSeason == 1 ? LH + 20.f - prog : prog - 20.f;  // fireflies rise, everything else falls
+    float x = x0 + std::sin(t * 0.6f + phase) * (gSeason == 1 ? 26.f : 18.f);
+    Col col = i % 3 == 0 ? sc.p2 : sc.p1;
+    if (gSeason == 0) {  // sakura petal: a small rotating ellipse
+      float a = t * 0.9f + phase, rx = 5.5f, ry = 3.2f, ca = std::cos(a), sa = std::sin(a);
+      for (int k = 0; k < 10; k++) { float b0 = k * 0.6283f, b1 = (k + 1) * 0.6283f;
+        auto P = [&](float b) { float ex = rx * std::cos(b), ey = ry * std::sin(b); return SDL_FPoint{x + ex * ca - ey * sa, y + ex * sa + ey * ca}; };
+        add({x, y}, P(b0), P(b1), col, 175); }
+    } else if (gSeason == 1) {  // firefly: a soft glow with a bright centre that pulses
+      float pulse = 0.5f + 0.5f * std::sin(t * 2.2f + phase * 3.f);
+      for (int k = 0; k < 10; k++) { float b0 = k * 0.6283f, b1 = (k + 1) * 0.6283f;
+        add({x, y}, {x + 7 * std::cos(b0), y + 7 * std::sin(b0)}, {x + 7 * std::cos(b1), y + 7 * std::sin(b1)}, col, Uint8(50 + 60 * pulse));
+        add({x, y}, {x + 2.6f * std::cos(b0), y + 2.6f * std::sin(b0)}, {x + 2.6f * std::cos(b1), y + 2.6f * std::sin(b1)}, sc.p2, Uint8(150 + 100 * pulse)); }
+    } else if (gSeason == 2) {  // momiji leaf: a spinning five-point star
+      float a = t * 0.7f + phase, r = 7.f;
+      for (int k = 0; k < 10; k++) { float a0 = a + k * 0.6283f, a1 = a + (k + 1) * 0.6283f;
+        float r0 = k % 2 ? r * 0.45f : r, r1 = k % 2 ? r : r * 0.45f;
+        add({x, y}, {x + r0 * std::cos(a0), y + r0 * std::sin(a0)}, {x + r1 * std::cos(a1), y + r1 * std::sin(a1)}, col, 180); }
+    } else {  // snow: a white flake with a faint rim so it shows on the pale light backdrop
+      float r = 2.f + float(h % 3);
+      Col rim = gLight ? hex(0xB9CDE1) : sc.p2;
+      for (int k = 0; k < 10; k++) { float b0 = k * 0.6283f, b1 = (k + 1) * 0.6283f;
+        add({x, y}, {x + (r + 1) * std::cos(b0), y + (r + 1) * std::sin(b0)}, {x + (r + 1) * std::cos(b1), y + (r + 1) * std::sin(b1)}, rim, 150);
+        add({x, y}, {x + r * std::cos(b0), y + r * std::sin(b0)}, {x + r * std::cos(b1), y + r * std::sin(b1)}, sc.p1, 235); }
+    }
+  }
+  SDL_SetRenderDrawBlendMode(w.r, SDL_BLENDMODE_BLEND);
+  SDL_RenderGeometry(w.r, nullptr, v.data(), int(v.size()), nullptr, 0);
+  SDL_SetRenderDrawBlendMode(w.r, SDL_BLENDMODE_NONE);
 }
 
 // ------------------------------------------------------------------ line icons
