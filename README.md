@@ -56,7 +56,9 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
   none), ink thickness, and how strictly strokes are checked (relaxed, normal or strict).
 
 ### 📈 Keep going
-- 🔥 **Daily goal and streak**, from 5 to 30 answers a day. The flame grows (and changes colour) the longer you keep it lit.
+- 🎯 **Daily goal and streak**, from 5 to 30 answers a day. Home shows a ring for today's goal and this week's goal days;
+  the days change colour as your streak grows (orange, then red at 7 days, blue at 30, purple at 100). Stats shows your
+  streak with a flame in the same colours.
 - 🌸 **Seasons of Japan backgrounds**: sakura, summer waves and fireflies, autumn leaves or snow, drifting gently on the menus (follows the calendar; switch to Plain in Settings › Display).
 - 🦊 **Kitsu, your streak fox.** Hatch an egg on your first goal day, then watch her grow: 1 tail, 3 tails and a red
   scarf at 7 days practised, 5 glowing tails at 30, and a nine-tailed kyūbi with fox-fire at 100. Tails are never lost.
