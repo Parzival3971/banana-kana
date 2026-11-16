@@ -235,7 +235,8 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   0 plain / 1 seasons by calendar month (DEFAULT since 0.6.0: user said drift is smooth on device, 2026-11-16; self-test
   forces 0 so README shots don't change by month) (Mar-May spring, Jun-Aug summer, Sep-Nov autumn, Dec-Feb winter) / 2-5
   fixed; "set backdrop". gfx setSeason() tints BG/BG2 (after applyTheme; render calls setSeason(seasonNow()) every
-  frame), drawBackdrop draws the season's cached pattern (sakura blossoms, seigaiha arcs, momiji stars, snow dots),
+  frame), drawBackdrop draws the season's cached pattern (sakura blossoms, seigaiha arcs, maple leaves from gfx mapleLeaf() (user
+  asked 2026-11-16; were stars), snow dots),
   drawSeasonParticles(t) draws 12 top / 8 bottom drifting particles as a pure function of time (fireflies rise).
   Particles only on menuScreen() (not Drill/Lesson/FreeWrite/pause); tick redraws every 90 ms there when motion is on.
   Summer stuttered on device (2026-11-16): seigaiha was ~51k triangles/frame; now R 34/40, 2 rings, 8 segments (~10k,

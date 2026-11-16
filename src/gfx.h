@@ -64,6 +64,9 @@ void drawBackdrop(Win& w, bool topScreen);  // stripes (top) / dots (bottom), or
 void setSeason(int season);
 int season();
 void drawSeasonParticles(Win& w, bool topScreen, float t);
+// A Japanese maple (momiji) leaf: seven pointed, toothed lobes, tip up, radius 1 around (0,0). Star-shaped from the
+// centre, so a triangle fan from (0,0) fills it. The stem runs from (0, 0.15) to (0, 0.75).
+const std::vector<SDL_FPoint>& mapleLeaf();
 int backdropTriangles();  // triangles in the last backdrop drawn (the self-test keeps every season under a budget)
 // Line icons (24x24 design grid, round strokes): review mixups words timed stats pencil clock script display chart
 // info flame medal lock check cross play pause gear arrow back star book map grid pen eraser

@@ -235,7 +235,10 @@ int drawFox(Win& w, float cx, float baseY, float height, const FoxLook& L) {
     g.shaded(ellipse(52, -82, 20, 20, 20), Shade{rgb(0xE6F5FF), rgb(0x8FCBF5), rgb(0x3C8EEA)});
     std::vector<P> wv; quad(wv, {38, -82}, {52, -94}, {66, -82}, 8); wv.insert(wv.begin(), {38, -82}); g.stroke(wv, 2.f, rgb(0xFFFFFF));
   } else if (L.season == 2) {  // a momiji leaf on the head
-    g.shaded(H(star(-20, -156, 13, 5, -15, 0.5f)), RED);
+    std::vector<P> leaf; const float ra = -15 * PI / 180, ca = std::cos(ra), sa = std::sin(ra);
+    for (auto q : mapleLeaf()) leaf.push_back({-20 + 18 * (q.x * ca - q.y * sa), -156 + 18 * (q.x * sa + q.y * ca)});
+    g.stroke(H({{-20 - 18 * 0.75f * sa, -156 + 18 * 0.75f * ca}, {-20, -156}}), 2.f, rgb(0xA8221A));
+    g.shaded(H(leaf), RED);
   }
 
   // ---- accessory (achievement rewards)

@@ -256,6 +256,26 @@ SDL_Rect pill(Win& w, SDL_Rect r, int rad, int kind, bool pressed) {
   return f;
 }
 
+const std::vector<SDL_FPoint>& mapleLeaf() {
+  static std::vector<SDL_FPoint> pts;
+  if (!pts.empty()) return pts;
+  // lobes: angle from straight up (degrees) and length; the lower pairs are shorter, like a real momiji
+  const float LA[7] = {-128, -84, -42, 0, 42, 84, 128}, LR[7] = {0.46f, 0.74f, 0.94f, 1.f, 0.94f, 0.74f, 0.46f};
+  auto at = [](float deg, float r) { float a = (deg - 90.f) * 3.14159265f / 180.f; return SDL_FPoint{r * std::cos(a), r * std::sin(a)}; };
+  pts.push_back(at(-158, 0.2f));  // the notch beside the stem
+  for (int i = 0; i < 7; i++) {
+    float a = LA[i], r = LR[i];
+    pts.push_back(at(a - 13, r * 0.62f)); pts.push_back(at(a - 10, r * 0.78f));  // a tooth on the way up
+    pts.push_back(at(a - 6, r * 0.74f));
+    pts.push_back(at(a, r));                                                     // the pointed tip
+    pts.push_back(at(a + 6, r * 0.74f));
+    pts.push_back(at(a + 10, r * 0.78f)); pts.push_back(at(a + 13, r * 0.62f));
+    if (i < 6) pts.push_back(at((a + LA[i + 1]) / 2, i == 0 || i == 5 ? 0.3f : 0.36f));  // deep cut between lobes
+  }
+  pts.push_back(at(158, 0.2f));
+  return pts;
+}
+
 // Backdrops: faint diagonal stripes (top screen) or a dot grid (bottom), drawn once per window/theme into a texture.
 void drawBackdrop(Win& w, bool topScreen) {
   // Drawn straight to the screen as one triangle batch (no render-target texture: on the device's KMSDRM/GLES
@@ -281,6 +301,14 @@ void drawBackdrop(Win& w, bool topScreen) {
         float r0 = i % 2 ? r * 0.45f : r, r1 = i % 2 ? r : r * 0.45f;
         tri({x, y}, {x + r0 * std::cos(a0), y + r0 * std::sin(a0)}, {x + r1 * std::cos(a1), y + r1 * std::sin(a1)}); }
     };
+    auto leaf = [&](float x, float y, float r, float rot) {  // momiji: the maple outline as a fan, plus a stem
+      const auto& L = mapleLeaf(); float ca = std::cos(rot), sa = std::sin(rot);
+      auto P = [&](SDL_FPoint p) { return SDL_FPoint{x + r * (p.x * ca - p.y * sa), y + r * (p.x * sa + p.y * ca)}; };
+      for (size_t i = 0; i < L.size(); i++) tri({x, y}, P(L[i]), P(L[(i + 1) % L.size()]));
+      SDL_FPoint s0 = P({-0.05f, 0.15f}), s1 = P({0.05f, 0.15f}), s2 = P({0.05f, 0.75f}), s3 = P({-0.05f, 0.75f});
+      tri(s0, s1, s2); tri(s0, s2, s3);
+    };
+    (void)star;
     const float step = topScreen ? 56.f : 72.f;
     if (gSeason == 1) {  // seigaiha: rows of overlapping wave arcs (three rings each)
       // kept light: the first version (small arcs, 3 rings, 12 segments) was ~51k triangles and stuttered on the device
@@ -302,7 +330,7 @@ void drawBackdrop(Win& w, bool topScreen) {
         unsigned h = unsigned(row * 73856093u ^ col * 19349663u); float jitter = float(h % 17) - 8.f, rot = float(h % 628) / 100.f;
         x += jitter; y -= jitter * 0.5f;
         if (gSeason == 0) { for (int k = 0; k < 5; k++) { float a = rot + k * 1.2566f; disc(x + 3.2f * std::cos(a), y + 3.2f * std::sin(a), 2.4f); } }  // sakura blossom
-        else if (gSeason == 2) star(x, y, 6.f, rot, 5);   // momiji
+        else if (gSeason == 2) leaf(x, y, 7.5f, rot);    // momiji
         else { disc(x, y, h % 3 == 0 ? 2.6f : 1.7f); }     // snow
       }
     }
@@ -352,11 +380,12 @@ void drawSeasonParticles(Win& w, bool topScreen, float t) {
       for (int k = 0; k < 10; k++) { float b0 = k * 0.6283f, b1 = (k + 1) * 0.6283f;
         add({x, y}, {x + 7 * std::cos(b0), y + 7 * std::sin(b0)}, {x + 7 * std::cos(b1), y + 7 * std::sin(b1)}, col, Uint8(50 + 60 * pulse));
         add({x, y}, {x + 2.6f * std::cos(b0), y + 2.6f * std::sin(b0)}, {x + 2.6f * std::cos(b1), y + 2.6f * std::sin(b1)}, sc.p2, Uint8(150 + 100 * pulse)); }
-    } else if (gSeason == 2) {  // momiji leaf: a spinning five-point star
-      float a = t * 0.7f + phase, r = 7.f;
-      for (int k = 0; k < 10; k++) { float a0 = a + k * 0.6283f, a1 = a + (k + 1) * 0.6283f;
-        float r0 = k % 2 ? r * 0.45f : r, r1 = k % 2 ? r : r * 0.45f;
-        add({x, y}, {x + r0 * std::cos(a0), y + r0 * std::sin(a0)}, {x + r1 * std::cos(a1), y + r1 * std::sin(a1)}, col, 180); }
+    } else if (gSeason == 2) {  // momiji: a maple leaf that tumbles as it falls
+      const auto& L = mapleLeaf(); float a = t * 0.7f + phase, r = 9.f, ca = std::cos(a), sa = std::sin(a);
+      auto P = [&](SDL_FPoint p) { return SDL_FPoint{x + r * (p.x * ca - p.y * sa), y + r * (p.x * sa + p.y * ca)}; };
+      for (size_t k = 0; k < L.size(); k++) add({x, y}, P(L[k]), P(L[(k + 1) % L.size()]), col, 190);
+      SDL_FPoint s0 = P({-0.06f, 0.15f}), s1 = P({0.06f, 0.15f}), s2 = P({0.06f, 0.75f}), s3 = P({-0.06f, 0.75f});
+      add(s0, s1, s2, col, 190); add(s0, s2, s3, col, 190);
     } else {  // snow: a white flake with a faint rim so it shows on the pale light backdrop
       float r = 2.f + float(h % 3);
       Col rim = gLight ? hex(0xB9CDE1) : sc.p2;
