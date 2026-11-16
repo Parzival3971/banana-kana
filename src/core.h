@@ -85,6 +85,13 @@ struct Settings {
   bool light = true;   // UI theme: the Handheld design in light (default) or dark
 };
 
+// Kitsu's accessories: each unlocked by an achievement (id), worn one at a time.
+struct PetAccessory { const char* id; const char* name; const char* achievement; };
+const std::vector<PetAccessory>& petAccessories();
+constexpr int PET_STAGE_DAYS[5] = {0, 1, 7, 30, 100};
+constexpr int PET_TAILS[5] = {0, 1, 3, 5, 9};
+constexpr int PET_NAME_MAX = 6;  // kana
+
 enum class KanaState { Locked, New, Learning, Known, Weak };
 
 struct Progress {
@@ -106,6 +113,15 @@ struct Progress {
   std::array<int, 2> unlocked{{1, 0}};   // stages unlocked per script (katakana starts at 0 = locked)
   std::array<int, 2> lessons{{0, 0}};    // stage lessons completed per script
   bool migrated = false;                 // set when an older progress file was upgraded on load
+  // Kitsu, the streak pet (0.7.0): an original kitsune that hatches on the first goal-met day and grows tails with
+  // the total number of days practised (never lost); the streak only sets its mood. seenStage = last stage celebrated.
+  struct Pet { std::string name = "Kitsu"; int acc = -1, seenStage = -1, days = 0, lastDay = 0; };
+  Pet pet;
+  bool petLoaded = false;                // a "pet" line was in the file (otherwise migrate from the day history)
+  bool petHatched() const { return lastGoalDay != 0 || bestStreak > 0; }
+  int petStage() const;                  // 0 egg, 1 kit (1 tail), 2 three tails (7 days), 3 five (30), 4 nine (100)
+  bool petAwake() const;                 // today's goal met
+  bool petAccUnlocked(int i) const;
 
   static std::string keyKana(const Kana& k);
   static std::string keyWord(const Word& w);

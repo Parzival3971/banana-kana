@@ -25,7 +25,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
   before it's tested.
 - 🪜 **One step at a time.** A brand-new kana is only asked as multiple choice. Typing comes once you've got it right,
   then writing: first over the full guide, then over a faint outline, then from memory, one level per session.
-- ⏩ **Already know some?** On first launch, say how much you know, or skip ahead later in Settings > Script.
+- ⏩ **Already know some?** On first launch, pick light or dark and a background, then say how much you know (or skip ahead later in Settings > Script). Settings › Progress › Run setup again goes through it any time.
   Skipped kana count as known, with a quick review in a day or two to check.
 
 ### 🎮 Practise
@@ -58,6 +58,10 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 ### 📈 Keep going
 - 🔥 **Daily goal and streak**, from 5 to 30 answers a day. The flame grows (and changes colour) the longer you keep it lit.
 - 🌸 **Seasons of Japan backgrounds**: sakura, summer waves and fireflies, autumn leaves or snow, drifting gently on the menus (follows the calendar; switch to Plain in Settings › Display).
+- 🦊 **Kitsu, your streak fox.** Hatch an egg on your first goal day, then watch her grow: 1 tail, 3 tails and a red
+  scarf at 7 days practised, 5 glowing tails at 30, and a nine-tailed kyūbi with fox-fire at 100. Tails are never lost.
+  She naps until today's goal is met, dresses for the season, and wears accessories you win with achievements. Rename
+  her with the kana keys (Stats, then START).
 - 🏅 **Achievements.** 17 badges for learning kana and words, streaks, timed scores and perfect sessions, with your
   progress towards each one (Stats, then X).
 - 📊 **Stats.** Your last 14 days and an accuracy heatmap of every kana. Tap one to see it in the chart.
@@ -89,11 +93,12 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 | <img src="docs/img/timed.png" width="250"><br>Timed challenge | <img src="docs/img/result.png" width="250"><br>Results | <img src="docs/img/unlocked.png" width="250"><br>Stage unlocked |
 | <img src="docs/img/stages.png" width="250"><br>Stage map | <img src="docs/img/chart.png" width="250"><br>Kana chart | <img src="docs/img/stats.png" width="250"><br>Stats |
 | <img src="docs/img/settings.png" width="250"><br>Settings | <img src="docs/img/dark-home.png" width="250"><br>Dark theme | <img src="docs/img/dark-stats.png" width="250"><br>Dark theme stats |
-| <img src="docs/img/welcome-theme.png" width="250"><br>First launch: pick a look | <img src="docs/img/practice-set.png" width="250"><br>Practice set | <img src="docs/img/free-write.png" width="250"><br>Free writing |
+| <img src="docs/img/welcome-background.png" width="250"><br>First launch: pick a background | <img src="docs/img/practice-set.png" width="250"><br>Practice set | <img src="docs/img/free-write.png" width="250"><br>Free writing |
 | <img src="docs/img/skip.png" width="250"><br>Skipping ahead | <img src="docs/img/guided.png" width="250"><br>Guided writing | <img src="docs/img/credits.png" width="250"><br>Credits |
 | <img src="docs/img/draw-any.png" width="250"><br>Draw any kana | <img src="docs/img/extras.png" width="250"><br>Extras stage | <img src="docs/img/handwriting.png" width="250"><br>Handwriting font and grid |
 | <img src="docs/img/match.png" width="250"><br>Hiragana ↔ katakana | <img src="docs/img/packs.png" width="250"><br>Word packs | <img src="docs/img/words.png" width="250"><br>Word pack quiz |
 | <img src="docs/img/new-word.png" width="250"><br>New word card | <img src="docs/img/word-list.png" width="250"><br>A pack's word list | <img src="docs/img/achievements.png" width="250"><br>Achievements |
+| <img src="docs/img/kitsu.png" width="250"><br>Kitsu, your fox | <img src="docs/img/kitsu-hatch.png" width="250"><br>Kitsu hatches | <img src="docs/img/kitsu-name.png" width="250"><br>Naming your fox |
 
 </details>
 
@@ -123,7 +128,7 @@ A backup copy is also kept in `roms/ports/BananaKana/progress-backup.txt`: copy 
 | ✛ **D-pad** or the analogue **stick** (shown as a cross in the hint chips) | Move around the Home grid, stages, chart cells, settings and keyboard keys |
 | **A** | Choose / confirm (press again on a chosen answer to check it) |
 | **B** | Back. In drills: undo a stroke or delete a letter |
-| **X** | Check the answer. On Stats: achievements |
+| **X** | Check the answer. On Stats: achievements. On Your fox: take the accessory off |
 | **Y** | Hint while writing, guide in free writing. On Home and stats: switch hiragana / katakana |
 | ▶️ **START** | On Home: start your lesson or practice. Show me (stroke-order animation) when writing; in the chart, write the practice set freely |
 | **L / R** | Switch tabs, scripts or settings groups |
@@ -161,7 +166,7 @@ Six groups. Most settings are a row of options you can tap directly:
 | ⏳ **Sessions** | Session length, how much older stages come back, the daily goal and how strict the writing check is |
 | あ **Script** | Which script you practise, and skipping ahead to a later stage (or unlocking katakana early) |
 | 🎨 **Display** | Light or dark theme, kana font (rounded or handwriting), canvas lines, ink, sound effects and rumble |
-| 📊 **Progress** | Your stats, resetting progress (press twice; settings are kept) and where the backup lives |
+| 📊 **Progress** | Your stats, resetting progress or settings (press twice), running the first-launch setup again, and where the backup lives |
 | ℹ️ **About** | Version and credits |
 
 ## 🛠️ Troubleshooting

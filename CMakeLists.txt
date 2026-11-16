@@ -18,7 +18,7 @@ add_test(NAME core COMMAND test_core ${CMAKE_SOURCE_DIR}/app/data)
 find_package(SDL2 REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL2_TTF REQUIRED IMPORTED_TARGET SDL2_ttf)
-add_executable(banana_kana src/main.cpp src/app.cpp src/gfx.cpp src/selftest.cpp src/sound.cpp)
+add_executable(banana_kana src/main.cpp src/app.cpp src/gfx.cpp src/fox.cpp src/selftest.cpp src/sound.cpp)
 target_link_libraries(banana_kana ktcore SDL2::SDL2 PkgConfig::SDL2_TTF)
 # Device build: SDL2/SDL2_ttf/FreeType/ALSA come from BananaOS, so link them dynamically but
 # carry libstdc++/libgcc inside the binary to avoid depending on the device's C++ runtime.

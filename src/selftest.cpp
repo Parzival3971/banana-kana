@@ -136,7 +136,14 @@ int App::selfTest(const std::string& shotDir) {
 
   // ---- 3. pause -> back to menu
   startSession(); togglePause(); pauseSel = 1; padButton(SDL_CONTROLLER_BUTTON_A);
-  CHECK(screen == Screen::Home && !paused, "pause -> menu");
+  CHECK((screen == Screen::Home || screen == Screen::PetEvolve) && !paused, "pause -> menu");
+  // ---- 3b. Kitsu: the first goal-met day hatches the egg; the celebration shows on the way Home
+  CHECK(prog.petStage() >= 1, "kitsu hatched after the first goal");
+  CHECK(screen == Screen::PetEvolve, "hatch celebrated on the way home");
+  shot("pet_hatch");
+  padButton(SDL_CONTROLLER_BUTTON_A);
+  CHECK(screen == Screen::Home && prog.pet.seenStage == prog.petStage(), "hatch continue -> home");
+  go(Screen::Home); CHECK(screen == Screen::Home, "no second celebration");
   shot("home");
 
   // ---- 4. stage map: passed stage replays its lesson, locked stage cannot start
@@ -331,6 +338,29 @@ int App::selfTest(const std::string& shotDir) {
     earned({ti}); CHECK(toastUntil && toastAch == ti, "achievement toast"); shot("achievement_toast");
     tick(toastUntil + 10); CHECK(!toastUntil && toastAch < 0, "toast goes away"); }
   CHECK(click(B_BACK) && screen == Screen::Stats, "achievements -> stats");
+  // ---- 13c. Kitsu: Your fox page (START / chip from Stats), accessories, rename with the kana keys
+  padButton(SDL_CONTROLLER_BUTTON_START); CHECK(screen == Screen::Pet, "START opens your fox");
+  CHECK(prog.petAccUnlocked(0) && !prog.petAccUnlocked(7), "bell unlocked by answers10, daruma locked");
+  CHECK(click(B_ACC0) && prog.pet.acc == 0, "tap to wear the bell"); shot("pet");
+  click(B_ACC0 + 7); CHECK(prog.pet.acc == 0, "locked accessory can't be worn");
+  CHECK(click(B_PET_NONE) && prog.pet.acc == -1, "take it off");
+  petSel = 0; padButton(SDL_CONTROLLER_BUTTON_A); CHECK(prog.pet.acc == 0, "A wears the selected one");
+  padButton(SDL_CONTROLLER_BUTTON_Y); CHECK(screen == Screen::PetName && q.kanaInput, "Y renames");
+  typed.clear(); click(B_KANA0 + 5); click(B_KANA0 + 35); CHECK(typed == "かや", "name typed with kana keys");
+  for (int i = 0; i < 8; i++) click(B_KANA0 + 1);
+  CHECK(int(utf8Codepoints(typed).size()) == PET_NAME_MAX, "name capped at 6 kana"); shot("pet_name");
+  while (!typed.empty()) click(B_BKSP);
+  click(B_KANA0 + 10); click(B_KANA0 + 1); click(B_KANA0 + 15);
+  CHECK(click(B_CHECK) && screen == Screen::Pet && prog.pet.name == "さいた", "name saved");
+  { Progress p2; p2.load(statePath, &data); CHECK(p2.pet.name == "さいた" && p2.pet.acc == 0, "pet saved to disk"); }
+  CHECK(click(B_BACK) && screen == Screen::Stats, "your fox -> stats");
+  { // every stage, mood and accessory stays within a sane triangle budget
+    int worst = 0;
+    for (int st = 0; st < 5; st++) for (int a = -1; a < 8; a++) for (int se = 0; se < 4; se++) {
+      FoxLook L; L.stage = st; L.accessory = a; L.season = se; L.mood = FoxMood::Happy;
+      worst = std::max(worst, drawFox(top, 320, 460, 340, L)); }
+    printf("fox: worst %d triangles\n", worst);
+    CHECK(worst > 200 && worst <= 3500, "fox triangle budget"); }
   go(Screen::Home);
 
   // ---- 14. kana keyboard
@@ -459,16 +489,34 @@ int App::selfTest(const std::string& shotDir) {
     go(Screen::Welcome); CHECK(welcomeStep == 0, "first launch starts with the look"); shot("welcome_theme");
     CHECK(click(B_WTHEME0 + 1) && !prog.settings.light, "pick dark: applies straight away"); shot("welcome_theme_dark");
     padButton(SDL_CONTROLLER_BUTTON_DPAD_LEFT); CHECK(prog.settings.light, "d-pad left: light again");
-    padButton(SDL_CONTROLLER_BUTTON_A); CHECK(welcomeStep == 1, "A: on to step 2");
+    padButton(SDL_CONTROLLER_BUTTON_A); CHECK(welcomeStep == 1, "A: on to the background");
     padButton(SDL_CONTROLLER_BUTTON_B); CHECK(welcomeStep == 0, "B: back to the look");
-    CHECK(click(B_WEL_NEXT) && welcomeStep == 1, "Next"); shot("welcome");
+    CHECK(click(B_WEL_NEXT) && welcomeStep == 1, "Next: background");
+    { int keep = prog.settings.backdrop;
+      CHECK(click(B_WBG0) && prog.settings.backdrop == 1, "pick seasons (auto)");
+      prog.settings.backdrop = 2; shot("welcome_background");  // a fixed season so the README shot doesn't change by month
+      padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); CHECK(prog.settings.backdrop == 0, "d-pad right: plain");
+      { Progress re; re.load(statePath, &data); CHECK(re.settings.backdrop == 0, "background saved straight away"); }
+      prog.settings.backdrop = keep; }
+    padButton(SDL_CONTROLLER_BUTTON_A); CHECK(welcomeStep == 2, "A: on to what you know");
+    padButton(SDL_CONTROLLER_BUTTON_B); CHECK(welcomeStep == 1, "B: back to the background");
+    CHECK(click(B_WEL_NEXT) && welcomeStep == 2, "Next"); shot("welcome");
     padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); CHECK(welcomeSel == 1, "welcome move");
     CHECK(click(B_WELCOME0 + 1), "I know hiragana");
     CHECK(screen == Screen::Home && prog.knownCount(data, Script::Hiragana) == data.scriptCount(Script::Hiragana) && prog.settings.script == Script::Katakana &&
           prog.lessonPending(Script::Katakana), "hiragana skipped, katakana lesson next");
     shot("home_after_welcome");
     prog = Progress{}; prog.settings = keep.settings; prog.settings.script = Script::Hiragana;
-    go(Screen::Welcome); click(B_WEL_NEXT); CHECK(click(B_WELCOME0 + 3), "I know some"); CHECK(screen == Screen::SettingsGroup && setGroup == 2 && setRow == 1, "to script settings");
+    { // Settings > Progress > Run setup again: the same steps, progress kept, Back returns to Settings
+      int known = prog.knownCount(data, Script::Hiragana), streak = prog.bestStreak;
+      setGroup = 4; setRow = 6; go(Screen::SettingsGroup); padButton(SDL_CONTROLLER_BUTTON_A);
+      CHECK(screen == Screen::Welcome && welcomeStep == 0 && welcomeAgain, "run setup again opens the welcome");
+      shot("welcome_again");
+      CHECK(click(B_BACK) && screen == Screen::SettingsGroup && !welcomeAgain, "back to settings");
+      padButton(SDL_CONTROLLER_BUTTON_A); click(B_WEL_NEXT); click(B_WEL_NEXT);
+      CHECK(click(B_WELCOME0) && screen == Screen::Home, "new to kana -> home");
+      CHECK(prog.knownCount(data, Script::Hiragana) == known && prog.bestStreak == streak, "setup again keeps progress"); }
+    go(Screen::Welcome); click(B_WEL_NEXT); click(B_WEL_NEXT); CHECK(click(B_WELCOME0 + 3), "I know some"); CHECK(screen == Screen::SettingsGroup && setGroup == 2 && setRow == 1, "to script settings");
     for (int i = 0; i < 3; i++) click(B_SINC0 + 1);
     CHECK(skipPending[0] == 4 && prog.unlocked[0] == 1, "pending only"); shot("settings_skip");
     CHECK(click(B_FOOT_R), "confirm skip"); CHECK(prog.unlocked[0] == 4 && prog.lessons[0] == 3 && prog.stageKnown(data, Script::Hiragana, 2) == 5, "skipped to stage 4");

@@ -6,10 +6,11 @@
 
 #include "core.h"
 #include "gfx.h"
+#include "fox.h"
 
 namespace kt {
 
-enum class Screen { Home, Stages, Lesson, Unlocked, Drill, Result, Chart, Settings, SettingsGroup, Credits, Stats, Welcome, FreeWrite, Packs, PackWords, Awards };
+enum class Screen { Home, Stages, Lesson, Unlocked, Drill, Result, Chart, Settings, SettingsGroup, Credits, Stats, Welcome, FreeWrite, Packs, PackWords, Awards, Pet, PetEvolve, PetName };
 
 // What a practice session draws from.
 enum class Mode { Normal, Focus, Review, Mixup, Timed, Pack };
@@ -34,13 +35,13 @@ enum BtnId {
   // chart
   B_TAB0 = 100, B_SCROLL_UP = 110, B_SCROLL_DOWN, B_PICK_DRILL, B_PICK_WRITE, B_PICK_CLEAR, B_PICK_ANY, B_CELL0 = 1000,
   // free writing, welcome
-  B_FW_GUIDE = 130, B_FW_NEXT, B_FW_PREV, B_SHOWME, B_WELCOME0 = 140, B_WTHEME0 = 146, B_WEL_NEXT = 148,
+  B_FW_GUIDE = 130, B_FW_NEXT, B_FW_PREV, B_SHOWME, B_WELCOME0 = 140, B_WTHEME0 = 146, B_WEL_NEXT = 148, B_WBG0 = 150,
   // settings (BananaOS style: group tiles -> rows with < value >)
   B_GROUP0 = 200, B_SROW0 = 220, B_SDEC0 = 240, B_SINC0 = 260, B_FOOT_L = 280, B_FOOT_R, B_SUP = 290, B_SDOWN, B_SSEG0 = 3000,  // B_SSEG0 + row * 8 + option
   // keyboard
   B_KEY0 = 300, B_KANA0 = 400, B_DAKU = 460, B_HANDAKU, B_SMALLK, B_CHOON,
   // stats heatmap
-  B_HEAT0 = 2000, B_PACK0 = 2600, B_PACK_START = 2650, B_PACK_BROWSE, B_WORD0 = 2700, B_WPREV = 2720, B_WNEXT, B_AWARDS = 2730, B_AWARD0 = 2740,
+  B_HEAT0 = 2000, B_PACK0 = 2600, B_PACK_START = 2650, B_PACK_BROWSE, B_WORD0 = 2700, B_WPREV = 2720, B_WNEXT, B_AWARDS = 2730, B_AWARD0 = 2740, B_PET = 2780, B_ACC0 = 2790, B_PET_RENAME = 2800, B_PET_NONE, B_PET_CONT,
 };
 
 struct Button {
@@ -106,7 +107,7 @@ struct App {
   int keyRow = 0, keyCol = 0;  // d-pad cursor on the on-screen keyboards
   int kbRows() const; int kbRowLen(int r) const; int kbItemId(int r, int c) const; void kbMove(int dc, int dr);
   bool inPractice() const { return screen == Screen::Drill || screen == Screen::Lesson || screen == Screen::FreeWrite; }
-  bool firstRun = false; int welcomeSel = 0; int welcomeStep = 0;  // first launch: 0 pick light/dark, 1 what you know
+  bool firstRun = false; int welcomeSel = 0; int welcomeStep = 0; bool welcomeAgain = false;  // first launch: 0 pick light/dark, 1 background (seasons/plain), 2 what you know
   int skipPending[2] = {0, 0};
   // timed challenge
   int timedLeft = 0; Uint32 timedLast = 0; bool timedNewBest = false; int flash = 0; std::string flashText;  // flash 1 right, 2 wrong
@@ -157,6 +158,11 @@ struct App {
   void chips(const std::vector<std::pair<std::string, std::string>>& items);
   void segBar(Win& w, SDL_Rect r, int total, int done, const std::vector<int>& res);
   void settingPreview(int row);
+  // Kitsu the streak pet (0.7.0; fox.h draws it): Home streak card, evolution celebration, Your fox page, renaming
+  FoxLook petLook(FoxMood mood) const;
+  bool petEvolvePending() const { return prog.petStage() >= 1 && prog.petStage() > prog.pet.seenStage; }
+  void drawPet(); void drawPetEvolve(); void drawPetName();
+  int petSel = 0; bool petHopPending = false; Uint32 petHopStart = 0, petLast = 0;
   int seasonNow() const;      // -1 plain, 0-3 the season to show (Settings.backdrop; 1 = by the calendar month)
   bool menuScreen() const;    // screens where the season's petals/leaves/snow drift (not drills, lessons or writing)
   Uint32 seasonLast = 0;      // last drift redraw

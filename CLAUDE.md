@@ -241,8 +241,10 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   Summer stuttered on device (2026-11-16): seigaiha was ~51k triangles/frame; now R 34/40, 2 rings, 8 segments (~10k,
   like spring). Self-test budget: <= 8000 pattern triangles per screen per season (backdropTriangles()).
   Display row 6 "Background" (segments Plain/Auto/春/夏/秋/冬; 春夏秋冬 added to fallback.ttf) + settingPreview row 6.
-- Welcome has 2 steps (user asked 2026-11-16): welcomeStep 0 = Light/Dark tiles (B_WTHEME0/+1, applied + saved at once,
-  d-pad L/R) and Next (B_WEL_NEXT / A); step 1 = the 4 "what do you know" choices (B goes back to step 0).
+- Welcome has 3 steps (user asked 2026-11-16): welcomeStep 0 = Light/Dark tiles (B_WTHEME0/+1, applied + saved at once,
+  d-pad L/R) and Next (B_WEL_NEXT / A); step 1 = background Seasons (backdrop 1 = Auto) / Plain (0) tiles (B_WBG0/+1,
+  live + saved, added for 0.7.0); step 2 = the 4 "what do you know" choices. B goes back a step. Settings > Progress row 6
+  "Run setup again" (welcomeAgain: title "Set up Banana Kana", Back on step 0 returns to Settings; progress kept).
 - Settings groups with more than 5 rows scroll (user: rows looked squished on device, 2026-11-16): rows keep PITCH 66,
   5 visible, window follows setRow; ▲ / ▼ footer buttons (B_SUP/B_SDOWN) + "n/N" between Back and Change.
 - Old v1 look (kept for history): BananaOS palette (banana yellow #FFD23F on warm neutrals), button-hint chips, cartridge tiles.
@@ -267,6 +269,14 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   Kana chart (locked/learning/known/weak), Practice mix/settings (incl. theme), Results.
 - Post-M4 features (2026-11-15, user asked "do 1-7"): spaced review, mix-ups, daily goal + streak, combo writing,
   timed challenge, kana keyboard, stats screen. Not yet seen on device.
+- Kitsu streak pet (0.7.0, branch kitsune-pet, user approved the shaded chibi mockup 2026-11-16): original kitsune (not
+  Pokemon IP). core: Progress::Pet {name "Kitsu", acc, seenStage, days, lastDay} ("pet" line), petStage from pet.days
+  (PET_STAGE_DAYS 0/1/7/30/100, PET_TAILS 0/1/3/5/9; egg until the first goal-met day), petAwake = goal met today,
+  petAccessories() (8, each unlocked by an achievement). Missing pet line = migration (days from history, seenStage =
+  current, no celebration). src/fox.{h,cpp}: drawFox (one RenderGeometry batch, shaded fans; <= 3500 triangles,
+  self-test checks), FoxLook stage/mood/accessory/season/t. app: Home streak card fox (z's when asleep, hop on goal),
+  Screen::Pet (Stats START / chip; 4x2 accessory tiles, Back/Rename/Take it off), PetEvolve (go(Home) redirects while
+  petEvolvePending), PetName (drill kana keyboard, 6 kana max, Cancel/Save name).
 - RELEASED 0.6.0 on 2026-11-16 (Home grid, Seasons of Japan, scrolling settings, theme on first launch; PR #2; user said "release to main").
 - RELEASED 0.5.0 on 2026-11-15 (Handheld redesign, PR #1 merged after device test 4; user said "release").
 - RELEASED 0.1.0 on 2026-11-15 (repo made public the same day), 0.1.1 the same day (meanings, X/Y fix, sticks). Milestones: 1 fonts+theme DONE, 2 stages+progress migration DONE, 3 mockup screens/lessons/unlock DONE,
