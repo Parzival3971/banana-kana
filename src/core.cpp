@@ -562,7 +562,7 @@ std::string toHepburn(const std::string& t) {
     {"tu", "tsu"}, {"hu", "fu"}, {"zi", "ji"}, {"di", "ji"}, {"du", "zu"}};
   std::string o;
   for (size_t i = 0; i < t.size();) {
-    if (t.compare(i, 2, "nn") == 0 && (i + 2 >= t.size() || !std::strchr("aiueoy", t[i + 2]))) { o += 'n'; i += 2; continue; }  // IME ん
+    if (t.compare(i, 2, "nn") == 0 && (i + 2 >= t.size() || !std::strchr("aiueo", t[i + 2]))) { o += 'n'; i += 2; continue; }  // IME ん (also before y: kinnyoubi)
     bool hit = false;
     for (auto& [k, v] : R) {
       size_t n = std::strlen(k);

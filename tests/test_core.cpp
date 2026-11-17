@@ -56,6 +56,8 @@ int main(int argc, char** argv) {
     CHECK(typedMatches(t, e, false));
   CHECK(typedMatches("konnnitiha", "konnichiha") && typedMatches("konnichiha", "konnichiha") && typedMatches("onna", "onna"));
   CHECK(typedMatches("kanzi", "kanji") && typedMatches("honn", "hon") && typedMatches("sinbun", "shinbun"));
+  CHECK(typedMatches("kinnyoubi", "kin'youbi") && typedMatches("kin'youbi", "kin'youbi") && typedMatches("konnyaku", "konnyaku")
+        && typedMatches("konnnyaku", "konnyaku"));  // IME "nn" before a y-sound is ん
   CHECK(!typedMatches("chi", "ti", false) && !typedMatches("sei", "se", false) && !typedMatches("kyou", "kyo", false));
   CHECK(typedMatches("sensei", "sensee") && typedMatches("kohi", "koohii"));  // words keep the long-vowel leniency
 
