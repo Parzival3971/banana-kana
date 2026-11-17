@@ -40,6 +40,13 @@ bool mkdirs(const std::string& p) {
   for (size_t i = 0; i < p.size(); i++) { cur += p[i]; if ((p[i] == '/' && i > 0) || i + 1 == p.size()) mkdir(cur.c_str(), 0755); }
   struct stat st; return stat(p.c_str(), &st) == 0;
 }
+// A progress file worth keeping has at least one "set" or "stat" line (v1 files have no "set version"). An empty or
+// garbled one (power lost mid-write on an older build) must not hide the SD-card backup, or get copied over it.
+bool progressFileOk(const std::string& path) {
+  std::ifstream f(path); if (!f) return false;
+  for (std::string line; std::getline(f, line);) if (line.rfind("set ", 0) == 0 || line.rfind("stat ", 0) == 0) return true;
+  return false;
+}
 }  // namespace
 
 // ------------------------------------------------------------------ bottom touchscreen via evdev
@@ -199,13 +206,21 @@ int main(int argc, char** argv) {
   { struct stat vs; if (stat((dataDir + "/../VERSION").c_str(), &vs) == 0 && !(getenv("KT_BACKUP") && !strcmp(getenv("KT_BACKUP"), "0")))
       app.backupPath = dataDir + "/../progress-backup.txt";
     if (getenv("KT_BACKUP_PATH")) app.backupPath = getenv("KT_BACKUP_PATH"); }
-  { struct stat ps, bs;  // fresh install or reflash: bring progress back from the SD card
-    if (stat(app.statePath.c_str(), &ps) != 0 && !app.backupPath.empty() && stat(app.backupPath.c_str(), &bs) == 0) {
-      std::ifstream in(app.backupPath, std::ios::binary); std::ofstream out(app.statePath, std::ios::binary); out << in.rdbuf();
+  { struct stat ps;  // fresh install, reflash or a broken file: bring progress back from the SD card
+    bool exists = stat(app.statePath.c_str(), &ps) == 0, ok = exists && progressFileOk(app.statePath);
+    if (exists && !ok) {  // keep the broken file for a bug report, out of the way
+      std::rename(app.statePath.c_str(), (app.statePath + ".broken").c_str());
+      fprintf(stderr, "  progress file unreadable, moved to %s.broken\n", app.statePath.c_str());
+    }
+    if (!ok && !app.backupPath.empty() && progressFileOk(app.backupPath)) {
+      { std::ifstream in(app.backupPath, std::ios::binary); std::ofstream out(app.statePath, std::ios::binary); out << in.rdbuf(); }
       fprintf(stderr, "  progress restored from backup %s\n", app.backupPath.c_str());
     } }
   { FILE* pf = fopen(app.statePath.c_str(), "r"); app.firstRun = !pf; if (pf) fclose(pf); }
   if (app.prog.load(app.statePath, &app.data) && app.prog.migrated) { fprintf(stderr, "  progress upgraded to v2\n"); app.prog.save(app.statePath); }
+  { int answers = 0; for (auto& [k, st] : app.prog.stats) answers += st.seen;
+    fprintf(stderr, "  progress: %s, %zu kana/words, %d answers, session %d, backup %s\n", app.statePath.c_str(), app.prog.stats.size(),
+            answers, app.prog.session, app.backupPath.empty() ? "off" : app.backupPath.c_str()); }
   applyTheme(app.prog.settings.light);
   app.prog.checkAchievements(app.data);  // anything already earned (progress from before achievements): no fanfare
   if (app.firstRun) app.go(kt::Screen::Welcome);
@@ -235,7 +250,10 @@ int main(int argc, char** argv) {
   setKanaHand(app.prog.settings.kanaHand);
   snd::setVolume(app.prog.settings.sound); snd::setRumble(app.prog.settings.rumble);
 
-  if (self) { int rc = app.selfTest(shotDir); SDL_Quit(); return rc; }
+  if (self) {
+    if (!shotDir.empty() && !mkdirs(shotDir)) { fprintf(stderr, "cannot create shots folder %s\n", shotDir.c_str()); return 2; }
+    int rc = app.selfTest(shotDir); SDL_Quit(); return rc;
+  }
 
   fprintf(stderr, "  sdl touch devices: %d, joysticks: %d\n", SDL_GetNumTouchDevices(), SDL_NumJoysticks());
   for (int i = 0; i < SDL_NumJoysticks(); i++)
@@ -387,7 +405,7 @@ int main(int argc, char** argv) {
               SDL_GetWindowFlags(app.top.w), SDL_GetWindowFlags(app.bot.w), SDL_GetError());
     }
   }
-  app.prog.save(app.statePath); app.backup(true);
+  app.save(); app.backup(true);
   fprintf(stderr, "  exit (%s)\n", gStop ? "signal" : "quit");
   snd::quit(); TTF_Quit(); SDL_Quit(); return 0;
 }

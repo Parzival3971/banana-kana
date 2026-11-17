@@ -101,6 +101,20 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
 - No Listening drill: removed on purpose (no voice clips available). Re-add only if real recordings exist.
 - `src/sound.{h,cpp}`: synthesised sound effects (snd::play), Settings.sound 0-3.
 
+- Review fixes (2026-11-17, full review): daily goal uses >= (lowering it mid-day still meets it); "yesterday" via
+  dayDiff (DST-safe); makeReviewQuestion only asks Write when writeLevel == WRITE_MEMORY (guided writes can't clear
+  reviews); typedMatches(typed, expected, word): Kunrei/IME spellings via toHepburn on the typed text only, o for wo,
+  long-vowel folding for words only; mix-up sets containing っ/ッ are always recall. Progress::save writes + fsyncs
+  before the rename; main.cpp progressFileOk(): a progress file with no set/stat line is moved to .broken and the
+  backup restored. --shots creates its folder.
+- Held sessions (user 2026-11-17: pause > Back to menu "resets progress and the same questions are asked again"):
+  App::holdSession on B_MENU (not Timed) copies the session state into App::Held; sessionHeld() = same prog.session +
+  script; Home pill "Continue · N of M" and START resume via resumeSession (nextQuestion(true); an answered question
+  counts). startMode/reset drop it. Not saved across restarts. Hint chips are tappable: chips() adds hidden buttons
+  B_CHIP0 + 0..6 (A B X Y START L R; L/R chip split in halves; F = B_PAUSE; "+" and F+START not tappable), handled at
+  the top of press() via chipTap -> padButton. Progress::saveError + App::save log failures to launch.log; main logs
+  "progress: path, N kana/words, M answers" at start-up.
+
 ## Known gaps / to verify on device
 - Device test 2026-11-15 passed (old UI): touch + tracing land correctly, A/B correct, F + START quits, bottom survives sleep.
 - New UI (M3/M4) not yet seen on device: check text sharpness at 1.6x, readability at F_MICRO (17px logical),
@@ -264,6 +278,9 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   Each stage starts with a lesson (stroke order + hint + untimed tracing). Drills only use unlocked kana;
   word questions only use words made entirely of unlocked kana; older stages return as weighted review.
 - Pass rule (CONFIRMED by user, DONE M2 in core): each kana has 4 steps. Right = +1 step, at most 2 steps per session,
+  AND (2026-11-17, user picked "gap of 4+ hours") a new session only resets the gain once GAIN_GAP (4 h) has passed
+  since the last step won (Stat.gainAt, saved as the last stat field; Progress::nextGainIn drives the feedback note).
+  Tests/self-test move prog.clock forward GAIN_GAP between sittings.
   wrong = -1 step (not a reset). Known = step 4. Stage unlocks when every kana in it is known.
   Rationale: WaniKani needs 4 correct reviews spread over time to "Guru"; Nihongo Master uses a 5-correct streak
   that resets on a miss. Spreading over 2+ sessions tests memory, not short-term recall.
@@ -282,6 +299,7 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   self-test checks), FoxLook stage/mood/accessory/season/t. app: Home streak card fox (z's when asleep, hop on goal),
   Screen::Pet (Stats START / chip; 4x2 accessory tiles, Back/Rename/Take it off), PetEvolve (go(Home) redirects while
   petEvolvePending), PetName (drill kana keyboard, 6 kana max, Cancel/Save name).
+- RELEASED 0.8.0 on 2026-11-17 (full review fixes, 4-hour step gap, Kunrei typing, held sessions/Continue, tappable hint chips, safer saves; PR #4; user said "release").
 - RELEASED 0.7.3 on 2026-11-17 (seasons behind UI, stylus settings scroll, vibration setup step, handwriting font where you write; user said "release").
 - RELEASED 0.7.2 on 2026-11-16 (streak flame removed, Kitsu on Stats; user said "release").
 - RELEASED 0.7.1 on 2026-11-16 (maple leaves for autumn; user said "release").

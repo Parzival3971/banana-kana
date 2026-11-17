@@ -1,5 +1,8 @@
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
+#include <ctime>
+#include <string>
 #include <fstream>
 #include <map>
 #include <set>
@@ -46,17 +49,60 @@ int main(int argc, char** argv) {
   Stroke near = ref; for (auto& p : near) { p.x += 7; p.y += 5; } CHECK(scoreStroke(near, ref).ok);
   Stroke far = ref; for (auto& p : far) { p.x += 45; } CHECK(!scoreStroke(far, ref).ok);
   CHECK(typedMatches("kohi", "koohii")); CHECK(typedMatches("gyunyu", "gyuunyuu")); CHECK(!typedMatches("ka", "ki"));
+  // Kunrei / IME spellings, を said "o", ん typed "nn"; long vowels folded for words only
+  for (auto [t, e] : std::vector<std::pair<const char*, const char*>>{{"si", "shi"}, {"tu", "tsu"}, {"hu", "fu"}, {"ti", "chi"},
+         {"zi", "ji"}, {"di", "ji"}, {"du", "zu"}, {"sya", "sha"}, {"tyo", "cho"}, {"zyu", "ju"}, {"jya", "ja"}, {"o", "wo"},
+         {"nn", "n"}, {"shi", "shi"}, {"chu", "chu"}, {"tsu", "tsu"}})
+    CHECK(typedMatches(t, e, false));
+  CHECK(typedMatches("konnnitiha", "konnichiha") && typedMatches("konnichiha", "konnichiha") && typedMatches("onna", "onna"));
+  CHECK(typedMatches("kanzi", "kanji") && typedMatches("honn", "hon") && typedMatches("sinbun", "shinbun"));
+  CHECK(typedMatches("kinnyoubi", "kin'youbi") && typedMatches("kin'youbi", "kin'youbi") && typedMatches("konnyaku", "konnyaku")
+        && typedMatches("konnnyaku", "konnyaku"));  // IME "nn" before a y-sound is ん
+  CHECK(!typedMatches("chi", "ti", false) && !typedMatches("sei", "se", false) && !typedMatches("kyou", "kyo", false));
+  CHECK(typedMatches("sensei", "sensee") && typedMatches("kohi", "koohii"));  // words keep the long-vowel leniency
 
-  // ---- pass rule: +1 per right answer, max 2 per session, -1 when wrong, known at 4
+  // ---- pass rule: +1 per right answer, max 2 per sitting (a later session >= GAIN_GAP on), -1 when wrong, known at 4
   {
-    Progress p; p.session = 1;
+    Progress p; p.session = 1; p.clock = 1700000000;
     p.record("h:あ", true); p.record("h:あ", true); p.record("h:あ", true);
     CHECK(p.step("h:あ") == 2);                     // capped at 2 this session
-    p.session = 2; p.record("h:あ", true); CHECK(p.step("h:あ") == 3);
+    p.session = 2; p.clock += 60; p.record("h:あ", true); CHECK(p.step("h:あ") == 2);  // quit and restart: no new steps
+    CHECK(p.nextGainIn("h:あ") > GAIN_GAP - 120 && p.nextGainIn("h:あ") <= GAIN_GAP);
+    p.clock += GAIN_GAP; CHECK(p.nextGainIn("h:あ") == 0);
+    p.session = 3; p.record("h:あ", true); CHECK(p.step("h:あ") == 3);  // hours later: a new sitting
     p.record("h:あ", false); CHECK(p.step("h:あ") == 2);  // wrong: back one step, not a reset
     p.record("h:あ", true); CHECK(p.step("h:あ") == 3);   // second gain this session
     p.record("h:あ", true); CHECK(p.step("h:あ") == 3);   // cap
-    p.session = 3; p.record("h:あ", true); p.record("h:あ", true); CHECK(p.step("h:あ") == KNOWN_STEP);
+    p.session = 4; p.clock += GAIN_GAP; p.record("h:あ", true); p.record("h:あ", true); CHECK(p.step("h:あ") == KNOWN_STEP);
+    CHECK(p.save("/tmp/kt_gain.txt")); Progress b; CHECK(b.load("/tmp/kt_gain.txt") && b.stats["h:あ"].gainAt == p.stats["h:あ"].gainAt);
+  }
+  {  // the daily goal: lowering it mid-day still meets it; "yesterday" survives the clocks going forward
+    Progress p; p.clock = 1790000000; p.settings.dailyGoal = 20;
+    for (int i = 0; i < 15; i++) p.countAnswer(true, p.clock);
+    p.settings.dailyGoal = 10; p.countAnswer(true, p.clock); CHECK(p.goalJustMet && p.lastGoalDay == dayNumber(p.clock));
+    p.countAnswer(true, p.clock); CHECK(!p.goalJustMet && p.streak == 1);  // once a day
+    const char* tz = getenv("TZ"); std::string keepTz = tz ? tz : ""; setenv("TZ", "Europe/London", 1); tzset();
+    std::tm t{}; t.tm_year = 126; t.tm_mon = 2; t.tm_mday = 30; t.tm_min = 30; t.tm_isdst = -1;  // 00:30, day after BST starts
+    Progress q; q.lastGoalDay = 20260329; q.streak = 5; q.settings.dailyGoal = 1; q.clock = std::mktime(&t);
+    CHECK(q.currentStreak() == 5); q.countAnswer(true, q.clock); CHECK(q.streak == 6);
+    if (tz) setenv("TZ", keepTz.c_str(), 1); else unsetenv("TZ"); tzset();
+  }
+  {  // reviews never ask a guided write (it can't clear the review): skipped-ahead kana have writing level 0
+    Progress p; p.clock = 1790000000; p.skipTo(d, Script::Hiragana, 3); p.clock += 3 * 86400; p.settings.writing = 2;
+    std::mt19937 rng(3); int asked = 0;
+    for (int n = 0; n < 300; n++) { Question q = makeReviewQuestion(d, p, rng); if (q.type == QType::Write) CHECK(q.writeLevel == WRITE_MEMORY); asked++; }
+    std::string ka = "h:あ"; p.stats[ka].wlv = WRITE_MEMORY; int writes = 0;
+    for (int n = 0; n < 300; n++) { Question q = makeReviewQuestion(d, p, rng); if (q.type == QType::Write) { writes++; CHECK(q.key == ka && q.writeLevel == WRITE_MEMORY); } }
+    CHECK(asked == 300 && writes > 0);  // from memory it's fine
+  }
+  {  // mix-ups with っ / ッ ask "which one is small tsu?", never "what sound is this?"
+    Progress p; p.skipTo(d, Script::Hiragana, SKIP_ALL); std::mt19937 rng(9); int seen = 0;
+    for (int n = 0; n < 2000; n++) {
+      Question q = makeMixupQuestion(d, p, rng); bool special = false;
+      for (auto& o : q.options) if (o == "っ" || o == "small tsu") special = true;
+      if (special) { seen++; CHECK(q.type == QType::RecallKana && q.optionsAreKana); }
+    }
+    CHECK(seen > 0);
   }
 
   // ---- unlocking: stage by stage, permanent, katakana after hiragana stage 10
@@ -157,7 +203,7 @@ int main(int argc, char** argv) {
   {
     Progress p; const Time day = 86400; p.clock = 1700000000;
     std::string k = "h:あ";
-    for (int sess = 0; sess < 2; sess++) { p.session = sess; p.record(k, true); p.record(k, true); }
+    for (int sess = 0; sess < 2; sess++) { p.session = sess; p.clock += GAIN_GAP; p.record(k, true); p.record(k, true); }
     CHECK(p.step(k) == KNOWN_STEP && p.stats[k].srs == 1 && p.stats[k].due == p.clock + day);
     CHECK(!p.isDue(k)); p.clock += day; CHECK(p.isDue(k));
     CHECK(p.dueKana(d, Script::Hiragana).size() == 1);
@@ -449,7 +495,7 @@ int main(int argc, char** argv) {
         else if (q.type == QType::ReadKana) { kinds[2]++; CHECK(q.options[q.correct] == w->romaji && !q.meaning.empty()); }
         else if (q.type == QType::Type) { kinds[3]++; CHECK(q.answer == w->romaji || q.answer == w->kana); }
         if (!q.options.empty()) { std::set<std::string> u(q.options.begin(), q.options.end()); CHECK(u.size() == q.options.size() && q.options.size() >= 4); }
-        p.session++; p.record(q.key, (asked % 4) != 0);
+        p.session++; p.clock = p.now() + GAIN_GAP; p.record(q.key, (asked % 4) != 0);
       }
       if (sess == 0) CHECK(cards >= 2);                   // a first session starts by meeting words
       for (auto& k : introduced) CHECK(quizAt.count(k) && quizAt[k] > introAt[k]);  // every new word is asked again the same session
@@ -466,7 +512,7 @@ int main(int argc, char** argv) {
       CHECK(meanings > 0);
     }
     Question q; for (int n = 0; n < 50 && (q.key.empty() || q.intro); n++) { PackSession ps2; q = makePackQuestion(d, p, rng, food, ps2); }
-    for (int r = 0; r < 4; r++) { p.session++; p.record(q.key, true); p.record(q.key, true); }  // knowing words shows in the count
+    for (int r = 0; r < 4; r++) { p.session++; p.clock = p.now() + GAIN_GAP; p.record(q.key, true); p.record(q.key, true); }  // knowing words shows in the count
     CHECK(packInfo(d, p, food).known >= 1);
     printf("packs: %zu packs, %d words, food %d/%d ready, %d new-word cards\n", d.packs.size(), words, fi.ready, fi.total, intros);
   }
@@ -493,7 +539,7 @@ int main(int argc, char** argv) {
     Progress p; p.clock = 1800000000; p.skipTo(d, Script::Hiragana, SKIP_ALL);
     int wi = -1; for (size_t i = 0; i < d.words.size(); i++) if (d.words[i].kana == "ねこ") wi = int(i);
     std::string key = Progress::keyWord(d.words[wi]);
-    for (int s2 = 0; s2 < 2; s2++) { p.session++; p.record(key, true); p.record(key, true); }
+    for (int s2 = 0; s2 < 2; s2++) { p.session++; p.clock += GAIN_GAP; p.record(key, true); p.record(key, true); }
     CHECK(p.step(key) == KNOWN_STEP && p.stats[key].srs == 1);
     CHECK(p.dueWords(d).empty());
     p.clock += 86400 * 2; CHECK(p.isDue(key));
@@ -525,7 +571,8 @@ int main(int argc, char** argv) {
   {  // Kitsu: hatches on the first goal-met day, grows with days practised (never shrinks), mood from today's goal
     Progress p; p.settings.dailyGoal = 5; Time t0 = 1790000000; p.clock = t0;
     CHECK(p.petStage() == 0 && p.pet.name == "Kitsu" && !p.petAwake());
-    for (int i = 0; i < 4; i++) p.countAnswer(true, t0); CHECK(p.petStage() == 0 && p.pet.days == 1);  // practised, egg still
+    for (int i = 0; i < 4; i++) p.countAnswer(true, t0);
+    CHECK(p.petStage() == 0 && p.pet.days == 1);  // practised, egg still
     p.countAnswer(true, t0); CHECK(p.petHatched() && p.petStage() == 1 && p.petAwake());
     for (int day = 1; day < 7; day++) p.countAnswer(true, t0 + day * 86400);  // one answer a day: goal not met, still counts
     CHECK(p.pet.days == 7 && p.petStage() == 2);

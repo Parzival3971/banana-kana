@@ -30,7 +30,10 @@ constexpr int SKIP_ALL = STAGE_COUNT + 1;  // skipTo(): every stage known
 // Staging: a brand-new kana is only asked as multiple choice. Romaji typing from step 1,
 // kana keyboard and writing (guided first) from step 2.
 constexpr int TYPE_STEP = 1, PRODUCE_STEP = 2, WRITE_MEMORY = 2;
-constexpr int MAX_GAIN_PER_SESSION = 2;  // right answers count for at most 2 steps per session
+constexpr int MAX_GAIN_PER_SESSION = 2;  // right answers count for at most 2 steps per sitting
+// A new sitting (a later session, at least GAIN_GAP after the last step won) can win steps again: quitting and restarting
+// straight away doesn't, so a kana has to stick across hours, not seconds (user picked the 4-hour gap, 2026-11-17).
+constexpr long long GAIN_GAP = 4 * 3600;
 
 struct Stage { std::string name; std::vector<int> kana; };  // indices into Data::kana
 struct MixSet { std::vector<int> kana; std::string note; };  // look-alike kana and how to tell them apart
@@ -66,6 +69,7 @@ struct Stat {
   int seen = 0, correct = 0, wrong = 0, streak = 0, step = 0, gainSession = -1, gain = 0;
   int srs = 0; Time due = 0;  // spaced review once known: level 1..SRS_LEVELS and when it is next due
   int wlv = 0, wlvSession = -1;  // writing level: 0 full guide, 1 faint outline, 2 from memory (one level per session)
+  Time gainAt = 0;               // when the last step was won (0 = never / older file): see GAIN_GAP
 };
 
 struct Settings {
@@ -145,6 +149,7 @@ struct Progress {
   void addConfusion(const std::string& a, const std::string& b);
   int currentStreak() const;  // 0 once a day without reaching the goal has passed
   int step(const std::string& key) const;
+  Time nextGainIn(const std::string& key) const;  // seconds until right answers win steps again (0 = now)
   KanaState state(const Data& d, int kanaIdx) const;
   bool isUnlocked(const Data& d, int kanaIdx) const;
   bool scriptUnlocked(Script s) const { return unlocked[si(s)] > 0; }
@@ -157,6 +162,7 @@ struct Progress {
   std::vector<int> weakest(const Data& d, Script s, int n) const;  // unlocked kana with the worst record
   bool load(const std::string& path, const Data* d = nullptr);
   bool save(const std::string& path) const;
+  mutable std::string saveError;         // why the last save failed (or a warning, e.g. fsync refused); empty = fine
 };
 
 // ---------------------------------------------------------------- questions
@@ -180,8 +186,10 @@ struct Question {
   int kanaIdx = -1;                // for kana questions
 };
 
-std::string normalizeRomaji(std::string s);
-bool typedMatches(const std::string& typed, const std::string& expectedRomaji);
+std::string normalizeRomaji(const std::string& s, bool word = true);  // word: long vowels folded (koohii = kohi)
+// Typed romaji vs the expected Hepburn: Kunrei/IME spellings (si, tu, hu, zi, sya, nn, o for wo) are accepted too.
+// Long vowels are only folded for words, so "sei" is not せ.
+bool typedMatches(const std::string& typed, const std::string& expectedRomaji, bool word = true);
 
 std::vector<int> unlockedKana(const Data& d, const Progress& p, Script s);
 std::vector<const Word*> eligibleWords(const Data& d, const Progress& p, Script s);

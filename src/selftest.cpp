@@ -92,10 +92,11 @@ int App::selfTest(const std::string& shotDir) {
   finishLessonFlow();
   CHECK(prog.lessons[0] == 1, "lesson recorded"); CHECK(screen == Screen::Drill, "lesson -> practice");
 
-  // ---- 2. practise until stage 2 unlocks (2 steps per session means several sessions)
+  // ---- 2. practise until stage 2 unlocks (2 steps a sitting, sittings GAIN_GAP apart, means several sessions)
   prog.settings.meanings = 2; prog.settings.writing = 2; prog.settings.typing = 2;
   bool unlockedSeen = false, wrongDone = false, pauseDone = false;
   for (int sess = 0; sess < 12 && !unlockedSeen; sess++) {
+    if (sess > 0) prog.clock = prog.now() + GAIN_GAP;  // come back hours later (a straight restart wins no steps)
     if (screen != Screen::Drill) { CHECK(click(B_AGAIN), "practice again"); }
     for (int i = 0; i < 40 && screen == Screen::Drill; i++) {
       if (!pauseDone && i == 2) {
@@ -129,6 +130,7 @@ int App::selfTest(const std::string& shotDir) {
   printf("sessions so far: %d\n", prog.session);
   // a few more sessions with stage 2 to see every question type
   for (int sess = 0; sess < 6 && typesSeen.size() < 5; sess++) {
+    prog.clock = prog.now() + GAIN_GAP;
     if (screen != Screen::Drill) { if (screen == Screen::Result && pendingUnlocks.empty()) click(B_AGAIN); else startSession(); }
     for (int i = 0; i < 40 && screen == Screen::Drill; i++) answer(true, true);
   }
@@ -315,6 +317,25 @@ int App::selfTest(const std::string& shotDir) {
     shot("q_mixup_checked"); click(B_CONTINUE); (void)key; }
   for (int i = 0; i < 40 && screen == Screen::Drill; i++) { CHECK(q.mixup, "mix-up questions only"); answer(true, false); }
   CHECK(screen == Screen::Result, "mix-up result"); CHECK(click(B_HOME), "home after mix-ups");
+
+  // ---- 11b. Pause > Back to menu keeps the session: Home offers Continue at the next question; hint chips are tappable
+  { go(Screen::Home); startSession(); CHECK(screen == Screen::Drill && index == 0, "session for hold");
+    answer(true, false); answer(true, false);
+    int sc = score, sess = prog.session; size_t nres = results.size();
+    togglePause(); CHECK(click(B_MENU), "back to menu"); CHECK(screen == Screen::Home && sessionHeld(), "session held on Home");
+    const Button* pill = find(B_HOME_GO); CHECK(pill && pill->label.rfind("Continue", 0) == 0, "Home pill says Continue"); shot("home_continue");
+    CHECK(click(B_HOME_GO), "continue"); CHECK(screen == Screen::Drill && index == 2 && score == sc && results.size() == nres && prog.session == sess,
+                                               "resumed at question 3 with the score kept, same session");
+    // answered but not yet continued counts too
+    answer(true, false); frame(); click(B_TILE0 + std::max(0, q.correct)); if (q.options.empty()) answer(true, false); else click(B_CHECK);
+    int idxNow = index; bool wasChecked = checked;
+    togglePause(); click(B_MENU); CHECK(click(B_HOME_GO) && index == idxNow + (wasChecked ? 1 : 0), "an answered question isn't asked again");
+    togglePause(); click(B_MENU); startMode(Mode::Normal); CHECK(!sessionHeld() && index == 0, "a new session drops the held one");
+    // chips: tap "B Back" on a menu screen, "F Pause" in a drill
+    go(Screen::Chart); frame(); CHECK(click(B_CHIP0 + 1) && screen == Screen::Home, "tapping the B chip goes back");
+    go(Screen::Stages); frame(); CHECK(click(B_CHIP0 + 1) && screen == Screen::Home, "B chip on Stages");
+    startSession(); frame(); CHECK(click(B_PAUSE) && paused, "F chip pauses"); CHECK(click(B_RESUME) && !paused, "resume");
+    togglePause(); click(B_MENU); go(Screen::Home); }
 
   // ---- 12. timed challenge: one tap answers, the clock ends it, best is kept
   CHECK(click(B_MODE0 + 2), "timed"); CHECK(screen == Screen::Drill && mode == Mode::Timed && timedLeft == TIMED_MS, "timed session");

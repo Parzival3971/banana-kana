@@ -41,6 +41,7 @@ enum BtnId {
   // keyboard
   B_KEY0 = 300, B_KANA0 = 400, B_DAKU = 460, B_HANDAKU, B_SMALLK, B_CHOON,
   // stats heatmap
+  B_CHIP0 = 2900,  // tappable hint chips: + 0 A, 1 B, 2 X, 3 Y, 4 START, 5 L, 6 R (handled before any screen code)
   B_HEAT0 = 2000, B_PACK0 = 2600, B_PACK_START = 2650, B_PACK_BROWSE, B_WORD0 = 2700, B_WPREV = 2720, B_WNEXT, B_AWARDS = 2730, B_AWARD0 = 2740, B_PET = 2780, B_ACC0 = 2790, B_PET_RENAME = 2800, B_PET_NONE, B_PET_CONT,
 };
 
@@ -125,6 +126,17 @@ struct App {
   int skipCurrent(Script s) const;
   void confirmSetting(int g, int r);
   void startMode(Mode m);
+  // Pause > Back to menu keeps the session (user, 2026-11-17: "returning to the menu resets progress and the same
+  // questions are asked again"): Home's big pill turns into Continue and picks it up at the next question.
+  // Anything that starts another session, a script switch or a progress reset drops it. Not kept across app restarts.
+  struct Held { bool on = false; Mode mode = Mode::Normal; Script script = Script::Hiragana;
+                int session = 0, index = 0, score = 0, sessionLen = 0, focusKana = -1, packIdx = -1; bool goalMet = false;
+                std::vector<int> results, focusSet; std::vector<Missed> missed; std::vector<std::string> newlyKnown;
+                PackSession packSession; std::string lastKey; } held;
+  void holdSession();     // leaving a drill for Home
+  bool sessionHeld() const { return held.on && held.session == prog.session && held.script == prog.settings.script; }
+  bool resumeSession();   // false if nothing is held
+  void chipTap(int i);    // a hint chip tapped: acts like its button
   bool modeAvailable(Mode m) const;
   bool tick(Uint32 nowMs);  // timers; true if the screen should be redrawn
   void nextQuestion(bool first = false);
@@ -138,7 +150,8 @@ struct App {
   // (roms/ports/BananaKana/progress-backup.txt) at most once a minute, after sessions, unlocks and on exit.
   std::string backupPath; unsigned lastBackup = 0;
   void backup(bool force);
-  void save() { prog.save(statePath); backup(false); }
+  void save();  // saves progress (+ the throttled SD backup); failures and warnings go to launch.log
+  int saveLogs = 0;
 
   // input
   void press(int id);

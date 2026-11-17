@@ -127,7 +127,7 @@ A backup copy is also kept in `roms/ports/BananaKana/progress-backup.txt`: copy 
 
 | | |
 |---|---|
-| ✏️ **Stylus / touch** (bottom screen) | Tap answers, keys and buttons. Buttons act when you lift, so slide off to cancel. Trace on the canvas. |
+| ✏️ **Stylus / touch** (bottom screen) | Tap answers, keys and buttons. Buttons act when you lift, so slide off to cancel. Trace on the canvas. The button hints along the bottom can be tapped too: tapping **B Back** goes back, **A Open** opens, and so on (all but the d-pad and Quit). |
 | ✛ **D-pad** or the analogue **stick** (shown as a cross in the hint chips) | Move around the Home grid, stages, chart cells, settings and keyboard keys |
 | **A** | Choose / confirm (press again on a chosen answer to check it) |
 | **B** | Back. In drills: undo a stroke or delete a letter |
@@ -135,15 +135,18 @@ A backup copy is also kept in `roms/ports/BananaKana/progress-backup.txt`: copy 
 | **Y** | Hint while writing, guide in free writing. On Home and stats: switch hiragana / katakana |
 | ▶️ **START** | On Home: start your lesson or practice. Show me (stroke-order animation) when writing; in the chart, write the practice set freely |
 | **L / R** | Switch tabs, scripts or settings groups |
-| ⏸️ **F** (or **SELECT**) | Pause during practice, lessons and free writing: resume, back to menu or quit. Tapping the Pause hint works too |
+| ⏸️ **F** (or **SELECT**) | Pause during practice, lessons and free writing: resume, back to menu or quit. Back to menu keeps your place: the big Home button turns into **Continue** |
 | ↩️ **Back** (right of F) | Same as B |
 | 🚪 **F + START** | Quit from the menus; during practice it opens the pause menu instead |
 
 ## 🧠 How learning works
 
 - 🪜 **Steps.** Every kana has 4 steps. A right answer adds one, a wrong answer takes one away, and you can gain at most
-  2 steps per kana in one session. Reaching step 4 means a kana is *known*, so it takes at least two sessions:
-  that tests memory, not short-term recall.
+  2 steps per kana in one sitting. The next steps count once you come back at least 4 hours later (quitting and
+  starting again straight away doesn't count). Reaching step 4 means a kana is *known*, so it takes at least two
+  sittings hours apart: that tests memory, not short-term recall.
+- ⌨️ **Typing romaji.** Hepburn is shown, but Kunrei and keyboard spellings are accepted too: *si*, *tu*, *hu*,
+  *zi*, *sya*, *nn* for ん and *o* for を.
 - 🗺️ **Stages.** A stage unlocks when every kana in the stage before it is known. Practice mostly draws on your current
   stage, and older stages come back as review (you can turn this down in Settings > Sessions).
 - 🔁 **Spaced review.** A known kana is due again 1 day later, then 3, 7, 14, 30 and 90 days. Each right answer moves it
