@@ -183,7 +183,35 @@ void App::startPack(int pack) {
   packIdx = pack; packSel = pack; startMode(Mode::Pack);
 }
 
+void App::holdSession() {
+  held.on = false;
+  if (screen != Screen::Drill || mode == Mode::Timed) return;  // the timed clock can't wait
+  int idx = index + (checked && !q.intro ? 1 : 0);  // an answered question already counts
+  held.on = true; held.mode = mode; held.script = prog.settings.script; held.session = prog.session; held.index = idx;
+  held.score = score; held.sessionLen = sessionLen; held.focusKana = focusKana; held.packIdx = packIdx; held.goalMet = goalMet;
+  held.results = results; held.focusSet = focusSet; held.missed = missed; held.newlyKnown = newlyKnown;
+  held.packSession = packSession; held.lastKey = lastKey;
+}
+
+bool App::resumeSession() {
+  if (!sessionHeld()) { held.on = false; return false; }
+  held.on = false;
+  mode = held.mode; index = held.index; score = held.score; sessionLen = held.sessionLen; focusKana = held.focusKana;
+  packIdx = held.packIdx; goalMet = held.goalMet; results = held.results; focusSet = held.focusSet; missed = held.missed;
+  newlyKnown = held.newlyKnown; packSession = held.packSession; lastKey = held.lastKey;
+  go(Screen::Drill);
+  if (index >= sessionLen) finishSession(); else nextQuestion(true);
+  return true;
+}
+
+void App::chipTap(int i) {
+  static const SDL_GameControllerButton B[7] = {SDL_CONTROLLER_BUTTON_A, SDL_CONTROLLER_BUTTON_B, SDL_CONTROLLER_BUTTON_X,
+    SDL_CONTROLLER_BUTTON_Y, SDL_CONTROLLER_BUTTON_START, SDL_CONTROLLER_BUTTON_LEFTSHOULDER, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER};
+  if (i >= 0 && i < 7) padButton(B[i]);
+}
+
 void App::startMode(Mode m) {
+  held.on = false;  // a new session replaces one left on hold
   if (!modeAvailable(m)) m = Mode::Normal;
   mode = m; prog.session++;
   if (m != Mode::Focus) focusKana = -1;
@@ -430,16 +458,18 @@ void App::press(int id) {
   Script sc = prog.settings.script;
   snd::play(snd::Sfx::Tap);  // a later sound (right, wrong...) replaces it
   if (id == B_PAUSE) { togglePause(); return; }
+  if (id >= B_CHIP0 && id < B_CHIP0 + 7) { chipTap(id - B_CHIP0); return; }
   if (paused) {
     if (id == B_RESUME) paused = false;
-    else if (id == B_MENU) { paused = false; go(Screen::Home); }
+    else if (id == B_MENU) { paused = false; holdSession(); go(Screen::Home); }
     else if (id == B_QUIT) running = false;
     return;
   }
   switch (screen) {
     case Screen::Home:
       if (int idx = homeItemIndex(id); idx >= 0) homeSel = idx;  // the focus follows taps
-      if (id == B_CART0 || id == B_HOME_GO) { if (prog.lessonPending(sc)) openLesson(sc, prog.lessons[si(sc)], false); else startSession(); }
+      if (id == B_HOME_GO && resumeSession()) {}
+      else if (id == B_CART0 || id == B_HOME_GO) { if (prog.lessonPending(sc)) openLesson(sc, prog.lessons[si(sc)], false); else startSession(); }
       else if (id == B_CART0 + 1) go(Screen::Stages);
       else if (id == B_CART0 + 2) go(Screen::Chart);
       else if (id == B_CART0 + 3) go(Screen::Settings);
@@ -939,6 +969,14 @@ void App::drawButtons() {
   }
 }
 
+void App::save() {
+  bool ok = prog.save(statePath);
+  if ((!ok || !prog.saveError.empty()) && saveLogs < 10) {
+    saveLogs++; fprintf(stderr, "  save %s: %s\n", ok ? "warning" : "FAILED", prog.saveError.c_str()); fflush(stderr);
+  }
+  backup(false);
+}
+
 void App::backup(bool force) {
   if (backupPath.empty()) return;
   unsigned now = SDL_GetTicks();
@@ -1019,10 +1057,20 @@ void App::chips(const std::vector<std::pair<std::string, std::string>>& items) {
       fillRound(bot, SDL_Rect{cx - 9, cy - 3, 18, 6}, 2, BG); fillRound(bot, SDL_Rect{cx - 3, cy - 9, 6, 18}, 2, BG);
     } else drawText(bot, k, SDL_Rect{x + 3, 441, kw, 28}, BG, F_MICRO);
     drawText(bot, label, SDL_Rect{x + 4 + kw + (tight ? 6 : 8), 438, lw + 4, 34}, FG, F_MICRO, A_LEFT);
-    if (label == "Awards" && screen == Screen::Stats) { addBtn(SDL_Rect{x - 4, 432, w + 8, 46}, B_AWARDS, ""); lastBtn().hidden = true; }
-    if (label == "Your fox" && screen == Screen::Stats) { addBtn(SDL_Rect{x - 4, 432, w + 8, 46}, B_PET, ""); lastBtn().hidden = true; }
-    if (label == "Pause" && screen == Screen::Drill && !paused) {  // tap the hint to pause, too (in case F never reaches us)
-      addBtn(SDL_Rect{x - 4, 432, w + 8, 46}, B_PAUSE, ""); lastBtn().hidden = true;
+    // every hint can be tapped with the stylus and does what its button does (user asked 2026-11-17); the d-pad "+"
+    // and F+START Quit (too easy to hit by accident) stay hints only. L/R: left half = L, right half = R.
+    SDL_Rect hit{x - 4, 432, w + 8, 46};
+    if (label == "Awards" && screen == Screen::Stats) { addBtn(hit, B_AWARDS, ""); lastBtn().hidden = true; }
+    else if (label == "Your fox" && screen == Screen::Stats) { addBtn(hit, B_PET, ""); lastBtn().hidden = true; }
+    else if (k == "F") { if (!paused) { addBtn(hit, B_PAUSE, ""); lastBtn().hidden = true; } }
+    else if (k == "L/R") {
+      addBtn(SDL_Rect{hit.x, hit.y, hit.w / 2, hit.h}, B_CHIP0 + 5, ""); lastBtn().hidden = true;
+      addBtn(SDL_Rect{hit.x + hit.w / 2, hit.y, hit.w - hit.w / 2, hit.h}, B_CHIP0 + 6, ""); lastBtn().hidden = true;
+    } else {
+      static const char* KEYS[5] = {"A", "B", "X", "Y", "START"};
+      int ci = -1; for (int i = 0; i < 5; i++) if (k == KEYS[i]) ci = i;
+      if (k == "L") ci = 5; else if (k == "R") ci = 6;
+      if (ci >= 0) { addBtn(hit, B_CHIP0 + ci, ""); lastBtn().hidden = true; }
     }
     x += w + gap;
   }
@@ -1362,7 +1410,9 @@ void App::drawHome() {
   auto focus = homeFocus(); homeSel = std::clamp(homeSel, 0, int(focus.size()) - 1);
   bool lesson = prog.lessonPending(sc);
   setAccent(MC_ORANGE);
-  addBtn(SDL_Rect{16, 16, 452, 84}, B_HOME_GO, lesson ? "Lesson: " + stages[std::min(prog.lessons[scI], STAGE_COUNT - 1)].name : "Practise " + (curSt == STAGE_COUNT - 1 ? std::string("Extras") : "stage " + std::to_string(curSt + 1)), F_SMALL);
+  if (sessionHeld())
+    addBtn(SDL_Rect{16, 16, 452, 84}, B_HOME_GO, "Continue · " + std::to_string(held.index + 1 > held.sessionLen ? held.sessionLen : held.index + 1) + " of " + std::to_string(held.sessionLen), F_SMALL);
+  else addBtn(SDL_Rect{16, 16, 452, 84}, B_HOME_GO, lesson ? "Lesson: " + stages[std::min(prog.lessons[scI], STAGE_COUNT - 1)].name : "Practise " + (curSt == STAGE_COUNT - 1 ? std::string("Extras") : "stage " + std::to_string(curSt + 1)), F_SMALL);
   accent(lastBtn()); lastBtn().radius = 30;
   if (homeSel == 0) { lastBtn().line = ACC_LINE; lastBtn().lineW = 4; }
   bool kOpen = prog.scriptUnlocked(Script::Katakana);
@@ -1387,7 +1437,7 @@ void App::drawHome() {
     addBtn(r, it.id, it.name, F_TINY, it.enabled); lastBtn().hidden = true; lastBtn().sub = it.sub;
   }
   setAccent(MC_ORANGE);
-  chips({{"A", "Open"}, {"+", "Move"}, {"START", lesson ? "Lesson" : "Practise"}, {"Y", "Script"}, {"F+START", "Quit"}});
+  chips({{"A", "Open"}, {"+", "Move"}, {"START", sessionHeld() ? "Continue" : lesson ? "Lesson" : "Practise"}, {"Y", "Script"}, {"F+START", "Quit"}});
 }
 
 void App::drawStages() {
@@ -2590,7 +2640,7 @@ void App::changeSetting(int g, int r, int dir) {
     case 4:
       if (r == 4) {
         if (!resetArmed) { resetArmed = true; return; }
-        Settings keep = prog.settings; prog = Progress{}; prog.settings = keep; prog.settings.script = Script::Hiragana;
+        Settings keep = prog.settings; prog = Progress{}; prog.settings = keep; prog.settings.script = Script::Hiragana; held.on = false;
         pendingUnlocks.clear(); resetArmed = false;
       } else if (r == 5) {
         if (!resetSetArmed) { resetSetArmed = true; return; }

@@ -8,6 +8,7 @@
 #include <set>
 #include <sstream>
 #include <ctime>
+#include <cerrno>
 #include <cstring>
 #include <fcntl.h>
 #include <unistd.h>
@@ -523,11 +524,20 @@ bool Progress::save(const std::string& path) const {
     f << "pet " << pet.seenStage << ' ' << pet.acc << ' ' << pet.days << ' ' << pet.lastDay << ' ' << pet.name << '\n';
     // write + fsync before the rename: a flat battery mid-save must not leave an empty progress file behind
     const std::string data = f.str();
-    int fd = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644); if (fd < 0) return false;
+    auto fail = [&](const char* what) { saveError = std::string(what) + " " + tmp + ": " + std::strerror(errno); return false; };
+    int fd = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644); if (fd < 0) return fail("open");
     size_t off = 0;
-    while (off < data.size()) { ssize_t n = ::write(fd, data.data() + off, data.size() - off); if (n <= 0) { ::close(fd); return false; } off += size_t(n); }
-    bool ok = ::fsync(fd) == 0; ok = ::close(fd) == 0 && ok; if (!ok) return false; }
-  if (std::rename(tmp.c_str(), path.c_str()) != 0) return false;
+    while (off < data.size()) {
+      ssize_t n = ::write(fd, data.data() + off, data.size() - off);
+      if (n < 0 && errno == EINTR) continue;
+      if (n <= 0) { int e = errno; ::close(fd); errno = e; return fail("write"); }
+      off += size_t(n);
+    }
+    // fsync is best effort: some storage refuses it (EINVAL/EROFS...). The data is written either way, as before 0.8.
+    if (::fsync(fd) != 0 && errno != EINTR) saveError = std::string("fsync (ignored) ") + tmp + ": " + std::strerror(errno);
+    else saveError.clear();
+    if (::close(fd) != 0) return fail("close"); }
+  if (std::rename(tmp.c_str(), path.c_str()) != 0) { saveError = "rename " + tmp + " -> " + path + ": " + std::strerror(errno); return false; }
   std::string dir = path.substr(0, path.find_last_of('/') == std::string::npos ? 0 : path.find_last_of('/'));
   int dfd = ::open(dir.empty() ? "." : dir.c_str(), O_RDONLY); if (dfd >= 0) { ::fsync(dfd); ::close(dfd); }  // the rename itself
   return true;

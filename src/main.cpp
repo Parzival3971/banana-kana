@@ -218,6 +218,9 @@ int main(int argc, char** argv) {
     } }
   { FILE* pf = fopen(app.statePath.c_str(), "r"); app.firstRun = !pf; if (pf) fclose(pf); }
   if (app.prog.load(app.statePath, &app.data) && app.prog.migrated) { fprintf(stderr, "  progress upgraded to v2\n"); app.prog.save(app.statePath); }
+  { int answers = 0; for (auto& [k, st] : app.prog.stats) answers += st.seen;
+    fprintf(stderr, "  progress: %s, %zu kana/words, %d answers, session %d, backup %s\n", app.statePath.c_str(), app.prog.stats.size(),
+            answers, app.prog.session, app.backupPath.empty() ? "off" : app.backupPath.c_str()); }
   applyTheme(app.prog.settings.light);
   app.prog.checkAchievements(app.data);  // anything already earned (progress from before achievements): no fanfare
   if (app.firstRun) app.go(kt::Screen::Welcome);
@@ -402,7 +405,7 @@ int main(int argc, char** argv) {
               SDL_GetWindowFlags(app.top.w), SDL_GetWindowFlags(app.bot.w), SDL_GetError());
     }
   }
-  app.prog.save(app.statePath); app.backup(true);
+  app.save(); app.backup(true);
   fprintf(stderr, "  exit (%s)\n", gStop ? "signal" : "quit");
   snd::quit(); TTF_Quit(); SDL_Quit(); return 0;
 }

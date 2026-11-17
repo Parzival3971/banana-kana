@@ -162,6 +162,7 @@ struct Progress {
   std::vector<int> weakest(const Data& d, Script s, int n) const;  // unlocked kana with the worst record
   bool load(const std::string& path, const Data* d = nullptr);
   bool save(const std::string& path) const;
+  mutable std::string saveError;         // why the last save failed (or a warning, e.g. fsync refused); empty = fine
 };
 
 // ---------------------------------------------------------------- questions

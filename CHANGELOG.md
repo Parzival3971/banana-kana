@@ -5,6 +5,14 @@ the release notes come from the matching section below.
 
 ## Unreleased
 
+- Pause › Back to menu keeps your session: Home's big button becomes **Continue · 3 of 10** and picks up at the next
+  question with your score so far. Before, leaving threw the session away and starting again asked the same new kana
+  from question 1. Starting any other session (or switching script) drops the held one.
+- Every button hint along the bottom of the screen can be tapped with the stylus and does what its button does
+  (tap **B Back** to go back, **A Open** to open, the left or right half of **L/R** for each shoulder). The d-pad and
+  F+START Quit hints stay hints, so a stray tap can't quit.
+- Saving now tells `launch.log` if anything goes wrong, and the log shows how much progress was loaded at start-up.
+
 - Steps now need time to stick: you still gain at most 2 steps per kana (or word) in a sitting, but the next ones only
   count when you come back at least 4 hours later. Before, quitting and starting a new session straight away reset
   the limit, so a kana could become "known" in a minute. The feedback tells you when the next step is available.

@@ -107,6 +107,13 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   long-vowel folding for words only; mix-up sets containing っ/ッ are always recall. Progress::save writes + fsyncs
   before the rename; main.cpp progressFileOk(): a progress file with no set/stat line is moved to .broken and the
   backup restored. --shots creates its folder.
+- Held sessions (user 2026-11-17: pause > Back to menu "resets progress and the same questions are asked again"):
+  App::holdSession on B_MENU (not Timed) copies the session state into App::Held; sessionHeld() = same prog.session +
+  script; Home pill "Continue · N of M" and START resume via resumeSession (nextQuestion(true); an answered question
+  counts). startMode/reset drop it. Not saved across restarts. Hint chips are tappable: chips() adds hidden buttons
+  B_CHIP0 + 0..6 (A B X Y START L R; L/R chip split in halves; F = B_PAUSE; "+" and F+START not tappable), handled at
+  the top of press() via chipTap -> padButton. Progress::saveError + App::save log failures to launch.log; main logs
+  "progress: path, N kana/words, M answers" at start-up.
 
 ## Known gaps / to verify on device
 - Device test 2026-11-15 passed (old UI): touch + tracing land correctly, A/B correct, F + START quits, bottom survives sleep.

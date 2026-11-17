@@ -127,7 +127,7 @@ A backup copy is also kept in `roms/ports/BananaKana/progress-backup.txt`: copy 
 
 | | |
 |---|---|
-| ✏️ **Stylus / touch** (bottom screen) | Tap answers, keys and buttons. Buttons act when you lift, so slide off to cancel. Trace on the canvas. |
+| ✏️ **Stylus / touch** (bottom screen) | Tap answers, keys and buttons. Buttons act when you lift, so slide off to cancel. Trace on the canvas. The button hints along the bottom can be tapped too: tapping **B Back** goes back, **A Open** opens, and so on (all but the d-pad and Quit). |
 | ✛ **D-pad** or the analogue **stick** (shown as a cross in the hint chips) | Move around the Home grid, stages, chart cells, settings and keyboard keys |
 | **A** | Choose / confirm (press again on a chosen answer to check it) |
 | **B** | Back. In drills: undo a stroke or delete a letter |
@@ -135,7 +135,7 @@ A backup copy is also kept in `roms/ports/BananaKana/progress-backup.txt`: copy 
 | **Y** | Hint while writing, guide in free writing. On Home and stats: switch hiragana / katakana |
 | ▶️ **START** | On Home: start your lesson or practice. Show me (stroke-order animation) when writing; in the chart, write the practice set freely |
 | **L / R** | Switch tabs, scripts or settings groups |
-| ⏸️ **F** (or **SELECT**) | Pause during practice, lessons and free writing: resume, back to menu or quit. Tapping the Pause hint works too |
+| ⏸️ **F** (or **SELECT**) | Pause during practice, lessons and free writing: resume, back to menu or quit. Back to menu keeps your place: the big Home button turns into **Continue** |
 | ↩️ **Back** (right of F) | Same as B |
 | 🚪 **F + START** | Quit from the menus; during practice it opens the pause menu instead |
 
