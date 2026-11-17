@@ -178,6 +178,7 @@ bool loadFonts(const std::string& dir, float scale, std::string* err) {
 }
 
 void setKanaHand(bool on) { gKanaHand = on; }
+bool kanaHandOn() { return gKanaHand; }
 void setBold(bool on) { gBold = on; }
 
 void clearTextCache(Win& w) { for (auto& [_, t] : w.cache) SDL_DestroyTexture(t); w.cache.clear(); }

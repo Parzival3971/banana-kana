@@ -70,7 +70,8 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   ッ ー + 13 foreign-sound kana from EXTRA_K). Kana.special (っ ッ ー): ReadKana becomes a word question with near-miss
   romaji (mark ignored / misplaced), never typed, never a distractor sound. 105 hiragana / 119 katakana: use
   Data::scriptCount, never 104. writeParts traces every small kana full size. Settings: strict (scoreStrokeAt 0/1/2),
-  kanaHand (kana_hand.ttf = Klee One, setKanaHand in gfx), guideLines, ink. recognizeKana(): order-free stroke matching
+  kanaHand (kana_hand.ttf = Klee One, setKanaHand in gfx; render() forces it on for Lesson, FreeWrite and Write drills
+  so kana match the KanjiVG stroke examples - user picked this 2026-11-17 after print そ looked off), guideLines, ink. recognizeKana(): order-free stroke matching
   after fitting to the glyph box (draw-any mode); fitStrokes() for its order check.
 - `src/gfx.{h,cpp}`: themes/palettes, fonts + mixed-script text (per run; spaces always UI font), wrapping, rounded shapes
   (rows overlap 1px: avoids seams at non-integer scale), pixel icons, glyph stroke drawing, windows, screenshots.

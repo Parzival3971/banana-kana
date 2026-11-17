@@ -52,7 +52,8 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 - 🖌️ **Free writing.** Write any kana with a full guide, an outline or none, without touching your progress.
 - 🔮 **Draw any kana.** Write whatever you like from memory and Banana Kana works out which kana it is, then checks
   your stroke order against it. Good for practising on your own.
-- 🎨 **Your kind of writing.** Kana in rounded print or a textbook handwriting font, canvas guide lines (cross, grid or
+- 🎨 **Your kind of writing.** Kana in rounded print or a textbook handwriting font (lessons and writing always use
+  handwriting, so they match the stroke order), canvas guide lines (cross, grid or
   none), ink thickness, and how strictly strokes are checked (relaxed, normal or strict).
 
 ### 📈 Keep going

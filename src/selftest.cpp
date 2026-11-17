@@ -84,6 +84,7 @@ int App::selfTest(const std::string& shotDir) {
   go(Screen::Home);
   CHECK(prog.lessonPending(Script::Hiragana), "lesson pending at start");
   CHECK(click(B_HOME_GO), "lesson button"); CHECK(screen == Screen::Lesson && lessonStage == 0, "lesson opens");
+  render(); CHECK(kanaHandOn() && !prog.settings.kanaHand, "lessons use the handwriting font");
   shot("lesson");
   trace(*activeGlyph(), 0.5f, 0.5f); CHECK(strokes.size() == activeGlyph()->strokes.size(), "lesson trace strokes");
   shot("lesson_traced");
@@ -144,7 +145,7 @@ int App::selfTest(const std::string& shotDir) {
   padButton(SDL_CONTROLLER_BUTTON_A);
   CHECK(screen == Screen::Home && prog.pet.seenStage == prog.petStage(), "hatch continue -> home");
   go(Screen::Home); CHECK(screen == Screen::Home, "no second celebration");
-  shot("home");
+  render(); CHECK(!kanaHandOn(), "menus use the print font"); shot("home");
 
   // ---- 4. stage map: passed stage replays its lesson, locked stage cannot start
   CHECK(click(B_CART0 + 1), "stages cart"); CHECK(screen == Screen::Stages, "stage map");

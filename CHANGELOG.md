@@ -10,6 +10,9 @@ the release notes come from the matching section below.
   row it started on.
 - First launch now also asks about vibration (Off, Light or Strong), and buzzes as you choose so you can feel it.
   Settings › Progress › Run setup again includes the new step.
+- Lessons, writing drills and free writing now always show kana in the handwriting font, so they match the stroke-order
+  examples (print そ, for one, looks quite different from a handwritten one). Drills and menus still follow
+  Settings › Display › Kana font.
 
 ## 0.7.2 - 2026-11-16
 

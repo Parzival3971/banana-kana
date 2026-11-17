@@ -1131,6 +1131,10 @@ void App::render() {
     setAccent(mc);
   }
   setSeason(seasonNow());
+  // where you write (lessons, writing drills, free writing) kana always use the handwriting font, so they match the
+  // stroke examples; everywhere else the Kana font setting decides (print is what you'll read on signs and in books)
+  setKanaHand(prog.settings.kanaHand || (!paused && (screen == Screen::Lesson || screen == Screen::FreeWrite ||
+                                                     (screen == Screen::Drill && q.type == QType::Write))));
   drawBackdrop(top, true); drawBackdrop(bot, false); buttons.clear();
   if (season() >= 0 && menuScreen()) {  // petals / fireflies / leaves / snow drift behind the cards and buttons on menus (still when motion is off)
     float t = motion ? SDL_GetTicks() / 1000.f : 0.f;
@@ -2498,7 +2502,7 @@ std::vector<App::SRow> App::settingRows(int g) const {
     case 3: {
       choice("Theme", st.light ? 1 : 0, 2, st.light ? "Light" : "Dark", "Light for the daytime, dark for the evening: the same design either way.", {"Dark", "Light"});
       choice("Kana font", st.kanaHand ? 1 : 0, 2, st.kanaHand ? "Handwriting" : "Rounded",
-             "Rounded print (Zen Maru Gothic) or a textbook handwriting style (Klee One), closer to how kana are written by hand.", {"Rounded", "Handwriting"});
+             "How kana look in drills and menus: rounded print (Zen Maru Gothic) or textbook handwriting (Klee One). Lessons and writing always use handwriting, to match the stroke order.", {"Rounded", "Handwriting"});
       const char* GL[3] = {"Cross", "Grid", "None"}; const char* IN[3] = {"Thin", "Normal", "Thick"};
       choice("Canvas lines", st.guideLines, 3, GL[st.guideLines], "Guide lines on the writing pad: a centre cross, a finer grid, or none.", {GL[0], GL[1], GL[2]});
       choice("Ink", st.ink, 3, IN[st.ink], "How thick your strokes are drawn.", {IN[0], IN[1], IN[2]});
