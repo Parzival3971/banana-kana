@@ -239,16 +239,18 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   frame), drawBackdrop draws the season's cached pattern (sakura blossoms, seigaiha arcs, maple leaves from gfx mapleLeaf() (user
   asked 2026-11-16; were stars), snow dots),
   drawSeasonParticles(t) draws 12 top / 8 bottom drifting particles as a pure function of time (fireflies rise).
-  Particles only on menuScreen() (not Drill/Lesson/FreeWrite/pause); tick redraws every 90 ms there when motion is on.
+  Particles are drawn right after the backdrop, BEHIND cards and buttons (user asked 2026-11-17). Particles only on menuScreen() (not Drill/Lesson/FreeWrite/pause); tick redraws every 90 ms there when motion is on.
   Summer stuttered on device (2026-11-16): seigaiha was ~51k triangles/frame; now R 34/40, 2 rings, 8 segments (~10k,
   like spring). Self-test budget: <= 8000 pattern triangles per screen per season (backdropTriangles()).
   Display row 6 "Background" (segments Plain/Auto/春/夏/秋/冬; 春夏秋冬 added to fallback.ttf) + settingPreview row 6.
-- Welcome has 3 steps (user asked 2026-11-16): welcomeStep 0 = Light/Dark tiles (B_WTHEME0/+1, applied + saved at once,
+- Welcome has 4 steps (vibration added 2026-11-17: step 2 = Off/Light/Strong tiles B_WRUM0..+2, buzz on pick; "what you know"
+  is now step 3). Original 3-step notes: welcomeStep 0 = Light/Dark tiles (B_WTHEME0/+1, applied + saved at once,
   d-pad L/R) and Next (B_WEL_NEXT / A); step 1 = background Seasons (backdrop 1 = Auto) / Plain (0) tiles (B_WBG0/+1,
   live + saved, added for 0.7.0); step 2 = the 4 "what do you know" choices. B goes back a step. Settings > Progress row 6
   "Run setup again" (welcomeAgain: title "Set up Banana Kana", Back on step 0 returns to Settings; progress kept).
 - Settings groups with more than 5 rows scroll (user: rows looked squished on device, 2026-11-16): rows keep PITCH 66,
-  5 visible, window follows setRow; ▲ / ▼ footer buttons (B_SUP/B_SDOWN) + "n/N" between Back and Change.
+  5 visible, window = setFirst (follows setRow with the d-pad; stylus drag in pointer() moves it, listTouch/listDrag,
+  > 14 px = drag, cancels the pressed button; user asked 2026-11-17); ▲ / ▼ footer buttons (B_SUP/B_SDOWN) + "n/N" between Back and Change.
 - Old v1 look (kept for history): BananaOS palette (banana yellow #FFD23F on warm neutrals), button-hint chips, cartridge tiles.
   Fonts: kana in Zen Maru Gothic Bold (or Klee One SemiBold, setting), English/UI/keyboard in Zen Maru Gothic Medium (all OFL). Pixelify Sans (Banana
   Player's pixel font) was tried and DROPPED 2026-11-15: user found it hard to read. Don't reintroduce pixel fonts.

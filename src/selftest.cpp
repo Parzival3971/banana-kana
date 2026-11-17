@@ -221,6 +221,16 @@ int App::selfTest(const std::string& shotDir) {
   padButton(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER); CHECK(setGroup == 2, "script group");
   CHECK(click(B_SINC0 + 0), "script >"); CHECK(prog.settings.script == Script::Hiragana, "katakana stays locked");
   shot("settings_script");
+  { // stylus drag scrolls a long group (Progress has 8 rows); a drag never presses the row it started on
+    padButton(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER); padButton(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);
+    CHECK(setGroup == 4 && setRow == 0 && setFirst == 0, "progress group, top");
+    bool armed = resetArmed;
+    pointer(0, 320, 360); pointer(1, 320, 300); pointer(1, 320, 200); pointer(2, 320, 200); render();
+    CHECK(setFirst == 2 && setRow == 2 && screen == Screen::SettingsGroup && resetArmed == armed, "drag up scrolls two rows");
+    pointer(0, 320, 100); pointer(1, 320, 400); pointer(2, 320, 400); render();
+    CHECK(setFirst == 0, "drag down scrolls back to the top");
+    pointer(0, 320, 100); pointer(1, 320, 104); pointer(2, 320, 104); CHECK(setRow == 0, "a tiny wobble is still a tap");
+    padButton(SDL_CONTROLLER_BUTTON_LEFTSHOULDER); padButton(SDL_CONTROLLER_BUTTON_LEFTSHOULDER); }
   padButton(SDL_CONTROLLER_BUTTON_B); CHECK(screen == Screen::Settings, "B: back to groups");
   CHECK(click(B_GROUP0 + 5), "select About"); CHECK(setGroup == 5 && screen == Screen::Settings, "tile selected, not opened");
   CHECK(click(B_GROUP0 + 5), "open About"); CHECK(screen == Screen::SettingsGroup, "about open");
@@ -497,9 +507,16 @@ int App::selfTest(const std::string& shotDir) {
       padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); CHECK(prog.settings.backdrop == 0, "d-pad right: plain");
       { Progress re; re.load(statePath, &data); CHECK(re.settings.backdrop == 0, "background saved straight away"); }
       prog.settings.backdrop = keep; }
-    padButton(SDL_CONTROLLER_BUTTON_A); CHECK(welcomeStep == 2, "A: on to what you know");
+    padButton(SDL_CONTROLLER_BUTTON_A); CHECK(welcomeStep == 2, "A: on to vibration");
+    { int keep = prog.settings.rumble;
+      CHECK(click(B_WRUM0 + 2) && prog.settings.rumble == 2, "pick strong rumble");
+      padButton(SDL_CONTROLLER_BUTTON_DPAD_LEFT); CHECK(prog.settings.rumble == 1, "d-pad left: light"); shot("welcome_vibration");
+      { Progress re; re.load(statePath, &data); CHECK(re.settings.rumble == 1, "vibration saved straight away"); }
+      CHECK(click(B_WRUM0) && prog.settings.rumble == 0, "off"); prog.settings.rumble = keep; }
     padButton(SDL_CONTROLLER_BUTTON_B); CHECK(welcomeStep == 1, "B: back to the background");
-    CHECK(click(B_WEL_NEXT) && welcomeStep == 2, "Next"); shot("welcome");
+    padButton(SDL_CONTROLLER_BUTTON_A); padButton(SDL_CONTROLLER_BUTTON_A); CHECK(welcomeStep == 3, "A, A: on to what you know");
+    padButton(SDL_CONTROLLER_BUTTON_B); CHECK(welcomeStep == 2, "B: back to vibration");
+    CHECK(click(B_WEL_NEXT) && welcomeStep == 3, "Next"); shot("welcome");
     padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); CHECK(welcomeSel == 1, "welcome move");
     CHECK(click(B_WELCOME0 + 1), "I know hiragana");
     CHECK(screen == Screen::Home && prog.knownCount(data, Script::Hiragana) == data.scriptCount(Script::Hiragana) && prog.settings.script == Script::Katakana &&
@@ -512,10 +529,10 @@ int App::selfTest(const std::string& shotDir) {
       CHECK(screen == Screen::Welcome && welcomeStep == 0 && welcomeAgain, "run setup again opens the welcome");
       shot("welcome_again");
       CHECK(click(B_BACK) && screen == Screen::SettingsGroup && !welcomeAgain, "back to settings");
-      padButton(SDL_CONTROLLER_BUTTON_A); click(B_WEL_NEXT); click(B_WEL_NEXT);
+      padButton(SDL_CONTROLLER_BUTTON_A); click(B_WEL_NEXT); click(B_WEL_NEXT); click(B_WEL_NEXT);
       CHECK(click(B_WELCOME0) && screen == Screen::Home, "new to kana -> home");
       CHECK(prog.knownCount(data, Script::Hiragana) == known && prog.bestStreak == streak, "setup again keeps progress"); }
-    go(Screen::Welcome); click(B_WEL_NEXT); click(B_WEL_NEXT); CHECK(click(B_WELCOME0 + 3), "I know some"); CHECK(screen == Screen::SettingsGroup && setGroup == 2 && setRow == 1, "to script settings");
+    go(Screen::Welcome); click(B_WEL_NEXT); click(B_WEL_NEXT); click(B_WEL_NEXT); CHECK(click(B_WELCOME0 + 3), "I know some"); CHECK(screen == Screen::SettingsGroup && setGroup == 2 && setRow == 1, "to script settings");
     for (int i = 0; i < 3; i++) click(B_SINC0 + 1);
     CHECK(skipPending[0] == 4 && prog.unlocked[0] == 1, "pending only"); shot("settings_skip");
     CHECK(click(B_FOOT_R), "confirm skip"); CHECK(prog.unlocked[0] == 4 && prog.lessons[0] == 3 && prog.stageKnown(data, Script::Hiragana, 2) == 5, "skipped to stage 4");
@@ -532,7 +549,7 @@ int App::selfTest(const std::string& shotDir) {
   CHECK(prog.settings.sessionLen == 10, "settings kept after reset");
   // ---- 18. reset settings: also two presses, keeps progress and the script you're on
   { prog.settings.sessionLen = 20; prog.settings.light = false; applyTheme(false); prog.settings.sound = 0; prog.settings.script = Script::Hiragana;
-    Stat& st = prog.stats["h:あ"]; st.step = 3; go(Screen::SettingsGroup);
+    Stat& st = prog.stats["h:あ"]; st.step = 3; go(Screen::SettingsGroup); setFirst = 2;  // rows 2-6 in view
     CHECK(click(B_SROW0 + 5), "select reset settings"); CHECK(click(B_SROW0 + 5), "reset settings once");
     CHECK(resetSetArmed && prog.settings.sessionLen == 20, "first press only arms"); shot("settings_reset_settings");
     CHECK(click(B_FOOT_R), "confirm settings reset");

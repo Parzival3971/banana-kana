@@ -25,7 +25,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
   before it's tested.
 - 🪜 **One step at a time.** A brand-new kana is only asked as multiple choice. Typing comes once you've got it right,
   then writing: first over the full guide, then over a faint outline, then from memory, one level per session.
-- ⏩ **Already know some?** On first launch, pick light or dark and a background, then say how much you know (or skip ahead later in Settings > Script). Settings › Progress › Run setup again goes through it any time.
+- ⏩ **Already know some?** On first launch, pick light or dark, a background and how much vibration you like, then say how much you know (or skip ahead later in Settings > Script). Settings › Progress › Run setup again goes through it any time.
   Skipped kana count as known, with a quick review in a day or two to check.
 
 ### 🎮 Practise

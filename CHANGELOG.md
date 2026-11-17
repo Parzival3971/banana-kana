@@ -3,6 +3,14 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
+## 0.7.3 - unreleased
+
+- The season's petals, fireflies, leaves and snow now drift behind the cards and buttons instead of over them.
+- Long settings groups (Display, Progress) scroll with the stylus: drag the list up or down. A drag never changes the
+  row it started on.
+- First launch now also asks about vibration (Off, Light or Strong), and buzzes as you choose so you can feel it.
+  Settings › Progress › Run setup again includes the new step.
+
 ## 0.7.2 - 2026-11-16
 
 - The streak flame is gone for good: Kitsu now sits in the Streak box on Stats too, as she does on Home. This week's

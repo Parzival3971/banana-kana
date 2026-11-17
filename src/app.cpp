@@ -83,6 +83,7 @@ void App::go(Screen s) {
     typed = isKataText(prog.pet.name) || utf8Codepoints(prog.pet.name).empty() || utf8Codepoints(prog.pet.name)[0] >= 0x3040 ? prog.pet.name : "";
   }
   if (s == Screen::Welcome && screen != Screen::Welcome) welcomeStep = 0;
+  if (s == Screen::SettingsGroup && screen != Screen::SettingsGroup) setFirst = std::max(0, setRow - 2);
   screen = s; pressedId = -1; drawing = false; cur.clear(); paused = false; animStart = 0;
   if (s == Screen::Unlocked) { snd::play(snd::Sfx::Unlock); celebrate(3200, true); }
   if (s == Screen::Result || s == Screen::Unlocked) backup(true);
@@ -594,7 +595,12 @@ void App::press(int id) {
         else if (id == B_BACK && welcomeAgain) { welcomeAgain = false; go(Screen::SettingsGroup); }
       } else if (welcomeStep == 1) {  // background: also live, the real backdrop changes behind the tiles
         if (id == B_WBG0 || id == B_WBG0 + 1) { prog.settings.backdrop = id == B_WBG0 ? 1 : 0; save(); }
-        else if (id == B_WEL_NEXT) { welcomeStep = 2; welcomeSel = 0; }
+        else if (id == B_WEL_NEXT) welcomeStep = 2;
+      } else if (welcomeStep == 2) {  // vibration: each choice buzzes at its strength so you can feel it
+        if (id >= B_WRUM0 && id < B_WRUM0 + 3) {
+          prog.settings.rumble = id - B_WRUM0; snd::setRumble(prog.settings.rumble); save();
+          if (prog.settings.rumble) snd::rumble(snd::Sfx::Known);
+        } else if (id == B_WEL_NEXT) { welcomeStep = 3; welcomeSel = 0; }
       } else if (id >= B_WELCOME0 && id < B_WELCOME0 + 4) welcomeChoice(id - B_WELCOME0);
       break;
     case Screen::Stats:
@@ -648,6 +654,19 @@ void App::pointer(int type, int x, int y) {
     if (type == 0 && in) { drawing = true; cur.clear(); cur.push_back(boxToGlyph(x, y, c)); return; }
     if (type == 1 && drawing) { cur.push_back(boxToGlyph(x, y, c)); return; }
     if (type == 2 && drawing) { drawing = false; if (cur.size() >= 2) strokes.push_back(cur); cur.clear(); return; }
+  }
+  if (screen == Screen::SettingsGroup && !paused) {  // drag the settings list with the stylus (groups with 6+ rows)
+    const int VIS = 5, PITCH = 66, n = int(settingRows(setGroup).size());
+    if (type == 0 && y >= 62 && y < 404) { listTouch = true; listDrag = false; listDragY = y; listDragFirst = setFirst; }
+    else if (type == 1 && listTouch && n > VIS) {
+      int dy = y - listDragY;
+      if (!listDrag && std::abs(dy) > 14) { listDrag = true; pressedId = -1; }  // a drag, not a tap: cancel the button
+      if (listDrag) {
+        int nf = std::clamp(listDragFirst - int(std::lround(dy / float(PITCH))), 0, n - VIS);
+        if (nf != setFirst) { setFirst = nf; setRow = std::clamp(setRow, setFirst, setFirst + VIS - 1); resetArmed = resetSetArmed = false; }
+        return;
+      }
+    } else if (type == 2 && listTouch) { listTouch = false; if (listDrag) { listDrag = false; pressedId = -1; return; } }
   }
   auto hit = [&](const Button& b) { return b.enabled && x >= b.r.x && x < b.r.x + b.r.w && y >= b.r.y && y < b.r.y + b.r.h; };
   if (type == 0) { pressedId = -1; for (auto& b : buttons) if (hit(b)) { pressedId = b.id; return; } }
@@ -805,10 +824,14 @@ void App::padButton(SDL_GameControllerButton b) {
         if (b == L) press(B_WBG0); else if (b == R) press(B_WBG0 + 1);
         else if (b == A || b == ST) press(B_WEL_NEXT);
         else if (b == B) welcomeStep = 0;
+      } else if (welcomeStep == 2) {
+        if (b == L) press(B_WRUM0 + std::max(0, prog.settings.rumble - 1)); else if (b == R) press(B_WRUM0 + std::min(2, prog.settings.rumble + 1));
+        else if (b == A || b == ST) press(B_WEL_NEXT);
+        else if (b == B) welcomeStep = 1;
       } else {
         if (b == U) welcomeSel = (welcomeSel + 3) % 4; else if (b == D) welcomeSel = (welcomeSel + 1) % 4;
         else if (b == A || b == ST) press(B_WELCOME0 + welcomeSel);
-        else if (b == B) welcomeStep = 1;  // back to the background
+        else if (b == B) welcomeStep = 2;  // back to vibration
       }
       break;
     case Screen::Stats:
@@ -1109,6 +1132,10 @@ void App::render() {
   }
   setSeason(seasonNow());
   drawBackdrop(top, true); drawBackdrop(bot, false); buttons.clear();
+  if (season() >= 0 && menuScreen()) {  // petals / fireflies / leaves / snow drift behind the cards and buttons on menus (still when motion is off)
+    float t = motion ? SDL_GetTicks() / 1000.f : 0.f;
+    drawSeasonParticles(top, true, t); drawSeasonParticles(bot, false, t);
+  }
   if (paused) drawPause();
   else switch (screen) {
     case Screen::Home: drawHome(); break;
@@ -1132,10 +1159,6 @@ void App::render() {
     case Screen::PetName: drawPetName(); break;
   }
   drawButtons();
-  if (season() >= 0 && menuScreen()) {  // petals / fireflies / leaves / snow drift over menus (still when motion is off)
-    float t = motion ? SDL_GetTicks() / 1000.f : 0.f;
-    drawSeasonParticles(top, true, t); drawSeasonParticles(bot, false, t);
-  }
   if (transStart) {  // new screen fades in from the backdrop colour
     float t = std::clamp((SDL_GetTicks() - transStart) / float(TRANS_MS), 0.f, 1.f), a = (1.f - t) * (1.f - t);
     for (Win* w : {&top, &bot}) {
@@ -1684,10 +1707,10 @@ void App::drawDrill() {
 void App::drawWelcome() {
   appTile(top, 270, 8, 96);
   drawText(top, welcomeAgain ? "Set up Banana Kana" : "Welcome to Banana Kana", SDL_Rect{20, 112, 600, 60}, FG, F_MID);
-  if (welcomeStep == 0) {  // step 1 of 3: light or dark, shown live
+  if (welcomeStep == 0) {  // step 1 of 4: light or dark, shown live
     drawWrapped(top, "First, pick a look. Tap one to try it: the whole app changes straight away.",
                 SDL_Rect{60, 190, 520, 100}, DIM, F_TINY);
-    drawText(top, "Step 1 of 3 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+    drawText(top, "Step 1 of 4 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
     for (int k = 0; k < 2; k++) {
       bool light = k == 0, on = prog.settings.light == light;
       SDL_Rect r{16 + k * 312, 16, 296, 300};
@@ -1712,10 +1735,10 @@ void App::drawWelcome() {
     else chips({{"+", "Light / Dark"}, {"A", "Next"}});
     return;
   }
-  if (welcomeStep == 1) {  // step 2 of 3: seasons of Japan or plain, shown live behind the tiles
+  if (welcomeStep == 1) {  // step 2 of 4: seasons of Japan or plain, shown live behind the tiles
     drawWrapped(top, "And a background. Seasons of Japan follows the calendar: sakura, summer waves, autumn leaves, snow.",
                 SDL_Rect{60, 190, 520, 100}, DIM, F_TINY);
-    drawText(top, "Step 2 of 3 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+    drawText(top, "Step 2 of 4 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
     const Col SEAS[4] = {hex(0xF29BB4), hex(0x3F8FD8), hex(0xE2683A), hex(0x5F8FC6)};
     const char* SK[4] = {"春", "夏", "秋", "冬"};
     for (int k = 0; k < 2; k++) {
@@ -1744,10 +1767,38 @@ void App::drawWelcome() {
     chips({{"+", "Seasons / Plain"}, {"A", "Next"}, {"B", "Back"}});
     return;
   }
+  if (welcomeStep == 2) {  // step 3 of 4: vibration, felt straight away
+    drawWrapped(top, "Vibration: one tick for a right answer, two buzzes for a wrong one, and a long rumble for unlocks. Tap one to feel it.",
+                SDL_Rect{60, 190, 520, 100}, DIM, F_TINY);
+    drawText(top, "Step 3 of 4 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+    const char* RN[3] = {"Off", "Light", "Strong"};
+    const char* RS[3] = {"no buzzing", "gentle ticks", "you'll feel it"};
+    for (int k = 0; k < 3; k++) {
+      bool on = prog.settings.rumble == k;
+      SDL_Rect r{16 + k * 208, 16, 192, 300};
+      if (on) { fillRound(bot, SDL_Rect{r.x - 6, r.y - 6, r.w + 12, r.h + 12}, 30, ACC_LINE); fillRound(bot, SDL_Rect{r.x - 2, r.y - 2, r.w + 4, r.h + 4}, 26, BG2); }
+      card(bot, r, 24);
+      // a little handheld with buzz marks either side: none, one, two
+      SDL_Rect dev{r.x + r.w / 2 - 34, r.y + 46, 68, 120};
+      fillRound(bot, dev, 16, k ? ACCENT : PANEL2); fillRound(bot, SDL_Rect{dev.x + 10, dev.y + 12, dev.w - 20, 44}, 8, PANEL);
+      fillRound(bot, SDL_Rect{dev.x + 14, dev.y + 76, 14, 14}, 7, PANEL); fillRound(bot, SDL_Rect{dev.x + dev.w - 28, dev.y + 76, 14, 14}, 7, PANEL);
+      for (int m = 0; m < k; m++)
+        for (int side = -1; side <= 1; side += 2) {
+          int x = side < 0 ? dev.x - 18 - m * 14 : dev.x + dev.w + 10 + m * 14;
+          fillRound(bot, SDL_Rect{x, dev.y + 34 - m * 8, 6, 52 + m * 16}, 3, ACCENT);
+        }
+      setBold(true); drawText(bot, RN[k], SDL_Rect{r.x, r.y + 190, r.w, 40}, FG, F_SMALL); setBold(false);
+      drawText(bot, RS[k], SDL_Rect{r.x, r.y + 232, r.w, 28}, DIM, F_MICRO);
+      addBtn(r, B_WRUM0 + k, RN[k], F_SMALL); lastBtn().hidden = true;
+    }
+    addBtn(SDL_Rect{16, 336, 608, 84}, B_WEL_NEXT, "Next", F_SMALL); accent(lastBtn()); lastBtn().radius = 30;
+    chips({{"+", "Off / Light / Strong"}, {"A", "Next"}, {"B", "Back"}});
+    return;
+  }
   drawWrapped(top, "Learn hiragana, then katakana, a few kana at a time: a short lesson, then drills. "
                    "Already know some? Skip ahead. Kana you skip count as known, with a quick review soon to check.",
               SDL_Rect{60, 190, 520, 140}, DIM, F_TINY);
-  drawText(top, "Step 3 of 3 · you can change this later in Settings > Script", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+  drawText(top, "Step 4 of 4 · you can change this later in Settings > Script", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
   const char* l[4] = {"New to kana", "I know hiragana", "I know both", "I know some"};
   const char* sub[4] = {"start at \u3042 \u3044 \u3046 \u3048 \u304a", "all 105, start on katakana", "straight to reviews", "choose the stages in Settings"};
   for (int i = 0; i < 4; i++) {
@@ -2472,7 +2523,7 @@ std::vector<App::SRow> App::settingRows(int g) const {
       action("Reset settings", resetSetArmed ? "Press A again to confirm" : "Reset",
              "Put every setting back to how it started: drills, sessions, theme, fonts, sound and rumble. Your progress stays.");
       action("Run setup again", "Open",
-             "Go through the first-launch steps again: light or dark, background, and what you already know. Your progress and streak stay; skipping ahead only ever moves you forwards.");
+             "Go through the first-launch steps again: light or dark, background, vibration, and what you already know. Your progress and streak stay; skipping ahead only ever moves you forwards.");
       info("Backup", backupPath.empty() ? "Off" : "On the SD card",
            backupPath.empty() ? "No backup copy is kept (only in the installed app)."
                               : "A copy of your progress is kept in roms/ports/BananaKana/progress-backup.txt. It's restored automatically after a reinstall or reflash.");
@@ -2660,7 +2711,11 @@ void App::drawSettingsGroup() {
   drawText(bot, "L / R: other groups", SDL_Rect{300, 8, 306, 46}, DIM, F_MICRO, A_RIGHT);
   // rows keep a comfortable height; groups with more than 5 rows scroll (the selected row stays in view)
   const int VIS = 5, PITCH = 66, nRows = int(rows.size());
-  const int first = nRows <= VIS ? 0 : std::clamp(setRow - 2, 0, nRows - VIS);
+  // the window follows the selected row (d-pad) but a stylus drag can move it freely
+  if (setRow < setFirst) setFirst = setRow;
+  if (setRow >= setFirst + VIS) setFirst = setRow - VIS + 1;
+  setFirst = nRows <= VIS ? 0 : std::clamp(setFirst, 0, nRows - VIS);
+  const int first = setFirst;
   for (int i = first; i < std::min(nRows, first + VIS); i++) {
     const SRow& row = rows[i];
     SDL_Rect r{16, 68 + (i - first) * PITCH, 608, PITCH - 12};
