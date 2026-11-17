@@ -9,6 +9,8 @@
 #include <sstream>
 #include <ctime>
 #include <cstring>
+#include <fcntl.h>
+#include <unistd.h>
 
 namespace kt {
 
@@ -118,7 +120,7 @@ bool Data::load(const std::string& dir, std::string* err) {
   {
     std::ifstream f(dir + "/words.tsv"); if (!f) return fail("missing words.tsv");
     for (std::string line; std::getline(f, line);) {
-      auto c = split(line, '\t'); if (c.size() < 3) continue;
+      auto c = split(line, '\t'); if (c.size() < 3 || c[0].empty()) continue;
       uint32_t first = utf8Codepoints(c[0])[0];
       words.push_back({c[0], c[1], c[2], first >= 0x30A0, c.size() > 3 ? c[3] : ""});
     }
@@ -252,8 +254,9 @@ void Progress::record(const std::string& key, bool ok) {
   const bool wasDue = kana && wasKnown && s.srs > 0 && s.due <= t;
   if (ok) {
     s.correct++; s.streak++;
-    if (s.gainSession != session) { s.gainSession = session; s.gain = 0; }
-    if (s.gain < MAX_GAIN_PER_SESSION && s.step < KNOWN_STEP) { s.step++; s.gain++; }
+    // a new sitting: a later session AND at least GAIN_GAP since the last step won (restarting at once doesn't count)
+    if (s.gainSession != session && (s.gainAt == 0 || t - s.gainAt >= GAIN_GAP)) { s.gainSession = session; s.gain = 0; }
+    if (s.gain < MAX_GAIN_PER_SESSION && s.step < KNOWN_STEP) { s.step++; s.gain++; s.gainAt = t; }
     if (kana && s.step >= KNOWN_STEP && (!wasKnown || s.srs == 0)) {            // newly known: first review in a day (or at its old level)
       s.srs = std::max(1, s.srs); s.due = t + Time(SRS_DAYS[s.srs - 1]) * 86400;
     } else if (wasDue) {                                         // a review answered right: wait longer next time
@@ -274,8 +277,8 @@ void Progress::countAnswer(bool ok, Time t) {  // daily goal, streak and history
   todayCount++;
   Day& dh = days[d]; dh.answers++; if (ok) dh.correct++;
   while (days.size() > 90) days.erase(days.begin());
-  if (todayCount == settings.dailyGoal && lastGoalDay != d) {
-    streak = lastGoalDay == dayNumber(t - 86400) ? streak + 1 : 1;
+  if (todayCount >= settings.dailyGoal && lastGoalDay != d) {  // >=: lowering the goal mid-day still meets it
+    streak = lastGoalDay > 0 && dayDiff(lastGoalDay, d) == 1 ? streak + 1 : 1;
     lastGoalDay = d; bestStreak = std::max(bestStreak, streak); goalJustMet = true;
   }
 }
@@ -328,7 +331,6 @@ void Progress::skipTo(const Data& d, Script s, int stage) {
   u = std::max(u, std::min(stage, STAGE_COUNT));
   l = std::max(l, stage == SKIP_ALL ? STAGE_COUNT : stage - 1);
   checkUnlocks(d);
-  for (int i = 0; i < 2; i++) l = std::max(l, 0);
 }
 
 bool Progress::isDue(const std::string& key) const {
@@ -356,10 +358,18 @@ void Progress::addConfusion(const std::string& a, const std::string& b) {
 
 int Progress::currentStreak() const {
   int d = dayNumber(now());
-  return (lastGoalDay == d || lastGoalDay == dayNumber(now() - 86400)) ? streak : 0;
+  return (lastGoalDay == d || (lastGoalDay > 0 && dayDiff(lastGoalDay, d) == 1)) ? streak : 0;  // calendar days (DST-safe)
 }
 
 int Progress::step(const std::string& key) const { auto it = stats.find(key); return it == stats.end() ? 0 : it->second.step; }
+
+Time Progress::nextGainIn(const std::string& key) const {
+  auto it = stats.find(key); if (it == stats.end()) return 0;
+  const Stat& s = it->second;
+  if (s.step >= KNOWN_STEP || s.gainAt == 0) return 0;
+  if (s.gainSession == session && s.gain < MAX_GAIN_PER_SESSION) return 0;  // this sitting still has a step to give
+  return std::max<Time>(0, s.gainAt + GAIN_GAP - now());
+}
 
 bool Progress::isUnlocked(const Data& d, int i) const { return d.stageOfKana[i] < unlocked[si(d.kana[i].script)]; }
 
@@ -466,6 +476,7 @@ bool Progress::load(const std::string& path, const Data* d) {
       if (!(is >> s.step >> s.gainSession >> s.gain)) { s.step = 0; s.gainSession = -1; s.gain = 0; }
       else if (!(is >> s.srs >> s.due)) { s.srs = 0; s.due = 0; }
       else if (!(is >> s.wlv >> s.wlvSession)) { s.wlv = 0; s.wlvSession = -1; }
+      else if (!(is >> s.gainAt)) s.gainAt = 0;
       stats[key] = s; anyStat = true;
     }
   }
@@ -492,7 +503,7 @@ bool Progress::load(const std::string& path, const Data* d) {
 
 bool Progress::save(const std::string& path) const {
   std::string tmp = path + ".tmp";
-  { std::ofstream f(tmp); if (!f) return false;
+  { std::ostringstream f;
     f << "# banana-kana progress v2\nset version 2\n";
     f << "set review " << settings.review << "\nset reading " << settings.reading << "\nset meanings " << settings.meanings
       << "\nset writing " << settings.writing << "\nset typing " << settings.typing << "\nset session_len " << settings.sessionLen
@@ -505,19 +516,28 @@ bool Progress::save(const std::string& path) const {
       << "\nset lessons_h " << lessons[0] << "\nset lessons_k " << lessons[1] << "\n";
     for (const auto& [k, s] : stats)
       f << "stat " << k << ' ' << s.seen << ' ' << s.correct << ' ' << s.wrong << ' ' << s.streak << ' ' << s.step << ' '
-        << s.gainSession << ' ' << s.gain << ' ' << s.srs << ' ' << s.due << ' ' << s.wlv << ' ' << s.wlvSession << '\n';
+        << s.gainSession << ' ' << s.gain << ' ' << s.srs << ' ' << s.due << ' ' << s.wlv << ' ' << s.wlvSession << ' ' << s.gainAt << '\n';
     for (const auto& [dd, x] : days) f << "day " << dd << ' ' << x.answers << ' ' << x.correct << '\n';
     for (const auto& [k, n] : confusions) { auto bar = k.find('|'); f << "mix " << k.substr(0, bar) << ' ' << k.substr(bar + 1) << ' ' << n << '\n'; }
     for (const auto& [id, day] : achieved) f << "ach " << id << ' ' << day << '\n';
     f << "pet " << pet.seenStage << ' ' << pet.acc << ' ' << pet.days << ' ' << pet.lastDay << ' ' << pet.name << '\n';
-    if (!f) return false; }
-  return std::rename(tmp.c_str(), path.c_str()) == 0;
+    // write + fsync before the rename: a flat battery mid-save must not leave an empty progress file behind
+    const std::string data = f.str();
+    int fd = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644); if (fd < 0) return false;
+    size_t off = 0;
+    while (off < data.size()) { ssize_t n = ::write(fd, data.data() + off, data.size() - off); if (n <= 0) { ::close(fd); return false; } off += size_t(n); }
+    bool ok = ::fsync(fd) == 0; ok = ::close(fd) == 0 && ok; if (!ok) return false; }
+  if (std::rename(tmp.c_str(), path.c_str()) != 0) return false;
+  std::string dir = path.substr(0, path.find_last_of('/') == std::string::npos ? 0 : path.find_last_of('/'));
+  int dfd = ::open(dir.empty() ? "." : dir.c_str(), O_RDONLY); if (dfd >= 0) { ::fsync(dfd); ::close(dfd); }  // the rename itself
+  return true;
 }
 
 // ---------------------------------------------------------------- typing
-std::string normalizeRomaji(std::string s) {
+std::string normalizeRomaji(const std::string& s, bool word) {
   std::string t;
   for (char c : s) if (c != ' ' && c != '-' && c != '\'') t += (char)std::tolower((unsigned char)c);
+  if (!word) return t;
   // shorten long vowels so "koohii", "kohi" and "koohi" all compare equal
   std::string o;
   for (size_t i = 0; i < t.size(); i++) {
@@ -532,8 +552,35 @@ std::string normalizeRomaji(std::string s) {
   }
   return o;
 }
-bool typedMatches(const std::string& typed, const std::string& expected) {
-  return !typed.empty() && normalizeRomaji(typed) == normalizeRomaji(expected);
+namespace {
+// Kunrei-shiki / IME spellings -> Hepburn, applied to what was typed only (so "chi" never passes for ティ "ti").
+std::string toHepburn(const std::string& t) {
+  static const std::pair<const char*, const char*> R[] = {
+    {"sya", "sha"}, {"syu", "shu"}, {"syo", "sho"}, {"sye", "she"}, {"tya", "cha"}, {"tyu", "chu"}, {"tyo", "cho"},
+    {"cya", "cha"}, {"cyu", "chu"}, {"cyo", "cho"}, {"zya", "ja"}, {"zyu", "ju"}, {"zyo", "jo"}, {"jya", "ja"},
+    {"jyu", "ju"}, {"jyo", "jo"}, {"dya", "ja"}, {"dyu", "ju"}, {"dyo", "jo"}, {"si", "shi"}, {"ti", "chi"},
+    {"tu", "tsu"}, {"hu", "fu"}, {"zi", "ji"}, {"di", "ji"}, {"du", "zu"}};
+  std::string o;
+  for (size_t i = 0; i < t.size();) {
+    if (t.compare(i, 2, "nn") == 0 && (i + 2 >= t.size() || !std::strchr("aiueoy", t[i + 2]))) { o += 'n'; i += 2; continue; }  // IME ん
+    bool hit = false;
+    for (auto& [k, v] : R) {
+      size_t n = std::strlen(k);
+      if (k[0] == 'h' && i > 0 && (t[i - 1] == 's' || t[i - 1] == 'c')) continue;  // "shu"/"chu" are Hepburn already
+      if (t.compare(i, n, k) == 0) { o += v; i += n; hit = true; break; }
+    }
+    if (!hit) o += t[i++];
+  }
+  return o;
+}
+}  // namespace
+
+bool typedMatches(const std::string& typed, const std::string& expected, bool word) {
+  if (typed.empty()) return false;
+  std::string e = normalizeRomaji(expected, word), a = normalizeRomaji(typed, word);
+  if (a == e) return true;
+  if (normalizeRomaji(toHepburn(normalizeRomaji(typed, false)), word) == e) return true;
+  return e == "wo" && a == "o";  // を / ヲ are said "o"
 }
 
 
@@ -968,7 +1015,8 @@ Question makeReviewQuestion(const Data& d, const Progress& p, std::mt19937& rng)
   int ki = due[choice];
   const Settings& st = p.settings;
   std::vector<std::pair<QType, int>> ts = {{QType::ReadKana, st.reading}, {QType::RecallKana, st.reading},
-                                           {QType::Write, d.writeParts(d.kana[ki].glyph).empty() ? 0 : st.writing}, {QType::Type, st.typing}};
+                                           {QType::Write, d.writeParts(d.kana[ki].glyph).empty() || p.writeLevel(Progress::keyKana(d.kana[ki])) < WRITE_MEMORY ? 0 : st.writing},
+                                           {QType::Type, st.typing}};  // a guided write doesn't count as a review, so only from memory
   std::vector<double> tw; for (auto& t : ts) tw.push_back(t.second);
   QType t = QType::ReadKana;
   double tot = 0; for (double x : tw) tot += x;
@@ -1016,7 +1064,8 @@ Question makeMixupQuestion(const Data& d, const Progress& p, std::mt19937& rng) 
   const MixSet& m = sets[pick(rng)];
   int ki = m.kana[std::uniform_int_distribution<int>(0, int(m.kana.size()) - 1)(rng)];
   const Kana& k = d.kana[ki];
-  bool recall = std::uniform_int_distribution<int>(0, 1)(rng) == 1;
+  bool special = false; for (int i : m.kana) if (d.kana[i].special) special = true;
+  bool recall = special || std::uniform_int_distribution<int>(0, 1)(rng) == 1;  // っ has no sound: ask "which one is small tsu?"
   Question q; q.type = recall ? QType::RecallKana : QType::ReadKana; q.key = Progress::keyKana(k); q.kanaIdx = ki;
   q.mixup = true; q.note = m.note; q.optionsAreKana = recall;
   for (int i : m.kana) q.options.push_back(recall ? d.kana[i].glyph : d.kana[i].romaji);
@@ -1047,7 +1096,7 @@ bool kanaTypedMatches(const Data& d, const Question& q, const std::string& typed
 }
 
 int dayDiff(int a, int b) {
-  auto toT = [](int x) { std::tm t{}; t.tm_year = x / 10000 - 1900; t.tm_mon = x / 100 % 100 - 1; t.tm_mday = x % 100; t.tm_hour = 12; return std::mktime(&t); };
+  auto toT = [](int x) { std::tm t{}; t.tm_year = x / 10000 - 1900; t.tm_mon = x / 100 % 100 - 1; t.tm_mday = x % 100; t.tm_hour = 12; t.tm_isdst = -1; return std::mktime(&t); };
   return int(std::lround(std::difftime(toT(b), toT(a)) / 86400.0));
 }
 
@@ -1115,6 +1164,7 @@ std::vector<Guess> recognizeKana(const Data& d, const std::vector<Stroke>& strok
       for (int k2 = 0; k2 < n; k2++) {
         int bi = -1, bj = -1; float best = 1e9f;
         for (int i = 0; i < n; i++) if (!uu[i]) for (int j = 0; j < m; j++) if (!gu[j] && c[i][j] < best) { best = c[i][j]; bi = i; bj = j; }
+        if (bi < 0) break;  // only with NaN costs
         uu[bi] = gu[bj] = true; free += best;
       }
       shape = std::min(inOrder, free / n + 4.f);

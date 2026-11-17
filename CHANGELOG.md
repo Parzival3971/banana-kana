@@ -3,6 +3,24 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
+## Unreleased
+
+- Steps now need time to stick: you still gain at most 2 steps per kana (or word) in a sitting, but the next ones only
+  count when you come back at least 4 hours later. Before, quitting and starting a new session straight away reset
+  the limit, so a kana could become "known" in a minute. The feedback tells you when the next step is available.
+- Typing accepts Kunrei and keyboard spellings: *si*, *ti*, *tu*, *hu*, *zi*, *sya*/*tya*/*zya*, *nn* for ん and
+  *o* for を. Single kana are checked exactly, so *sei* no longer passes for せ (words still forgive long vowels).
+- Fixed: lowering the daily goal below what you'd already answered that day meant the goal couldn't be met that day,
+  and your streak could break.
+- Fixed: the streak could reset just after midnight on the night the clocks go forward.
+- Fixed: reviews could ask a guided trace, which never clears a review, so the same kana kept coming back. Reviews
+  only ask for writing from memory now.
+- Mix-ups with っ / ッ always ask "which one is small tsu?" (it has no sound of its own to ask about).
+- Safer saves: progress is flushed to storage before it replaces the old file. If the progress file is empty or
+  unreadable, it's set aside as `progress.txt.broken` and your SD-card backup is restored, instead of starting from
+  scratch and later overwriting the backup.
+- Developers: `--shots` creates its folder; unused code and compiler warnings tidied up.
+
 ## 0.7.3 - 2026-11-17
 
 - The season's petals, fireflies, leaves and snow now drift behind the cards and buttons instead of over them.

@@ -142,8 +142,11 @@ A backup copy is also kept in `roms/ports/BananaKana/progress-backup.txt`: copy 
 ## 🧠 How learning works
 
 - 🪜 **Steps.** Every kana has 4 steps. A right answer adds one, a wrong answer takes one away, and you can gain at most
-  2 steps per kana in one session. Reaching step 4 means a kana is *known*, so it takes at least two sessions:
-  that tests memory, not short-term recall.
+  2 steps per kana in one sitting. The next steps count once you come back at least 4 hours later (quitting and
+  starting again straight away doesn't count). Reaching step 4 means a kana is *known*, so it takes at least two
+  sittings hours apart: that tests memory, not short-term recall.
+- ⌨️ **Typing romaji.** Hepburn is shown, but Kunrei and keyboard spellings are accepted too: *si*, *tu*, *hu*,
+  *zi*, *sya*, *nn* for ん and *o* for を.
 - 🗺️ **Stages.** A stage unlocks when every kana in the stage before it is known. Practice mostly draws on your current
   stage, and older stages come back as review (you can turn this down in Settings > Sessions).
 - 🔁 **Spaced review.** A known kana is due again 1 day later, then 3, 7, 14, 30 and 90 days. Each right answer moves it

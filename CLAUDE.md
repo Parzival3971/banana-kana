@@ -101,6 +101,13 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
 - No Listening drill: removed on purpose (no voice clips available). Re-add only if real recordings exist.
 - `src/sound.{h,cpp}`: synthesised sound effects (snd::play), Settings.sound 0-3.
 
+- Review fixes (2026-11-17, full review): daily goal uses >= (lowering it mid-day still meets it); "yesterday" via
+  dayDiff (DST-safe); makeReviewQuestion only asks Write when writeLevel == WRITE_MEMORY (guided writes can't clear
+  reviews); typedMatches(typed, expected, word): Kunrei/IME spellings via toHepburn on the typed text only, o for wo,
+  long-vowel folding for words only; mix-up sets containing っ/ッ are always recall. Progress::save writes + fsyncs
+  before the rename; main.cpp progressFileOk(): a progress file with no set/stat line is moved to .broken and the
+  backup restored. --shots creates its folder.
+
 ## Known gaps / to verify on device
 - Device test 2026-11-15 passed (old UI): touch + tracing land correctly, A/B correct, F + START quits, bottom survives sleep.
 - New UI (M3/M4) not yet seen on device: check text sharpness at 1.6x, readability at F_MICRO (17px logical),
@@ -264,6 +271,9 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   Each stage starts with a lesson (stroke order + hint + untimed tracing). Drills only use unlocked kana;
   word questions only use words made entirely of unlocked kana; older stages return as weighted review.
 - Pass rule (CONFIRMED by user, DONE M2 in core): each kana has 4 steps. Right = +1 step, at most 2 steps per session,
+  AND (2026-11-17, user picked "gap of 4+ hours") a new session only resets the gain once GAIN_GAP (4 h) has passed
+  since the last step won (Stat.gainAt, saved as the last stat field; Progress::nextGainIn drives the feedback note).
+  Tests/self-test move prog.clock forward GAIN_GAP between sittings.
   wrong = -1 step (not a reset). Known = step 4. Stage unlocks when every kana in it is known.
   Rationale: WaniKani needs 4 correct reviews spread over time to "Guru"; Nihongo Master uses a 5-correct streak
   that resets on a miss. Spreading over 2+ sessions tests memory, not short-term recall.

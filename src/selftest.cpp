@@ -92,10 +92,11 @@ int App::selfTest(const std::string& shotDir) {
   finishLessonFlow();
   CHECK(prog.lessons[0] == 1, "lesson recorded"); CHECK(screen == Screen::Drill, "lesson -> practice");
 
-  // ---- 2. practise until stage 2 unlocks (2 steps per session means several sessions)
+  // ---- 2. practise until stage 2 unlocks (2 steps a sitting, sittings GAIN_GAP apart, means several sessions)
   prog.settings.meanings = 2; prog.settings.writing = 2; prog.settings.typing = 2;
   bool unlockedSeen = false, wrongDone = false, pauseDone = false;
   for (int sess = 0; sess < 12 && !unlockedSeen; sess++) {
+    if (sess > 0) prog.clock = prog.now() + GAIN_GAP;  // come back hours later (a straight restart wins no steps)
     if (screen != Screen::Drill) { CHECK(click(B_AGAIN), "practice again"); }
     for (int i = 0; i < 40 && screen == Screen::Drill; i++) {
       if (!pauseDone && i == 2) {
@@ -129,6 +130,7 @@ int App::selfTest(const std::string& shotDir) {
   printf("sessions so far: %d\n", prog.session);
   // a few more sessions with stage 2 to see every question type
   for (int sess = 0; sess < 6 && typesSeen.size() < 5; sess++) {
+    prog.clock = prog.now() + GAIN_GAP;
     if (screen != Screen::Drill) { if (screen == Screen::Result && pendingUnlocks.empty()) click(B_AGAIN); else startSession(); }
     for (int i = 0; i < 40 && screen == Screen::Drill; i++) answer(true, true);
   }

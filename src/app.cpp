@@ -337,7 +337,7 @@ void App::check() {
       break; }
     case QType::Type:
       if (typed.empty()) return;
-      ok = q.kanaInput ? kanaTypedMatches(data, q, typed) : typedMatches(typed, q.answer); said = typed; break;
+      ok = q.kanaInput ? kanaTypedMatches(data, q, typed) : typedMatches(typed, q.answer, q.isWord); said = typed; break;
     default: if (sel < 0) return; ok = (sel == q.correct); said = q.options[sel]; break;
   }
   int before = prog.step(q.key);
@@ -355,7 +355,14 @@ void App::check() {
       newlyKnown.push_back(k->glyph); feedbackNote = "Known! " + k->glyph + " reached step 4.";
       if (mode != Mode::Timed) celebrate(1800, false);
     }
-    else if (k) feedbackNote = after > before ? "Step " + std::to_string(after) + " of 4" : (after >= KNOWN_STEP ? "Known" : "Step " + std::to_string(after) + " of 4 (2 steps per session at most)");
+    else if (k) {
+      Time wait = prog.nextGainIn(q.key);
+      int h = int((wait + 3599) / 3600);
+      feedbackNote = after > before ? "Step " + std::to_string(after) + " of 4"
+                   : after >= KNOWN_STEP ? "Known"
+                   : wait > 0 ? "Step " + std::to_string(after) + " of 4. Next step in " + std::to_string(h) + (h == 1 ? " hour" : " hours") + ": spacing makes it stick."
+                   : "Step " + std::to_string(after) + " of 4 (2 steps a sitting at most)";
+    }
     else if (wordKnown) { feedbackNote = "Known word! " + word->kana + " = " + word->english; if (mode != Mode::Timed) celebrate(1800, false); }
     else if (word && mode == Mode::Pack) feedbackNote = word->kana + " (" + word->romaji + ") = " + word->english;
   } else {
@@ -1413,7 +1420,7 @@ void App::drawStages() {
       drawText(top, data.kana[ki].romaji, SDL_Rect{r.x, r.y + 44, r.w, 18}, ks == KanaState::Known ? ON_ACCENT : DIM, F_MICRO);
     }
   }
-  drawWrapped(top, "Each kana needs 4 steps. A right answer adds a step (2 per session at most), a miss takes one away. "
+  drawWrapped(top, "Each kana needs 4 steps. A right answer adds a step (2 a sitting, then a 4-hour break), a miss takes one away. "
                    "Passed stages come back as review.", SDL_Rect{24, 296, 592, 70}, DIM, F_MICRO);
   std::string next = curSt + 1 < STAGE_COUNT ? stages[curSt + 1].name : "-";
   statBox(top, SDL_Rect{24, 372, 188, 92}, "PASSED", std::to_string(curSt) + " of " + std::to_string(STAGE_COUNT));

@@ -12,9 +12,6 @@ struct P { float x, y; };
 const float PI = 3.14159265f;
 
 Col rgb(unsigned h, Uint8 a = 255) { return Col{Uint8(h >> 16), Uint8(h >> 8), Uint8(h), a}; }
-Col lerpc(Col a, Col b, float t) {
-  return Col{Uint8(a.r + (b.r - a.r) * t), Uint8(a.g + (b.g - a.g) * t), Uint8(a.b + (b.b - a.b) * t), Uint8(a.a + (b.a - a.a) * t)};
-}
 
 struct Shade { Col light, mid, dark; };
 const Shade FUR{rgb(0xFFC27A), rgb(0xF59231), rgb(0xC45A12)};
@@ -114,11 +111,6 @@ std::vector<P> tailTip() {
   cubic(p, {21, -83}, {17, -90}, {11, -95}, {4, -98}, 4);
   p.pop_back();
   return p;
-}
-std::vector<P> star(float cx, float cy, float r, int pts, float rotDeg, float inner = 0.45f) {
-  std::vector<P> s;
-  for (int i = 0; i < pts * 2; i++) { float a = rotDeg * PI / 180 + i * PI / pts - PI / 2, rr = i % 2 ? r * inner : r; s.push_back({cx + rr * std::cos(a), cy + rr * std::sin(a)}); }
-  return s;
 }
 
 }  // namespace
@@ -257,7 +249,8 @@ int drawFox(Win& w, float cx, float baseY, float height, const FoxLook& L) {
       g.glow({-62, -52}, 30, rgb(0xFFD86B, 120));
       g.flat({{-72, -76}, {-52, -76}, {-52, -71}, {-72, -71}}, rgb(0x2A1B14)); g.flat({{-72, -33}, {-52, -33}, {-52, -28}, {-72, -28}}, rgb(0x2A1B14));
       g.shaded(ellipse(-62, -52, 15, 20, 18), RED);
-      for (int k = -1; k <= 1; k++) g.stroke({{-74.f, -52.f + k * 8}, {-50.f, -52.f + k * 8}}, 1.2f, rgb(0xA8221A)); break;
+      for (int k = -1; k <= 1; k++) g.stroke({{-74.f, -52.f + k * 8}, {-50.f, -52.f + k * 8}}, 1.2f, rgb(0xA8221A));
+      break;
     case 4:  // a little fox mask worn at the side of the head
       g.shaded(H(ellipse(34, -146, 13, 15, 16, 20)), WHITE);
       g.flat(H({{26, -158}, {30, -168}, {34, -158}}), rgb(0xFFFFFF)); g.flat(H({{38, -156}, {44, -165}, {44, -154}}), rgb(0xFFFFFF));
