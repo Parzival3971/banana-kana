@@ -3,7 +3,7 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
-## Unreleased
+## 0.8.0 - 2026-11-17
 
 - Pause › Back to menu keeps your session: Home's big button becomes **Continue · 3 of 10** and picks up at the next
   question with your score so far. Before, leaving threw the session away and starting again asked the same new kana
