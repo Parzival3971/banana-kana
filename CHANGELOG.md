@@ -3,7 +3,7 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
-## 0.7.3 - unreleased
+## 0.7.3 - 2026-11-17
 
 - The season's petals, fireflies, leaves and snow now drift behind the cards and buttons instead of over them.
 - Long settings groups (Display, Progress) scroll with the stylus: drag the list up or down. A drag never changes the
