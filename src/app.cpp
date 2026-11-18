@@ -1753,7 +1753,7 @@ void App::drawDrill() {
     addBtn(SDL_Rect{12, AY, 190, 80}, B_BKSP, "Delete", F_TINY, !checked && !typed.empty());
     if (checked) { addBtn(SDL_Rect{214, AY, 414, 80}, B_CONTINUE, "Continue", F_SMALL); accent(lastBtn()); }
     else { addBtn(SDL_Rect{214, AY, 414, 80}, B_CHECK, "Check answer", F_SMALL, !typed.empty()); if (!typed.empty()) accent(lastBtn()); }
-    if (!checked) { int cid = kbItemId(keyRow, keyCol); for (auto& b : buttons) if (b.id == cid) { b.line = ACC_LINE; b.lineW = 4; } }
+    if (!checked) markKbCursor();
     chips({{"A", "Type"}, {"X", "Check"}, {"B", "Delete"}, {"F", "Pause"}, {"+", "Move"}});
   } else {
     addBtn(SDL_Rect{16, 16, 120, 74}, B_UNDO, part > 0 && strokes.empty() ? "Back" : "Undo", F_TINY, !checked && (!strokes.empty() || part > 0));
@@ -2059,6 +2059,14 @@ int App::kbItemId(int r, int c) const {
   if (r < 3) return B_KEY0 + (rows[r][c] - 'a');
   return c == 0 ? B_BKSP : B_CHECK;
 }
+// ring the d-pad key and draw it last: the ring sits outside the key and the 4 px gap would let the next key cover it
+void App::markKbCursor() {
+  int cid = kbItemId(keyRow, keyCol);
+  auto it = std::find_if(buttons.begin(), buttons.end(), [&](const Button& b) { return b.id == cid; });
+  if (it == buttons.end()) return;
+  it->line = ACC_LINE; it->lineW = 4;
+  std::rotate(it, it + 1, buttons.end());
+}
 void App::kbMove(int dc, int dr) {
   int r = keyRow, c = keyCol;
   if (dr) {
@@ -2089,7 +2097,7 @@ void App::drawKanaKeyboard() {
     addBtn(SDL_Rect{16, 356, 192, 72}, B_BACK, "Cancel", F_SMALL);
     addBtn(SDL_Rect{224, 356, 400, 72}, B_CHECK, "Save name", F_SMALL, !typed.empty()); if (!typed.empty()) accent(lastBtn());
   } else { addBtn(SDL_Rect{16, 356, 608, 72}, B_CHECK, "Check answer", F_SMALL, !typed.empty()); if (!typed.empty()) accent(lastBtn()); }
-  if (!checked) { int cid = kbItemId(keyRow, keyCol); for (auto& b : buttons) if (b.id == cid) { b.line = ACC_LINE; b.lineW = 4; } }
+  if (!checked) markKbCursor();
   if (screen == Screen::PetName) chips({{"A", "Type"}, {"X", "Save"}, {"B", "Delete / Back"}, {"+", "Move"}});
   else chips({{"A", "Type"}, {"X", "Check"}, {"B", "Delete"}, {"F", "Pause"}, {"+", "Move"}});
 }

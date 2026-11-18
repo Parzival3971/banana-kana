@@ -163,6 +163,7 @@ struct App {
   void render();
   void addBtn(SDL_Rect r, int id, const std::string& label, int font = F_SMALL, bool enabled = true);
   Button& lastBtn() { return buttons.back(); }
+  void markKbCursor();
   void drawButtons();
   // Header bar across the top screen: bold title on the left, small text (or the wordmark) on the right;
   // coloured = filled with the mode colour (drills).
