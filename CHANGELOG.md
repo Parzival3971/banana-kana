@@ -3,6 +3,11 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
+## Unreleased
+
+- Home: Kitsu's "N more answers to wake her" line no longer runs into the weekday strip (it wraps instead).
+- Settings › Display: long help text no longer disappears behind the preview card (it shrinks to fit).
+
 ## 0.8.0 - 2026-11-17
 
 - Pause › Back to menu keeps your session: Home's big button becomes **Continue · 3 of 10** and picks up at the next

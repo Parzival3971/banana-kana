@@ -199,7 +199,7 @@ struct App {
   std::string groupName(int g) const; std::string groupSummary(int g) const;
   void changeSetting(int g, int r, int dir);  // dir +1/-1 for choices; any for actions
   void settingIcon(Win& w, int g, int x, int y, int px, Col a, Col b);
-  void settingsPanel(int g, const std::string& label, const std::string& title, const std::string& accentLine, const std::string& body);
+  void settingsPanel(int g, const std::string& label, const std::string& title, const std::string& accentLine, const std::string& body, bool preview = false);
   void footer(const std::string& lk, const std::string& ll, const std::string& rk, const std::string& rl);
   void drawCanvas(SDL_Rect c, const Glyph* g, int guide, bool checkedState);  // guide 0 none, 1 faint outline, 2 full
 

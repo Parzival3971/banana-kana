@@ -1375,8 +1375,10 @@ void App::drawHome() {
     if (st == 0) { title = "An egg!"; sub = "Hatches at today's goal"; subCol = ACCENT_TXT; }
     else if (!lit) { title = nm + " is asleep"; sub = std::to_string(left) + (left == 1 ? " more answer" : " more answers") + " to wake her"; subCol = ACCENT_TXT; }
     else { title = nm + " · " + std::to_string(PET_TAILS[st]) + (st == 1 ? " tail" : " tails"); sub = std::to_string(streak) + "-day streak · best " + std::to_string(std::max(streak, prog.bestStreak)); }
-    setBold(true); drawText(top, title, SDL_Rect{r.x + 100, r.y + 18, 196, 36}, FG, F_TINY, A_LEFT); setBold(false);
-    drawText(top, sub, SDL_Rect{r.x + 100, r.y + 54, 196, 24}, subCol, F_MICRO, A_LEFT);
+    // text column stops before the weekday strip (its labels start at r.x + 280); a long line wraps to two
+    const int TW = 172, subH = std::min(wrappedHeight(top, sub, TW, F_MICRO), 48), ty = r.y + (r.h - 34 - subH) / 2;
+    setBold(true); drawText(top, title, SDL_Rect{r.x + 100, ty, TW, 34}, FG, F_TINY, A_LEFT); setBold(false);
+    drawWrapped(top, sub, SDL_Rect{r.x + 100, ty + 34, TW, subH}, subCol, F_MICRO);
     static const char* KJ[7] = {"月", "火", "水", "木", "金", "土", "日"};
     static const char* EN[7] = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
     int todayIdx = (lt.tm_wday + 6) % 7;
@@ -2680,7 +2682,7 @@ void App::footer(const std::string& lk, const std::string& ll, const std::string
   if (!rl.empty()) pill(624 - rw, rw, rk, rl, B_FOOT_R);
 }
 
-void App::settingsPanel(int g, const std::string& label, const std::string& title, const std::string& accentLine, const std::string& body) {
+void App::settingsPanel(int g, const std::string& label, const std::string& title, const std::string& accentLine, const std::string& body, bool preview) {
   SDL_Rect p{28, 24, 584, 426};
   card(top, p, 26);
   fillRound(top, SDL_Rect{50, 50, 104, 104}, 30, ACCENT);  // the group's icon on a mode-coloured tile
@@ -2688,7 +2690,10 @@ void App::settingsPanel(int g, const std::string& label, const std::string& titl
   drawText(top, label, SDL_Rect{170, 54, 420, 24}, DIM, F_MICRO, A_LEFT);
   drawText(top, title, SDL_Rect{170, 78, 420, 56}, FG, F_MID, A_LEFT);
   setBold(true); drawText(top, accentLine, SDL_Rect{170, 136, 420, 34}, ACCENT_TXT, F_TINY, A_LEFT); setBold(false);
-  drawWrapped(top, body, SDL_Rect{56, 204, 528, 230}, DIM, F_TINY);
+  // Display rows have a preview card at y 318: keep the help above it (smaller text when it would run into it)
+  const int bodyH = preview ? 318 - 204 - 4 : 230;
+  const int bf = wrappedHeight(top, body, 528, F_TINY) <= bodyH ? F_TINY : F_MICRO;
+  drawWrapped(top, body, SDL_Rect{56, 204, 528, bodyH}, DIM, bf);
 }
 
 // Display settings: a live preview of the highlighted row under its help text (top screen)
@@ -2765,7 +2770,7 @@ void App::drawSettingsGroup() {
   setRow = std::clamp(setRow, 0, int(rows.size()) - 1);
   const SRow& cur = rows[setRow];
   std::string upper = groupName(setGroup); for (auto& c : upper) c = char(std::toupper(c));
-  settingsPanel(setGroup, upper, cur.label, cur.value, cur.help);
+  settingsPanel(setGroup, upper, cur.label, cur.value, cur.help, setGroup == 3);
   if (setGroup == 3) settingPreview(setRow);
   card(bot, SDL_Rect{16, 8, 608, 46}, 16);
   setBold(true); drawText(bot, groupName(setGroup), SDL_Rect{34, 8, 300, 46}, FG, F_TINY, A_LEFT); setBold(false);
