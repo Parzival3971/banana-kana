@@ -3,7 +3,7 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
-## Unreleased
+## 0.8.1 - 2026-11-18
 
 - Word questions no longer show the English when it sounds like the answer (すし "sushi", カメラ "camera", ホテル "hotel"...): it gave the reading away.
 - The romaji keyboard is bigger (taller, full-width keys with larger letters) and sits at the bottom of the touch screen like the kana keyboard, so it's easier to hit and reach. The d-pad highlight is no longer hidden under the next key.

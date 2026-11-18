@@ -300,6 +300,7 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   self-test checks), FoxLook stage/mood/accessory/season/t. app: Home streak card fox (z's when asleep, hop on goal),
   Screen::Pet (Stats START / chip; 4x2 accessory tiles, Back/Rename/Take it off), PetEvolve (go(Home) redirects while
   petEvolvePending), PetName (drill kana keyboard, 6 kana max, Cancel/Save name).
+- RELEASED 0.8.1 on 2026-11-18 (meaning pill hidden when it sounds like the reading, bigger bottom romaji keyboard + cursor ring on top, Kitsu/Display text overlap fixes; user said "release 0.8.1").
 - RELEASED 0.8.0 on 2026-11-17 (full review fixes, 4-hour step gap, Kunrei typing, held sessions/Continue, tappable hint chips, safer saves; PR #4; user said "release").
 - RELEASED 0.7.3 on 2026-11-17 (seasons behind UI, stylus settings scroll, vibration setup step, handwriting font where you write; user said "release").
 - RELEASED 0.7.2 on 2026-11-16 (streak flame removed, Kitsu on Stats; user said "release").
