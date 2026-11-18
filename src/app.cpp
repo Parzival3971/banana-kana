@@ -1996,12 +1996,13 @@ void App::drawFreeWrite() {
       for (size_t i = 1; i < guesses.size(); i++) alt.push_back(data.kana[guesses[i].kana].glyph + " " + data.kana[guesses[i].kana].romaji);
       if (!alt.empty()) drawText(top, "Or maybe: " + join(alt, " · "), SDL_Rect{24, 280, 592, 34}, DIM, F_TINY, A_LEFT);
     }
-    addBtn(SDL_Rect{16, 16, 120, 62}, B_SHOWME, "Show me", F_TINY, g != nullptr);
-    addBtn(SDL_Rect{16, 84, 120, 62}, B_UNDO, "Undo", F_TINY, !checked && !strokes.empty());
-    addBtn(SDL_Rect{16, 152, 120, 62}, B_CLEAR, "Clear", F_TINY, !checked && !strokes.empty());
-    addBtn(SDL_Rect{16, 220, 120, 130}, B_CHECK, checked ? "Again" : "What is it?", F_TINY, checked || !strokes.empty());
+    // same 5-button column as the Write drill (74 tall, 82 apart)
+    addBtn(SDL_Rect{16, 16, 120, 74}, B_SHOWME, "Show me", F_TINY, g != nullptr);
+    addBtn(SDL_Rect{16, 98, 120, 74}, B_UNDO, "Undo", F_TINY, !checked && !strokes.empty());
+    addBtn(SDL_Rect{16, 180, 120, 74}, B_CLEAR, "Clear", F_TINY, !checked && !strokes.empty());
+    addBtn(SDL_Rect{16, 262, 120, 74}, B_CHECK, checked ? "Again" : "What is it?", F_TINY, checked || !strokes.empty());
     if (checked || !strokes.empty()) accent(lastBtn());
-    addBtn(SDL_Rect{16, 356, 120, 62}, B_BACK, "Back", F_TINY);
+    addBtn(SDL_Rect{16, 344, 120, 74}, B_BACK, "Back", F_TINY);
     drawCanvas(canvasRect(), g, checked ? 2 : 0, checked);
     chips({{"A", checked ? "Again" : "What is it?"}, {"X", "Undo"}, {"START", "Show me"}, {"B", "Back"}});
     return;
@@ -2403,7 +2404,7 @@ void App::drawPause() {
   const char* labels[3] = {"Resume", "Back to menu", "Quit Banana Kana"};
   const int ids[3] = {B_RESUME, B_MENU, B_QUIT};
   for (int i = 0; i < 3; i++) {
-    addBtn(SDL_Rect{80, 40 + i * 122, 480, 96}, ids[i], labels[i], F_SMALL); lastBtn().radius = 48;
+    addBtn(SDL_Rect{80, 40 + i * 122, 480, 96}, ids[i], labels[i], F_SMALL); lastBtn().radius = 30;  // same corners as the Home start pill
     if (i == pauseSel) accent(lastBtn());
   }
 }

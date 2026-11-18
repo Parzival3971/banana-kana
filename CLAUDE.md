@@ -223,7 +223,8 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   shadow; kind 0 plain/1 accent/2 disabled), drawBackdrop (stripes top, dots bottom, cached texture), lineIcon (24-grid
   polylines drawn with drawStrokeIn; NO pixel icons: user said they clash), drawRing. ui_bold.ttf (Zen Maru Gothic Bold)
   for F_HUGE..F_SMALL and setBold(). pill() face = one smooth gradient (2026-11-18: user preferred flatter buttons from
-  the Home mockups over the old 2-band gloss; user kept the main Home layout over all 3 redesign mockups). drawButtons draws PANEL/ACCENT buttons as pills, custom fills stay flat.
+  the Home mockups over the old 2-band gloss; user kept the main Home layout over all 3 redesign mockups; button review: pause pills r30 like the Home pill,
+  Draw any side column = Write drill grid 74 tall, 82 apart). drawButtons draws PANEL/ACCENT buttons as pills, custom fills stay flat.
   header(title, right, coloured, indent): bar with bilingual title. Home top: goal ring card, week streak strip (weekday
   kanji added to fallback.ttf), script bars; Home bottom: see Home grid below.
   Settings rows: SRow.opts -> segmented pills (B_SSEG0 + row*8 + opt). Medals: App::medal; app tile: App::appTile.
