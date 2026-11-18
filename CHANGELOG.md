@@ -3,6 +3,13 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
+## 0.8.3 - 2026-11-18
+
+- Flatter buttons: every button now has one smooth shade instead of the shiny two-tone gloss. Outlines, shadows and
+  the press feel are unchanged.
+- Pause menu buttons have the same rounded corners as the rest of the app (they were the only capsule-shaped ones).
+- Draw any: the side buttons are evenly sized, like the Write drill (the "What is it?" button was double height).
+
 ## 0.8.2 - 2026-11-18
 
 - RG DS support (untested): Banana Kana now follows BananaOS's own description of the screens, like Banana Player
