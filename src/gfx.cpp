@@ -248,12 +248,9 @@ SDL_Rect pill(Win& w, SDL_Rect r, int rad, int kind, bool pressed) {
   fillRound(w, SDL_Rect{f.x, f.y + drop, f.w, f.h}, rad, sh);
   fillRound(w, f, rad, line);
   SDL_Rect in{f.x + 3, f.y + 3, f.w - 6, f.h - 6}; int ir = std::max(0, rad - 3);
-  // gloss: the main colour from 60% down, lighter above, a touch darker at the bottom (one shape, three stops)
-  int split = in.h * 6 / 10;
-  gradRound(w, in, ir, mid, lo);
-  SDL_Rect topPart{in.x, in.y, in.w, split + ir};
-  gradRound(w, topPart, ir, hi, mid);
-  if (split + ir < in.h) fillRect(w, SDL_Rect{in.x + ir, in.y + split, in.w - 2 * ir, 1}, mid);
+  // flat face (0.8.3, user preferred the flatter mockup buttons over the old 2-band gloss): one smooth top-to-bottom
+  // gradient, a little lighter than the main colour at the top and a little darker at the bottom
+  gradRound(w, in, ir, mix(hi, mid, 0.45f), lo);
   return f;
 }
 
