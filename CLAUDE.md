@@ -104,7 +104,8 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
 - Review fixes (2026-11-17, full review): daily goal uses >= (lowering it mid-day still meets it); "yesterday" via
   dayDiff (DST-safe); makeReviewQuestion only asks Write when writeLevel == WRITE_MEMORY (guided writes can't clear
   reviews); typedMatches(typed, expected, word): Kunrei/IME spellings via toHepburn on the typed text only, o for wo,
-  long-vowel folding for words only; mix-up sets containing っ/ッ are always recall. Progress::save writes + fsyncs
+  long-vowel folding for words only; meaningHint()/meaningGivesAway() (2026-11-18, user: すし "sushi" gave it away) blank
+  q.meaning on ReadKana/Type word questions when the English sounds like the romaji (fold + edit distance <= 20%; intro cards keep it); mix-up sets containing っ/ッ are always recall. Progress::save writes + fsyncs
   before the rename; main.cpp progressFileOk(): a progress file with no set/stat line is moved to .broken and the
   backup restored. --shots creates its folder.
 - Held sessions (user 2026-11-17: pause > Back to menu "resets progress and the same questions are asked again"):

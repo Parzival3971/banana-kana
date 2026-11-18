@@ -190,6 +190,10 @@ std::string normalizeRomaji(const std::string& s, bool word = true);  // word: l
 // Typed romaji vs the expected Hepburn: Kunrei/IME spellings (si, tu, hu, zi, sya, nn, o for wo) are accepted too.
 // Long vowels are only folded for words, so "sei" is not せ.
 bool typedMatches(const std::string& typed, const std::string& expectedRomaji, bool word = true);
+// The English sounds like the romaji (sushi, ramen, カメラ camera, ホテル hotel): showing it would give a reading away.
+bool meaningGivesAway(const std::string& romaji, const std::string& english);
+// The English to show under a word prompt: empty when it would give the reading away.
+std::string meaningHint(const std::string& romaji, const std::string& english);
 
 std::vector<int> unlockedKana(const Data& d, const Progress& p, Script s);
 std::vector<const Word*> eligibleWords(const Data& d, const Progress& p, Script s);

@@ -5,6 +5,7 @@ the release notes come from the matching section below.
 
 ## Unreleased
 
+- Word questions no longer show the English when it sounds like the answer (すし "sushi", カメラ "camera", ホテル "hotel"...): it gave the reading away.
 - The romaji keyboard is bigger (taller, full-width keys with larger letters) and sits at the bottom of the touch screen like the kana keyboard, so it's easier to hit and reach. The d-pad highlight is no longer hidden under the next key.
 - Home: Kitsu's "N more answers to wake her" line no longer runs into the weekday strip (it wraps instead).
 - Settings › Display: long help text no longer disappears behind the preview card (it shrinks to fit).

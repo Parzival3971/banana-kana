@@ -48,6 +48,12 @@ int main(int argc, char** argv) {
   Stroke rev(ref.rbegin(), ref.rend()); CHECK(!scoreStroke(rev, ref).ok);
   Stroke near = ref; for (auto& p : near) { p.x += 7; p.y += 5; } CHECK(scoreStroke(near, ref).ok);
   Stroke far = ref; for (auto& p : far) { p.x += 45; } CHECK(!scoreStroke(far, ref).ok);
+  // the English pill is hidden when it sounds like the reading (sushi, ramen, camera...) but kept otherwise
+  CHECK(meaningGivesAway("sushi", "sushi")); CHECK(meaningGivesAway("raamen", "ramen")); CHECK(meaningGivesAway("kamera", "camera"));
+  CHECK(meaningGivesAway("hoteru", "hotel")); CHECK(meaningGivesAway("toufu", "tofu")); CHECK(meaningGivesAway("udon", "udon noodles"));
+  CHECK(meaningGivesAway("kafe", "café")); CHECK(meaningGivesAway("tenpura", "tempura"));
+  CHECK(!meaningGivesAway("tsukue", "desk")); CHECK(!meaningGivesAway("tokei", "clock / watch")); CHECK(!meaningGivesAway("ai", "love"));
+  CHECK(!meaningGivesAway("hone", "bone")); CHECK(meaningHint("ie", "house") == "house"); CHECK(meaningHint("pen", "pen").empty());
   CHECK(typedMatches("kohi", "koohii")); CHECK(typedMatches("gyunyu", "gyuunyuu")); CHECK(!typedMatches("ka", "ki"));
   // Kunrei / IME spellings, を said "o", ん typed "nn"; long vowels folded for words only
   for (auto [t, e] : std::vector<std::pair<const char*, const char*>>{{"si", "shi"}, {"tu", "tsu"}, {"hu", "fu"}, {"ti", "chi"},
@@ -388,12 +394,13 @@ int main(int argc, char** argv) {
     printf("recogniser, wobbly: %d/%d first, %d/%d in top 3\n", r2, t2, top3, t2);
     CHECK(r2 * 100 >= t2 * 85 && top3 * 100 >= t2 * 95);
   }
-  // ---- word prompts carry their English meaning (except when the meaning is the answer)
+  // ---- word prompts carry their English meaning (except when the meaning is the answer or sounds like the reading)
   {
     Progress p; p.unlocked[0] = STAGE_COUNT; stepAll(d, p, PRODUCE_STEP); std::mt19937 rng(31); int typedWords = 0;
     for (int n = 0; n < 300; n++) {
       Question q = makeQuestion(d, p, rng);
-      if ((q.type == QType::Type || q.type == QType::ReadKana) && q.isWord) { typedWords++; CHECK(!q.meaning.empty()); }
+      if ((q.type == QType::Type || q.type == QType::ReadKana) && q.isWord) { typedWords++;
+        for (auto& x : d.words) if (x.kana == q.prompt || x.romaji == q.prompt) CHECK(q.meaning == meaningHint(x.romaji, x.english)); }
       if (q.type == QType::Meaning) CHECK(q.meaning.empty());
     }
     CHECK(typedWords > 0);
@@ -492,7 +499,7 @@ int main(int argc, char** argv) {
           for (size_t o = 0; o < q.options.size(); o++)     // no other option means the same thing
             if (int(o) != q.correct) for (auto& x : d.words) if (x.kana == q.options[o]) CHECK(x.english != w->english);
         }
-        else if (q.type == QType::ReadKana) { kinds[2]++; CHECK(q.options[q.correct] == w->romaji && !q.meaning.empty()); }
+        else if (q.type == QType::ReadKana) { kinds[2]++; CHECK(q.options[q.correct] == w->romaji && q.meaning == meaningHint(w->romaji, w->english)); }
         else if (q.type == QType::Type) { kinds[3]++; CHECK(q.answer == w->romaji || q.answer == w->kana); }
         if (!q.options.empty()) { std::set<std::string> u(q.options.begin(), q.options.end()); CHECK(u.size() == q.options.size() && q.options.size() >= 4); }
         p.session++; p.clock = p.now() + GAIN_GAP; p.record(q.key, (asked % 4) != 0);

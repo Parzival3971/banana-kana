@@ -601,6 +601,45 @@ std::vector<int> unlockedKana(const Data& d, const Progress& p, Script s) {
   return out;
 }
 
+// ---- meaning pill: hide it when the English sounds like the reading
+static std::string soundFold(std::string s) {
+  for (size_t i; (i = s.find("\xC3\xA9")) != std::string::npos;) s.replace(i, 2, "e");  // café
+  std::string o;
+  for (char ch : s) {
+    char c = char(std::tolower((unsigned char)ch)); if (c < 'a' || c > 'z') continue;
+    if (c == 'l') c = 'r'; else if (c == 'v') c = 'b'; else if (c == 'c' || c == 'q') c = 'k';
+    if (c == 'x') { o += "ks"; continue; }
+    if (!o.empty() && o.back() == c) continue;  // doubled letters and long vowels: tennis/tenisu, raamen/ramen
+    o += c;
+  }
+  for (size_t i; (i = o.find("ou")) != std::string::npos;) o.replace(i, 2, "o");  // toufu/tofu
+  return o;
+}
+static int editDistance(const std::string& a, const std::string& b) {
+  std::vector<int> d(b.size() + 1); for (size_t j = 0; j <= b.size(); j++) d[j] = int(j);
+  for (size_t i = 1; i <= a.size(); i++) {
+    int prev = d[0]; d[0] = int(i);
+    for (size_t j = 1; j <= b.size(); j++) { int t = d[j]; d[j] = std::min({d[j] + 1, d[j - 1] + 1, prev + (a[i - 1] != b[j - 1])}); prev = t; }
+  }
+  return d[b.size()];
+}
+bool meaningGivesAway(const std::string& romaji, const std::string& english) {
+  const std::string a = soundFold(romaji); if (a.empty()) return false;
+  // the whole English, and each alternative ("clock / watch", "udon noodles" -> "udon", "orange (colour)" -> "orange")
+  std::vector<std::string> parts{english}; std::string cur;
+  for (char ch : english) { if (ch == '/' || ch == ',' || ch == ';' || ch == '(' || ch == ' ') { parts.push_back(cur); cur.clear(); } else cur += ch; }
+  parts.push_back(cur);
+  for (auto& w : parts) {
+    std::string b = soundFold(w); if (b.empty()) continue;
+    // within 20%: catches camera/kamera, hotel/hoteru, tempura/tenpura but not desk/tsukue
+    if (editDistance(a, b) * 5 <= int(std::max(a.size(), b.size()))) return true;
+  }
+  return false;
+}
+std::string meaningHint(const std::string& romaji, const std::string& english) {
+  return meaningGivesAway(romaji, english) ? std::string() : english;
+}
+
 static std::set<uint32_t> okCodepoints(const Data& d, const Progress& p, Script s) {  // characters a word may use
   std::set<uint32_t> ok;
   for (int i : unlockedKana(d, p, s)) for (uint32_t cp : utf8Codepoints(d.kana[i].glyph)) ok.insert(cp);
@@ -712,7 +751,7 @@ Question makeKanaQuestion(const Data& d, const Progress& p, std::mt19937& rng, i
       for (auto* o : others) if (opts.size() < 4 && !std::count(opts.begin(), opts.end(), o->romaji)) opts.push_back(o->romaji);
       while (opts.size() > 4) opts.pop_back();
       std::shuffle(opts.begin(), opts.end(), rng);
-      q.type = QType::ReadKana; q.prompt = w.kana; q.hint = "How do you read this word?"; q.meaning = w.english;
+      q.type = QType::ReadKana; q.prompt = w.kana; q.hint = "How do you read this word?"; q.meaning = meaningHint(w.romaji, w.english);
       q.options = opts; q.answer = w.romaji; q.correct = int(std::find(opts.begin(), opts.end(), w.romaji) - opts.begin());
       return q;
     }
@@ -752,12 +791,12 @@ static Question makeWordQuestion(const Data&, const Progress& p, std::mt19937& r
       q.prompt = w.kana; q.hint = "What does it mean?";
       q.options = fillOptions(engPool, w.english, rng, 6, &q.correct); q.answer = w.english; break;
     case QType::Type:
-      q.meaning = w.english;
+      q.meaning = meaningHint(w.romaji, w.english);
       if (p.settings.kanaKeys) { q.prompt = w.romaji; q.hint = "Spell it in kana"; q.answer = w.kana; q.kanaInput = true; }
       else { q.prompt = w.kana; q.hint = "Type the romaji"; q.answer = w.romaji; }
       break;
     default:
-      q.type = QType::ReadKana; q.prompt = w.kana; q.hint = "How do you read this word?"; q.meaning = w.english;
+      q.type = QType::ReadKana; q.prompt = w.kana; q.hint = "How do you read this word?"; q.meaning = meaningHint(w.romaji, w.english);
       q.options = fillOptions(romajiPool, w.romaji, rng, 6, &q.correct); q.answer = w.romaji; break;
   }
   return q;
@@ -959,12 +998,12 @@ static Question wordQuiz(const Data& d, const Progress& p, std::mt19937& rng, co
       q.type = QType::RecallKana; q.prompt = w.english; q.hint = title + " · Which word is it?"; q.optionsAreKana = true;
       q.options = opts([](const Word& x) { return x.kana; }, 4, &q.correct); q.answer = w.kana; break;
     case 3:
-      q.type = QType::Type; q.meaning = w.english;
+      q.type = QType::Type; q.meaning = meaningHint(w.romaji, w.english);
       if (p.settings.kanaKeys) { q.prompt = w.romaji; q.hint = title + " · Spell it in kana"; q.answer = w.kana; q.kanaInput = true; }
       else { q.prompt = w.kana; q.hint = title + " · Type the romaji"; q.answer = w.romaji; }
       break;
     default:
-      q.type = QType::ReadKana; q.prompt = w.kana; q.hint = title + " · How do you read it?"; q.meaning = w.english;
+      q.type = QType::ReadKana; q.prompt = w.kana; q.hint = title + " · How do you read it?"; q.meaning = meaningHint(w.romaji, w.english);
       q.options = opts([](const Word& x) { return x.romaji; }, 6, &q.correct); q.answer = w.romaji; break;
   }
   return q;
