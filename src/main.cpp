@@ -50,8 +50,8 @@ bool progressFileOk(const std::string& path) {
 }  // namespace
 
 // ------------------------------------------------------------------ bottom touchscreen via evdev
-// SDL can't tell the RG DS Plus touch devices apart, so (like Banana Player) read the bottom panel's
-// touchscreen directly: the input device whose sysfs path contains fe5e0000.i2c. KT_TOUCH_DEV overrides it,
+// SDL can't tell the RG DS / RG DS Plus touch devices apart, so (like Banana Player) read the bottom panel's
+// touchscreen directly: the input device whose sysfs path contains $BANANA_TOUCH (fe5e0000.i2c if unset). KT_TOUCH_DEV overrides it,
 // KT_TOUCH=sdl disables this, KT_TOUCH_SWAPXY / KT_TOUCH_FLIPX / KT_TOUCH_FLIPY fix orientation.
 struct EvTouch {
   int fd = -1, minX = 0, maxX = 1, minY = 0, maxY = 1, x = 0, y = 0, slot = 0, logged = 0;
@@ -65,6 +65,8 @@ struct EvTouch {
     const char* force = getenv("KT_TOUCH"); if (force && std::string(force) == "sdl") { fprintf(stderr, "  touch: KT_TOUCH=sdl, evdev off\n"); return false; }
     swapXY = getenv("KT_TOUCH_SWAPXY"); flipX = getenv("KT_TOUCH_FLIPX"); flipY = getenv("KT_TOUCH_FLIPY");
     std::string dev = getenv("KT_TOUCH_DEV") ? getenv("KT_TOUCH_DEV") : "";
+    // the bottom touchscreen's sysfs path: BananaOS passes it as BANANA_TOUCH (as Banana Player reads it)
+    std::string path = getenv("BANANA_TOUCH") && *getenv("BANANA_TOUCH") ? getenv("BANANA_TOUCH") : "fe5e0000.i2c";
     if (dev.empty()) {
       DIR* d = opendir("/sys/class/input"); if (!d) return false;
       while (dirent* e = readdir(d)) {
@@ -73,11 +75,11 @@ struct EvTouch {
         if (!realpath(link.c_str(), real)) continue;
         char name[128] = "?"; FILE* f = fopen((link + "/name").c_str(), "r"); if (f) { if (!fgets(name, sizeof name, f)) name[0] = 0; fclose(f); name[strcspn(name, "\n")] = 0; }
         fprintf(stderr, "  input %s: %s  [%s]\n", n.c_str(), name, real);
-        if (dev.empty() && strstr(real, "fe5e0000.i2c")) dev = "/dev/input/" + n;
+        if (dev.empty() && strstr(real, path.c_str())) dev = "/dev/input/" + n;
       }
       closedir(d);
     }
-    if (dev.empty()) { fprintf(stderr, "  touch: no fe5e0000.i2c input device found, using SDL touch\n"); return false; }
+    if (dev.empty()) { fprintf(stderr, "  touch: no %s input device found, using SDL touch\n", path.c_str()); return false; }
     fd = ::open(dev.c_str(), O_RDONLY | O_NONBLOCK);
     if (fd < 0) { fprintf(stderr, "  touch: cannot open %s: %s, using SDL touch\n", dev.c_str(), strerror(errno)); return false; }
     if (!absRange(fd, ABS_MT_POSITION_X, &minX, &maxX)) absRange(fd, ABS_X, &minX, &maxX);
@@ -239,10 +241,19 @@ int main(int argc, char** argv) {
     for (int i = 0; i < displays; i++) { SDL_Rect b{}; SDL_GetDisplayBounds(i, &b);
       const char* n = SDL_GetDisplayName(i); fprintf(stderr, "  display %d: %s %dx%d at (%d,%d)\n", i, n ? n : "?", b.w, b.h, b.x, b.y); } }
   bool dual = (displays >= 2) || forceDual;
+  // Top panel: the display whose name holds the top connector (BananaOS passes it as BANANA_TOP; KT_TOP_CONNECTOR
+  // overrides; DSI-2 on the RG DS / RG DS Plus). Display 0 when no name matches (SDL_KMSDRM_FIRST puts it first).
+  int topDisp = 0, botDisp = displays >= 2 ? 1 : 0;
+  if (displays >= 2) {
+    const char* tc = getenv("KT_TOP_CONNECTOR") ? getenv("KT_TOP_CONNECTOR") : getenv("BANANA_TOP") ? getenv("BANANA_TOP") : "DSI-2";
+    for (int i = 0; i < displays; i++) { const char* n = SDL_GetDisplayName(i); if (n && *tc && strstr(n, tc)) { topDisp = i; break; } }
+    botDisp = topDisp == 0 ? 1 : 0;
+    fprintf(stderr, "  top connector %s: top display %d, bottom display %d\n", tc, topDisp, botDisp);
+  }
   int pcW = 560, pcH = 420;  // PC window size; KT_WINSIZE=1024x768 renders like the device panels (screenshots)
   if (const char* ws = getenv("KT_WINSIZE")) { int a = 0, b = 0; if (sscanf(ws, "%dx%d", &a, &b) == 2 && a >= 320 && b >= 240) { pcW = a; pcH = b; } }
-  if (!makeWin(app.top, "Banana Kana - top", 80, 40, pcW, pcH, dual && displays >= 2, 0) ||
-      !makeWin(app.bot, "Banana Kana - bottom (touch)", 80, 60 + pcH, pcW, pcH, dual && displays >= 2, displays >= 2 ? 1 : 0)) {
+  if (!makeWin(app.top, "Banana Kana - top", 80, 40, pcW, pcH, dual && displays >= 2, topDisp) ||
+      !makeWin(app.bot, "Banana Kana - bottom (touch)", 80, 60 + pcH, pcW, pcH, dual && displays >= 2, botDisp)) {
     fprintf(stderr, "window: %s\n", SDL_GetError()); return 3;
   }
   SDL_ShowCursor(SDL_ENABLE);

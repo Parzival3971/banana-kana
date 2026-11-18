@@ -4,7 +4,7 @@
 
 # Banana Kana
 
-**Learn hiragana and katakana on your Anbernic RG DS Plus.**
+**Learn hiragana and katakana on your Anbernic RG DS Plus or RG DS.**
 Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/bananalinux), using both screens.
 
 [![Build](https://github.com/Parzival3971/banana-kana/actions/workflows/build.yml/badge.svg)](https://github.com/Parzival3971/banana-kana/actions/workflows/build.yml)
@@ -75,7 +75,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 - 📳 **Rumble you can feel the difference in.** One tick for a right answer, two buzzes for a wrong one, three quick
   ticks when you learn a kana or word, and a long rumble for unlocks and your daily goal. Off, light or strong.
 
-### 🍌 Made for the RG DS Plus
+### 🍌 Made for the RG DS Plus (and RG DS)
 - 🖥️ Prompts on the top screen; answers, keyboards and the tracing canvas on the touch screen.
 - 🕹️ Everything works with the d-pad and buttons too, including the on-screen keyboards.
 - 🌗 A clean handheld look: glossy buttons, a colour for each mode, line icons and bilingual headings, in light or
@@ -107,7 +107,9 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 
 ## 📦 Install
 
-You need an Anbernic RG DS Plus running BananaOS.
+You need an Anbernic RG DS Plus or RG DS running BananaOS. It's tested on the RG DS Plus; the RG DS (same
+layout at 640x480, same touch chip) should work but hasn't been tried yet. If something's off there, please open an
+issue with `~/.config/banana-kana/launch.log`.
 
 1. Download `BananaKana-<version>-aarch64.zip` from the [latest release](https://github.com/Parzival3971/banana-kana/releases).
 2. Unzip it into `roms/ports` on the SD card. You should end up with:

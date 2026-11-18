@@ -3,6 +3,12 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
+## 0.8.2 - 2026-11-18
+
+- RG DS support (untested): Banana Kana now follows BananaOS's own description of the screens, like Banana Player
+  does: the top screen's connector (`BANANA_TOP`) and the bottom touchscreen (`BANANA_TOUCH`). On the RG DS Plus
+  nothing changes. `launch.log` shows which display it picked as the top screen.
+
 ## 0.8.1 - 2026-11-18
 
 - Word questions no longer show the English when it sounds like the answer (すし "sushi", カメラ "camera", ホテル "hotel"...): it gave the reading away.
