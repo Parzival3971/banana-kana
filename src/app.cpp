@@ -1740,18 +1740,19 @@ void App::drawDrill() {
     drawKanaKeyboard();
   } else if (q.type == QType::Type) {
     const char* rows[3] = {"qwertyuiop", "asdfghjkl", "zxcvbnm"};
-    const int KY = 140;  // sits at the bottom like the kana keyboard (Check ends at y 428): easier to reach on the handheld
+    // big keys (58x88, the full width) at the bottom like the kana keyboard (Check ends at y 428): easy to hit and reach
+    const int KW = 58, KH = 88, PX = 62, PY = 96, AY = 348, KY = AY - 8 - 2 * PY - KH;
     for (int r = 0; r < 3; r++) {
-      int len = int(strlen(rows[r])), x0 = (LW - (len * 56 + (len - 1) * 4)) / 2;
+      int len = int(strlen(rows[r])), x0 = (LW - (len * PX - (PX - KW))) / 2;
       for (int i = 0; i < len; i++) {
         char ch = rows[r][i];
-        addBtn(SDL_Rect{x0 + i * 60, KY + r * 70, 56, 64}, B_KEY0 + (ch - 'a'), std::string(1, ch), F_SMALL, !checked);
-        lastBtn().radius = 10;
+        addBtn(SDL_Rect{x0 + i * PX, KY + r * PY, KW, KH}, B_KEY0 + (ch - 'a'), std::string(1, ch), F_MID, !checked);
+        lastBtn().radius = 12;
       }
     }
-    addBtn(SDL_Rect{16, KY + 220, 180, 68}, B_BKSP, "Delete", F_TINY, !checked && !typed.empty());
-    if (checked) { addBtn(SDL_Rect{212, KY + 220, 412, 68}, B_CONTINUE, "Continue", F_SMALL); accent(lastBtn()); }
-    else { addBtn(SDL_Rect{212, KY + 220, 412, 68}, B_CHECK, "Check answer", F_SMALL, !typed.empty()); if (!typed.empty()) accent(lastBtn()); }
+    addBtn(SDL_Rect{12, AY, 190, 80}, B_BKSP, "Delete", F_TINY, !checked && !typed.empty());
+    if (checked) { addBtn(SDL_Rect{214, AY, 414, 80}, B_CONTINUE, "Continue", F_SMALL); accent(lastBtn()); }
+    else { addBtn(SDL_Rect{214, AY, 414, 80}, B_CHECK, "Check answer", F_SMALL, !typed.empty()); if (!typed.empty()) accent(lastBtn()); }
     if (!checked) { int cid = kbItemId(keyRow, keyCol); for (auto& b : buttons) if (b.id == cid) { b.line = ACC_LINE; b.lineW = 4; } }
     chips({{"A", "Type"}, {"X", "Check"}, {"B", "Delete"}, {"F", "Pause"}, {"+", "Move"}});
   } else {
