@@ -5,6 +5,7 @@ the release notes come from the matching section below.
 
 ## Unreleased
 
+- The romaji keyboard sits at the bottom of the touch screen (like the kana keyboard), so it's easier to reach.
 - Home: Kitsu's "N more answers to wake her" line no longer runs into the weekday strip (it wraps instead).
 - Settings › Display: long help text no longer disappears behind the preview card (it shrinks to fit).
 
