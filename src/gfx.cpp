@@ -15,9 +15,9 @@ Col mix(Col a, Col b, float t) {
 }
 
 // fields: bg panel panel2 line fg dim accent accentTxt onAccent good goodFill bad badFill canvas ghost ghostOk disLine disTxt track frame
-const Theme LIGHT_THEME{hex(0xEEF1F4), hex(0xFFFFFF), hex(0xF1F3F6), hex(0xC3CAD2), hex(0x23262B), hex(0x5B6470),
-  hex(0xF28C28), hex(0xB8560B), hex(0x3A1F05), hex(0x1E8E4E), hex(0xE7F6EC), hex(0xC43A3F), hex(0xFDE8E8),
-  hex(0xFFFDF6), hex(0xE7E2D4), hex(0xCDEEDB), hex(0xC9CFD6), hex(0x8A929C), hex(0xE4E8ED), hex(0xDDE2E8)};
+const Theme LIGHT_THEME{hex(0xFFF8EA), hex(0xFFFCF5), hex(0xF7EBDD), hex(0xD6BCA9), hex(0x4B062D), hex(0x7D5269),
+  hex(0xFFA51F), hex(0xA94418), hex(0x4B062D), hex(0x159447), hex(0xE1F6D5), hex(0xD54855), hex(0xFFE0E1),
+  hex(0xFFFEF7), hex(0xE7D6C9), hex(0xD5F0D7), hex(0xDCC9BE), hex(0xA88798), hex(0xEAD8E0), hex(0xEADFD7)};
 const Theme DARK_THEME{hex(0x1A1E25), hex(0x262C36), hex(0x323843), hex(0x4A5260), hex(0xEEF1F5), hex(0xA8B1BE),
   hex(0xF28C28), hex(0xFFA94D), hex(0x3A1F05), hex(0x4CD38A), hex(0x173524), hex(0xF07A7E), hex(0x3A1F22),
   hex(0x23272E), hex(0x3A414D), hex(0x2C4A3A), hex(0x3D4450), hex(0x737C89), hex(0x3A414D), hex(0x323843)};
@@ -30,12 +30,12 @@ namespace {
 // per mode: fill, outline, shadow, gloss top, gloss bottom, text on light, text on dark, text on the fill
 struct Acc { unsigned fill, line, sh, hi, lo, txtL, txtD, on; };
 const Acc ACCS[MC_COUNT] = {
-  {0xF28C28, 0xD9741C, 0xC96A14, 0xFFB15E, 0xE98221, 0xB8560B, 0xFFA94D, 0x3A1F05},  // orange: lessons, practice, home
-  {0x2F80ED, 0x1F6FD6, 0x1B5FB8, 0x5AA2F5, 0x2A74D8, 0x1F6FD6, 0x7AB3FF, 0xFFFFFF},  // blue: review
-  {0x34C26F, 0x1E8E4E, 0x1A7A42, 0x6FDC9C, 0x2BB062, 0x1E8E4E, 0x6FDC9C, 0x0D3B21},  // green: words
-  {0x8B5CF6, 0x7A4BD1, 0x643BB3, 0xA985F0, 0x7F52E6, 0x6D3FD1, 0xB49CFF, 0xFFFFFF},  // purple: mix-ups
-  {0xEB5257, 0xD64045, 0xB3363A, 0xF37A7E, 0xDE474C, 0xC4373C, 0xFF8A8E, 0xFFFFFF},  // red: timed
-  {0x20B2AA, 0x0F8F8A, 0x127F79, 0x4FD1C5, 0x1AA39B, 0x0F7F7A, 0x4FD1C5, 0x062E2B},  // teal: stats, settings
+  {0xFFA51F, 0xD97A0B, 0xC7690A, 0xFFD05C, 0xF69415, 0xA94418, 0xFFA94D, 0x4B062D},  // orange: lessons, practice, home
+  {0x65C8F3, 0x249BCF, 0x1887B7, 0xA2E3FF, 0x55BDEB, 0x16698E, 0x7AB3FF, 0x35103D},  // blue: review
+  {0x8DDF78, 0x45AC53, 0x358C42, 0xBCF2A9, 0x77D566, 0x28743A, 0x6FDC9C, 0x35103D},  // green: words
+  {0xD8A3E8, 0xA568BB, 0x8B50A1, 0xEDC8F5, 0xCB91DD, 0x7B408E, 0xB49CFF, 0x35103D},  // purple: mix-ups
+  {0xFF8E94, 0xD85864, 0xBC4652, 0xFFBEC0, 0xF47A83, 0xA93645, 0xFF8A8E, 0x4B062D},  // red: timed
+  {0x56D3D1, 0x159FA2, 0x0C878A, 0x91ECE7, 0x43C3C1, 0x117A7D, 0x4FD1C5, 0x35103D},  // teal: stats, settings
 };
 }
 Col modeCol(ModeCol m) { return hex(ACCS[m].fill); }
@@ -52,9 +52,9 @@ void applyTheme(bool light) {
   ON_ACCENT = t.onAccent; GOOD = t.good; GOOD_FILL = t.goodFill; BAD = t.bad; BAD_FILL = t.badFill; CANVAS = t.canvas;
   GHOST = t.ghost; GHOST_OK = t.ghostOk; DIS_LINE = t.disLine; DIS_TXT = t.disTxt; TRACK = t.track;
   gLight = light;
-  BG2 = light ? hex(0xE8ECF0) : hex(0x14181E); CARD_SH = light ? hex(0xD3D9E0) : hex(0x0D1015);
-  PILL_LINE = light ? hex(0xC3CAD2) : hex(0x4A5260); PILL_SH = light ? hex(0xB7BEC7) : hex(0x0D1015);
-  PILL_HI = light ? hex(0xFFFFFF) : hex(0x3D4451); PILL_LO = light ? hex(0xECEFF3) : hex(0x2E343F);
+  BG2 = light ? hex(0xF9EFDF) : hex(0x14181E); CARD_SH = light ? hex(0xD8C3B2) : hex(0x0D1015);
+  PILL_LINE = light ? hex(0xCDAE98) : hex(0x4A5260); PILL_SH = light ? hex(0xC6A88F) : hex(0x0D1015);
+  PILL_HI = light ? hex(0xFFFFFF) : hex(0x3D4451); PILL_LO = light ? hex(0xF4E6D4) : hex(0x2E343F);
   PAPER_LINE = light ? hex(0xCFE0F5) : hex(0x34404F); PAPER_MARGIN = light ? hex(0xF3B0B0) : hex(0x6A3B42);
   setAccent(MC_ORANGE);
   gBaseBG = BG; gBaseBG2 = BG2; gSeason = -1;

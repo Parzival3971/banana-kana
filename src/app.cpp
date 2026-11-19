@@ -457,6 +457,11 @@ void App::togglePause() {
 void App::press(int id) {
   Script sc = prog.settings.script;
   snd::play(snd::Sfx::Tap);  // a later sound (right, wrong...) replaces it
+  if (quitConfirm) {
+    if (id == B_QUIT) running = false;
+    else if (id == B_BACK) { quitConfirm = false; quitSel = 0; }
+    return;
+  }
   if (id == B_PAUSE) { togglePause(); return; }
   if (id >= B_CHIP0 && id < B_CHIP0 + 7) { chipTap(id - B_CHIP0); return; }
   if (paused) {
@@ -480,6 +485,7 @@ void App::press(int id) {
       else if (id == B_MODE0 + 4) go(Screen::Packs);
       else if (id == B_SCRIPT_H) setScript(Script::Hiragana);
       else if (id == B_SCRIPT_K) setScript(Script::Katakana);
+      else if (id == B_QUIT) { quitConfirm = true; quitSel = 0; }
       break;
     case Screen::Stages: {
       int curSt = prog.currentStage(mapScript);
@@ -721,6 +727,12 @@ void App::padButton(SDL_GameControllerButton b) {
           X = SDL_CONTROLLER_BUTTON_X, Y = SDL_CONTROLLER_BUTTON_Y, LS = SDL_CONTROLLER_BUTTON_LEFTSHOULDER,
           RS = SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, ST = SDL_CONTROLLER_BUTTON_START;
   Script sc = prog.settings.script;
+  if (quitConfirm) {
+    if (b == L || b == R || b == U || b == D) quitSel = 1 - quitSel;
+    else if (b == A) press(quitSel ? B_QUIT : B_BACK);
+    else if (b == B) press(B_BACK);
+    return;
+  }
   if (paused) {
     const int ids[3] = {B_RESUME, B_MENU, B_QUIT};
     if (b == U) pauseSel = (pauseSel + 2) % 3; else if (b == D) pauseSel = (pauseSel + 1) % 3;
@@ -729,10 +741,12 @@ void App::padButton(SDL_GameControllerButton b) {
   }
   switch (screen) {
     case Screen::Home: {
-      // focus: 0 pill, 1 script switch (top row); 2-5 and 6-9 the two tile rows (4 columns)
+      // focus: 0 pill, 1 script switch; 2-9 tiles; 10 the explicit Quit button
       auto f = homeFocus(); int n = int(f.size()); homeSel = std::clamp(homeSel, 0, n - 1);
       int s = homeSel;
-      if (s <= 1) {
+      if (s == 10) {
+        if (b == U || b == L) s = 9;
+      } else if (s <= 1) {
         if (b == L) s = 0; else if (b == R) s = 1;
         else if (b == D) s = s == 0 ? 2 : 5;
       } else {
@@ -740,6 +754,7 @@ void App::padButton(SDL_GameControllerButton b) {
         if (b == L && col > 0) s--; else if (b == R && col < 3) s++;
         else if (b == U) s = row == 0 ? (col < 3 ? 0 : 1) : s - 4;
         else if (b == D && row == 0) s += 4;
+        else if (b == D && row == 1 && col == 3) s = 10;
       }
       if (s != homeSel) { homeSel = s; break; }
       if (b == A) press(f[homeSel]);
@@ -1030,14 +1045,15 @@ static std::string stageLabel(int st) { return st == STAGE_COUNT - 1 ? "Extras" 
 
 void App::header(const std::string& title, const std::string& right, bool coloured, int indent) {
   Col bar = coloured ? ACCENT : PANEL, ink = coloured ? ON_ACCENT : FG, soft = coloured ? ON_ACCENT : DIM;
-  fillRect(top, SDL_Rect{0, 0, LW, 50}, bar);
-  if (!coloured) fillRect(top, SDL_Rect{0, 50, LW, 2}, mix(BG, FG, 0.1f));
+  SDL_Rect hr{8, 6, LW - 16, 44};
+  fillRound(top, SDL_Rect{hr.x, hr.y + 3, hr.w, hr.h}, 14, coloured ? ACC_SH : CARD_SH);
+  boxRound(top, hr, 14, bar, coloured ? ACC_LINE : LINE, 2);
   int rw = 0;
   if (!right.empty()) {  // context on the right (script, count, stage...); nothing when there's nothing useful to say
     rw = std::min(300, textWidth(top, F_MICRO, right) + 4);
-    setBold(true); drawText(top, right, SDL_Rect{LW - 20 - rw, 0, rw, 50}, soft, F_MICRO, A_RIGHT); setBold(false);
+    setBold(true); drawText(top, right, SDL_Rect{LW - 20 - rw, 6, rw, 42}, soft, F_MICRO, A_RIGHT); setBold(false);
   }
-  setBold(true); drawText(top, title, SDL_Rect{20 + indent, 0, LW - 60 - rw - indent, 50}, ink, F_TINY, A_LEFT); setBold(false);
+  setBold(true); drawText(top, title, SDL_Rect{20 + indent, 6, LW - 60 - rw - indent, 42}, ink, F_TINY, A_LEFT); setBold(false);
 }
 
 void App::chips(const std::vector<std::pair<std::string, std::string>>& items) {
@@ -1217,6 +1233,7 @@ void App::render() {
     case Screen::PetEvolve: drawPetEvolve(); break;
     case Screen::PetName: drawPetName(); break;
   }
+  if (quitConfirm) { buttons.clear(); drawQuitConfirm(); }
   drawButtons();
   if (transStart) {  // new screen fades in from the backdrop colour
     float t = std::clamp((SDL_GetTicks() - transStart) / float(TRANS_MS), 0.f, 1.f), a = (1.f - t) * (1.f - t);
@@ -1292,6 +1309,7 @@ std::vector<App::HomeItem> App::homeItems() const {
 std::vector<int> App::homeFocus() const {
   std::vector<int> f{B_HOME_GO, prog.settings.script == Script::Hiragana ? B_SCRIPT_K : B_SCRIPT_H};
   for (auto& it : homeItems()) f.push_back(it.id);
+  f.push_back(B_QUIT);
   return f;
 }
 int App::homeItemIndex(int id) const {
@@ -1443,7 +1461,36 @@ void App::drawHome() {
     addBtn(r, it.id, it.name, F_TINY, it.enabled); lastBtn().hidden = true; lastBtn().sub = it.sub;
   }
   setAccent(MC_ORANGE);
-  chips({{"A", "Open"}, {"+", "Move"}, {"START", sessionHeld() ? "Continue" : lesson ? "Lesson" : "Practise"}, {"Y", "Script"}, {"F+START", "Quit"}});
+  chips({{"A", "Open"}, {"+", "Move"}, {"START", sessionHeld() ? "Continue" : lesson ? "Lesson" : "Practise"}, {"Y", "Script"}});
+  setAccent(MC_RED);
+  addBtn(SDL_Rect{526, 432, 98, 42}, B_QUIT, "Quit", F_MICRO);
+  lastBtn().radius = 16;
+  if (homeSel == 10) { lastBtn().line = ACC_LINE; lastBtn().lineW = 4; }
+  setAccent(MC_ORANGE);
+}
+
+void App::drawQuitConfirm() {
+  auto dim = [](Win& w) {
+    SDL_SetRenderDrawBlendMode(w.r, SDL_BLENDMODE_BLEND);
+    fillRect(w, SDL_Rect{0, 0, LW, LH}, Col{45, 15, 34, 118});
+    SDL_SetRenderDrawBlendMode(w.r, SDL_BLENDMODE_NONE);
+  };
+  dim(top); dim(bot);
+  SDL_Rect c{86, 116, 468, 248}; card(top, c, 28);
+  setBold(true); drawText(top, "Quit Banana Kana?", SDL_Rect{c.x + 30, c.y + 38, c.w - 60, 54}, FG, F_SMALL); setBold(false);
+  drawWrapped(top, "Progress is saved automatically. You can continue from the Home menu next time.",
+              SDL_Rect{c.x + 48, c.y + 112, c.w - 96, 74}, DIM, F_TINY);
+  drawText(top, "F + START remains the quick hardware shortcut", SDL_Rect{c.x + 30, c.y + 196, c.w - 60, 28}, DIM, F_MICRO);
+
+  SDL_Rect p{78, 120, 484, 240}; card(bot, p, 28);
+  lineIcon(bot, "back", SDL_Rect{p.x + p.w / 2 - 28, p.y + 28, 56, 56}, ACCENT_TXT, 2.6f);
+  drawText(bot, "Return to BananaOS?", SDL_Rect{p.x + 30, p.y + 88, p.w - 60, 42}, FG, F_TINY);
+  addBtn(SDL_Rect{p.x + 26, p.y + 150, 204, 62}, B_BACK, "Cancel", F_TINY);
+  if (quitSel == 0) { lastBtn().line = ACC_LINE; lastBtn().lineW = 4; }
+  setAccent(MC_RED);
+  addBtn(SDL_Rect{p.x + 254, p.y + 150, 204, 62}, B_QUIT, "Quit", F_TINY); accent(lastBtn());
+  if (quitSel == 1) { lastBtn().line = ACC_LINE; lastBtn().lineW = 4; }
+  setAccent(MC_ORANGE);
 }
 
 void App::drawStages() {

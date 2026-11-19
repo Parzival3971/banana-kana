@@ -61,6 +61,7 @@ struct App {
   SDL_Texture* homeFoxSprite = nullptr;
   std::mt19937 rng{std::random_device{}()};
   Screen screen = Screen::Home; bool running = true, paused = false; int pauseSel = 0;
+  bool quitConfirm = false; int quitSel = 0;  // Home Quit button: Cancel first, then explicit confirmation
   std::vector<Button> buttons; int pressedId = -1;
 
   // home / stage map / settings / chart selections
@@ -190,7 +191,7 @@ struct App {
   int writePartCount() const;
   int currentLessonKana() const;
 
-  void drawHome(); void drawStages(); void drawLesson(); void drawUnlocked(); void drawDrill(); void drawResult();
+  void drawHome(); void drawQuitConfirm(); void drawStages(); void drawLesson(); void drawUnlocked(); void drawDrill(); void drawResult();
   void drawChart(); void drawSettings(); void drawSettingsGroup(); void drawCredits(); void drawPause(); void drawStats(); void drawWelcome(); void drawFreeWrite(); void drawPacks(); void drawPackWords(); void drawAwards(); void drawToast();
   void drawKanaKeyboard();
   // settings model

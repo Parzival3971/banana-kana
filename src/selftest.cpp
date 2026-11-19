@@ -148,6 +148,8 @@ int App::selfTest(const std::string& shotDir) {
   CHECK(screen == Screen::Home && prog.pet.seenStage == prog.petStage(), "hatch continue -> home");
   go(Screen::Home); CHECK(screen == Screen::Home, "no second celebration");
   render(); CHECK(!kanaHandOn(), "menus use the print font"); shot("home");
+  CHECK(click(B_QUIT), "Home Quit button"); CHECK(quitConfirm && running, "Quit asks for confirmation"); shot("quit_confirm");
+  CHECK(click(B_BACK), "cancel Quit"); CHECK(!quitConfirm && running && screen == Screen::Home, "Quit cancellation returns Home");
 
   // ---- 4. stage map: passed stage replays its lesson, locked stage cannot start
   CHECK(click(B_CART0 + 1), "stages cart"); CHECK(screen == Screen::Stages, "stage map");

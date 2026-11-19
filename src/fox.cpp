@@ -308,11 +308,32 @@ SDL_Texture* loadHomeFoxSprite(Win& w, const std::string& dataDir) {
 }
 
 bool drawHomeFoxSprite(Win& w, SDL_Texture* sprite, const SDL_Rect& box, const FoxLook& look) {
-  // The geometry fox still provides growth stages and achievement accessories.
-  if (!sprite || look.stage != 1 || look.accessory >= 0) return false;
+  // Later growth stages still use the scalable geometry fox. The first-stage sprite accepts accessories so an equipped
+  // reward never makes the modern Home artwork silently disappear.
+  if (!sprite || look.stage != 1) return false;
   SDL_Rect frame{look.mood == FoxMood::Asleep ? HOME_FOX_TILE : 0,
                  (look.season + 1) * HOME_FOX_TILE, HOME_FOX_TILE, HOME_FOX_TILE};
-  return SDL_RenderCopy(w.r, sprite, &frame, &box) == 0;
+  if (SDL_RenderCopy(w.r, sprite, &frame, &box) != 0) return false;
+  if (look.accessory < 0) return true;
+  // Compact pixel-style accessory overlays. At 80 logical pixels these land on whole output pixels on the RG DS Plus.
+  const int x = box.x, y = box.y;
+  auto R = [&](int px, int py, int pw, int ph, Col c) {
+    int x0 = x + px * box.w / 32, y0 = y + py * box.h / 32;
+    int x1 = x + (px + pw) * box.w / 32, y1 = y + (py + ph) * box.h / 32;
+    fillRect(w, SDL_Rect{x0, y0, std::max(1, x1 - x0), std::max(1, y1 - y0)}, c);
+  };
+  const Col plum = hex(0x4B062D), red = hex(0xD63C45), gold = hex(0xF6B91A), cream = hex(0xFFF4D6);
+  switch (look.accessory) {
+    case 0: R(15, 17, 4, 2, plum); R(16, 19, 2, 3, gold); break;                         // bell
+    case 1: R(9, 8, 14, 2, cream); R(15, 8, 2, 2, red); R(21, 10, 5, 2, cream); R(23, 12, 3, 2, cream); break; // hachimaki
+    case 2: R(19, 17, 4, 6, red); R(20, 18, 2, 3, gold); break;                            // omamori
+    case 3: R(3, 16, 6, 8, red); R(2, 15, 8, 2, plum); R(2, 24, 8, 2, plum); break;          // lantern
+    case 4: R(21, 7, 6, 7, cream); R(21, 7, 2, 2, red); R(26, 7, 2, 2, red); break;         // fox mask
+    case 5: R(5, 20, 9, 4, cream); R(4, 20, 2, 4, plum); R(13, 20, 2, 4, plum); break;      // scroll
+    case 6: R(8, 7, 9, 1, plum); R(7, 5, 3, 3, red); R(5, 6, 2, 2, gold); break;            // kanzashi
+    default: R(25, 21, 5, 7, red); R(26, 22, 3, 3, cream); break;                            // daruma
+  }
+  return true;
 }
 
 }  // namespace kt
