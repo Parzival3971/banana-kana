@@ -21,4 +21,8 @@ struct FoxLook {
 // Returns the number of triangles drawn (the self-test keeps it within budget).
 int drawFox(Win& w, float cx, float baseY, float height, const FoxLook& look);
 
+// Home's one-tail Kitsu atlas. The texture belongs to the top screen renderer.
+SDL_Texture* loadHomeFoxSprite(Win& w, const std::string& dataDir);
+bool drawHomeFoxSprite(Win& w, SDL_Texture* sprite, const SDL_Rect& box, const FoxLook& look);
+
 }  // namespace kt

@@ -288,4 +288,31 @@ int drawFox(Win& w, float cx, float baseY, float height, const FoxLook& L) {
   return int(g.v.size() / 3);
 }
 
+namespace {
+constexpr int HOME_FOX_TILE = 32;
+}
+
+SDL_Texture* loadHomeFoxSprite(Win& w, const std::string& dataDir) {
+  // Columns are awake/asleep. Rows are plain, spring, summer, autumn and winter.
+  const std::string path = dataDir + "/kitsu-home.bmp";
+  SDL_Surface* atlas = SDL_LoadBMP(path.c_str());
+  if (!atlas) return nullptr;
+  SDL_Texture* texture = nullptr;
+  if (atlas->w == 2 * HOME_FOX_TILE && atlas->h == 5 * HOME_FOX_TILE) {
+    SDL_SetColorKey(atlas, SDL_TRUE, SDL_MapRGB(atlas->format, 255, 0, 255));
+    texture = SDL_CreateTextureFromSurface(w.r, atlas);
+    if (texture) SDL_SetTextureScaleMode(texture, SDL_ScaleModeNearest);
+  }
+  SDL_FreeSurface(atlas);
+  return texture;
+}
+
+bool drawHomeFoxSprite(Win& w, SDL_Texture* sprite, const SDL_Rect& box, const FoxLook& look) {
+  // The geometry fox still provides growth stages and achievement accessories.
+  if (!sprite || look.stage != 1 || look.accessory >= 0) return false;
+  SDL_Rect frame{look.mood == FoxMood::Asleep ? HOME_FOX_TILE : 0,
+                 (look.season + 1) * HOME_FOX_TILE, HOME_FOX_TILE, HOME_FOX_TILE};
+  return SDL_RenderCopy(w.r, sprite, &frame, &box) == 0;
+}
+
 }  // namespace kt

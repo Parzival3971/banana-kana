@@ -1366,7 +1366,11 @@ void App::drawHome() {
     if (!hop) petHopStart = 0;
     FoxMood mood = !lit ? FoxMood::Asleep : hop ? FoxMood::Happy : FoxMood::Awake;
     float hopY = hop ? -std::fabs(std::sin((nowT - petHopStart) / 1000.f * 7.f)) * 10.f : 0.f;
-    drawFox(top, r.x + 48, r.y + r.h - 6 + hopY, 112, petLook(mood));
+    const FoxLook look = petLook(mood);
+    // 80 logical pixels map to 128 output pixels on the Plus: each sprite pixel is 4×4.
+    SDL_Rect spriteBox{r.x + 8, r.y + 15 + int(hopY), 80, 80};
+    if (!drawHomeFoxSprite(top, homeFoxSprite, spriteBox, look))
+      drawFox(top, r.x + 48, r.y + r.h - 6 + hopY, 112, look);
     if (!lit && prog.petStage() > 0) { float zt = motion ? nowT / 1000.f : 0.f;
       for (int k = 0; k < 2; k++) drawText(top, "z", SDL_Rect{r.x + 78 + k * 8, r.y + 6 - k * 10 - int(std::fmod(zt * 6 + k * 5, 10.f)), 20, 20}, DIM, F_MICRO); }
     const std::string& nm = prog.pet.name;

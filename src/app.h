@@ -58,6 +58,7 @@ struct Missed { std::string prompt, answer, said; };
 
 struct App {
   Win top, bot; Data data; Progress prog; std::string statePath, dataDir;
+  SDL_Texture* homeFoxSprite = nullptr;
   std::mt19937 rng{std::random_device{}()};
   Screen screen = Screen::Home; bool running = true, paused = false; int pauseSel = 0;
   std::vector<Button> buttons; int pressedId = -1;
