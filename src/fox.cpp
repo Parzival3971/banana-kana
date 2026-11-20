@@ -123,47 +123,72 @@ int drawAnimeFox(Win& w, float cx, float baseY, float height, const FoxLook& L) 
 
   // Accessories and seasonal details stay vector-based, so one compact atlas covers every unlock and calendar theme.
   Geo g{{}, cx, baseY, size / 200.f};
+  struct Attach { P head, neck, body, ground; };
+  // The atlas centres the complete silhouette, so the body shifts left when tails occupy the right side. Sleeping poses
+  // move the face much lower again. These authored anchors keep every overlay attached to Kitsu instead of to the tile.
+  static const Attach ATTACH[3][4] = {
+    {{{-28, -154}, {-28, -108}, {-20, -66}, {-8, -18}}, {{-31, -154}, {-31, -108}, {-23, -66}, {-8, -18}},
+     {{-12, -154}, {-12, -108}, {-8, -66}, {0, -18}}, {{0, -154}, {0, -108}, {0, -66}, {0, -18}}},
+    {{{-28, -150}, {-28, -104}, {-20, -64}, {-8, -18}}, {{-31, -150}, {-31, -104}, {-23, -64}, {-8, -18}},
+     {{-12, -150}, {-12, -104}, {-8, -64}, {0, -18}}, {{0, -150}, {0, -104}, {0, -64}, {0, -18}}},
+    {{{-50, -72}, {-42, -47}, {-15, -36}, {0, -15}}, {{-42, -74}, {-35, -48}, {-10, -36}, {0, -15}},
+     {{-27, -76}, {-21, -49}, {-5, -36}, {0, -15}}, {{-6, -78}, {-4, -50}, {0, -36}, {0, -15}}}
+  };
+  const Attach& a = ATTACH[mood][stage - 1];
   if (L.stage >= 2 || L.season == 3) {
     const Shade& sc = L.season == 3 ? BLUE : RED;
-    std::vector<P> band{{-35, -92}}; quad(band, {-35, -92}, {0, -78}, {35, -92}, 10);
-    band.push_back({34, -77}); quad(band, {34, -77}, {0, -64}, {-34, -77}, 10);
-    g.shaded(band, sc); g.shaded({{16, -73}, {30, -43}, {21, -40}, {14, -48}}, sc);
+    const float nx = a.neck.x, ny = a.neck.y;
+    std::vector<P> band{{nx - 34, ny - 4}}; quad(band, {nx - 34, ny - 4}, {nx, ny + 10}, {nx + 34, ny - 4}, 10);
+    band.push_back({nx + 33, ny + 11}); quad(band, {nx + 33, ny + 11}, {nx, ny + 23}, {nx - 33, ny + 11}, 10);
+    g.shaded(band, sc); g.shaded({{nx + 15, ny + 14}, {nx + 29, ny + 44}, {nx + 20, ny + 47}, {nx + 13, ny + 35}}, sc);
   }
   if (L.season == 0) {
-    for (int k = 0; k < 5; k++) { float a = k * 72 * PI / 180 - PI / 2; g.shaded(ellipse(30 + 7 * std::cos(a), -158 + 7 * std::sin(a), 6, 6, 10), PINK); }
-    g.flat(ellipse(30, -158, 3, 3, 8), RED.mid);
+    const float px = a.head.x + 28, py = a.head.y - 5;
+    for (int k = 0; k < 5; k++) { float ang = k * 72 * PI / 180 - PI / 2; g.shaded(ellipse(px + 7 * std::cos(ang), py + 7 * std::sin(ang), 6, 6, 10), PINK); }
+    g.flat(ellipse(px, py, 3, 3, 8), RED.mid);
   } else if (L.season == 1) {
-    g.stroke({{42, -38}, {51, -72}}, 4.f, rgb(0x8A5A2A));
-    g.shaded(ellipse(54, -90, 20, 20, 20), Shade{rgb(0xE6F5FF), rgb(0x8FCBF5), rgb(0x3C8EEA)});
+    const float fx = a.body.x + 55, fy = a.body.y - 12;
+    g.stroke({{fx - 8, fy + 50}, {fx, fy + 16}}, 4.f, rgb(0x8A5A2A));
+    g.shaded(ellipse(fx + 3, fy, 20, 20, 20), Shade{rgb(0xE6F5FF), rgb(0x8FCBF5), rgb(0x3C8EEA)});
   } else if (L.season == 2) {
     std::vector<P> leaf; const float ra = -15 * PI / 180, ca = std::cos(ra), sa = std::sin(ra);
-    for (auto q : mapleLeaf()) leaf.push_back({-22 + 18 * (q.x * ca - q.y * sa), -162 + 18 * (q.x * sa + q.y * ca)});
+    for (auto q : mapleLeaf()) leaf.push_back({a.head.x - 20 + 18 * (q.x * ca - q.y * sa), a.head.y - 8 + 18 * (q.x * sa + q.y * ca)});
     g.shaded(leaf, RED);
   }
   switch (L.accessory) {
     case 0:  // suzu bell
-      g.stroke({{-29, -94}, {0, -86}, {29, -94}}, 4.f, RED.mid);
-      g.shaded(ellipse(0, -82, 8, 8, 14), GOLD); g.stroke({{-5, -80}, {5, -80}}, 1.6f, INK); break;
+      g.stroke({{a.neck.x - 28, a.neck.y - 2}, {a.neck.x, a.neck.y + 7}, {a.neck.x + 28, a.neck.y - 2}}, 4.f, RED.mid);
+      g.shaded(ellipse(a.neck.x, a.neck.y + 12, 8, 8, 14), GOLD); g.stroke({{a.neck.x - 5, a.neck.y + 14}, {a.neck.x + 5, a.neck.y + 14}}, 1.6f, INK); break;
     case 1: {  // hachimaki
-      std::vector<P> b{{-46, -139}}; quad(b, {-46, -139}, {0, -151}, {46, -139}, 10); b.push_back({46, -126}); quad(b, {46, -126}, {0, -138}, {-46, -126}, 10);
-      g.shaded(b, WHITE); g.shaded(ellipse(0, -139, 6, 6, 12), RED);
-      g.shaded({{43, -136}, {69, -128}, {62, -141}}, WHITE); g.shaded({{44, -131}, {65, -114}, {67, -126}}, WHITE); break; }
+      // The sleeping sprite rests its muzzle much lower than its brow. Keep the band on the brow instead of
+      // following the generic head centre down across the face.
+      const float hx = a.head.x, hy = a.head.y - (mood == 2 ? 32.f : 0.f);
+      std::vector<P> b{{hx - 29, hy + 3}}; quad(b, {hx - 29, hy + 3}, {hx, hy - 3}, {hx + 29, hy + 3}, 10);
+      b.push_back({hx + 29, hy + 11}); quad(b, {hx + 29, hy + 11}, {hx, hy + 5}, {hx - 29, hy + 11}, 10);
+      g.flat(b, WHITE.mid); std::vector<P> edge = b; edge.push_back(b.front()); g.stroke(edge, 2.4f, INK);
+      g.shaded(ellipse(hx, hy + 4, 4.5f, 4.5f, 12), RED);
+      g.shaded({{hx + 27, hy + 4}, {hx + 47, hy + 10}, {hx + 43, hy}}, WHITE);
+      g.shaded({{hx + 28, hy + 9}, {hx + 45, hy + 23}, {hx + 47, hy + 13}}, WHITE); break; }
     case 2:
-      g.stroke({{27, -88}, {33, -67}}, 2.f, GOLD.mid);
-      g.shaded({{25, -67}, {41, -67}, {41, -40}, {33, -35}, {25, -40}}, RED); break;
+      g.stroke({{a.body.x + 19, a.body.y - 24}, {a.body.x + 25, a.body.y - 3}}, 2.f, GOLD.mid);
+      g.shaded({{a.body.x + 17, a.body.y - 3}, {a.body.x + 33, a.body.y - 3}, {a.body.x + 33, a.body.y + 24}, {a.body.x + 25, a.body.y + 29}, {a.body.x + 17, a.body.y + 24}}, RED); break;
     case 3:
-      g.glow({-67, -58}, 31, rgb(0xFFD86B, 120));
-      g.shaded(ellipse(-67, -58, 15, 21, 18), RED); g.stroke({{-80, -80}, {-54, -80}}, 4.f, INK); g.stroke({{-80, -36}, {-54, -36}}, 4.f, INK); break;
+      g.glow({a.ground.x - 70, a.ground.y - 40}, 31, rgb(0xFFD86B, 120));
+      g.shaded(ellipse(a.ground.x - 70, a.ground.y - 40, 15, 21, 18), RED);
+      g.stroke({{a.ground.x - 83, a.ground.y - 62}, {a.ground.x - 57, a.ground.y - 62}}, 4.f, INK);
+      g.stroke({{a.ground.x - 83, a.ground.y - 18}, {a.ground.x - 57, a.ground.y - 18}}, 4.f, INK); break;
     case 4:
-      g.shaded(ellipse(38, -151, 13, 15, 16, 20), WHITE); g.stroke({{31, -151}, {36, -154}}, 1.8f, RED.mid); g.stroke({{40, -147}, {45, -149}}, 1.8f, RED.mid); break;
+      g.shaded(ellipse(a.head.x + 34, a.head.y - 2, 13, 15, 16, 20), WHITE);
+      g.stroke({{a.head.x + 27, a.head.y - 2}, {a.head.x + 32, a.head.y - 5}}, 1.8f, RED.mid);
+      g.stroke({{a.head.x + 36, a.head.y + 2}, {a.head.x + 41, a.head.y}}, 1.8f, RED.mid); break;
     case 5:
-      g.shaded({{-52, -48}, {-14, -62}, {-9, -50}, {-47, -36}}, CREAM); break;
+      g.shaded({{a.body.x - 42, a.body.y + 8}, {a.body.x - 4, a.body.y - 6}, {a.body.x + 1, a.body.y + 6}, {a.body.x - 37, a.body.y + 20}}, CREAM); break;
     case 6:
-      g.stroke({{-43, -136}, {-20, -159}}, 2.2f, GOLD.dark);
-      for (int k = 0; k < 5; k++) { float a = k * 72 * PI / 180; g.shaded(ellipse(-40 + 6 * std::cos(a), -139 + 6 * std::sin(a), 5, 5, 10), PINK); } break;
+      g.stroke({{a.head.x - 20, a.head.y + 11}, {a.head.x + 3, a.head.y - 12}}, 2.2f, GOLD.dark);
+      for (int k = 0; k < 5; k++) { float ang = k * 72 * PI / 180; g.shaded(ellipse(a.head.x - 18 + 6 * std::cos(ang), a.head.y + 8 + 6 * std::sin(ang), 5, 5, 10), PINK); } break;
     case 7:
-      g.shaded(ellipse(57, -20, 15, 18, 18), RED); g.shaded(ellipse(57, -24, 9, 8, 14), WHITE);
-      g.flat(ellipse(53, -25, 2, 2, 8), INK); g.flat(ellipse(61, -25, 2, 2, 8), INK); break;
+      g.shaded(ellipse(a.ground.x + 67, a.ground.y - 4, 15, 18, 18), RED); g.shaded(ellipse(a.ground.x + 67, a.ground.y - 8, 9, 8, 14), WHITE);
+      g.flat(ellipse(a.ground.x + 63, a.ground.y - 9, 2, 2, 8), INK); g.flat(ellipse(a.ground.x + 71, a.ground.y - 9, 2, 2, 8), INK); break;
     default: break;
   }
   if (L.stage >= 4) {

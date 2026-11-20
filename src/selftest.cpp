@@ -379,6 +379,13 @@ int App::selfTest(const std::string& shotDir) {
   padButton(SDL_CONTROLLER_BUTTON_START); CHECK(screen == Screen::Pet, "START opens your fox");
   CHECK(prog.petAccUnlocked(0) && !prog.petAccUnlocked(7), "bell unlocked by answers10, daruma locked");
   CHECK(click(B_ACC0) && prog.pet.acc == 0, "tap to wear the bell"); shot("pet");
+  { // visual regression sheet: render every accessory card unlocked without changing the test's real achievement state
+    auto keep = prog.achieved;
+    for (const auto& acc : petAccessories()) prog.achieved[acc.achievement] = dayNumber(prog.now());
+    shot("pet_accessories"); prog.pet.acc = 1; shot("pet_hachimaki");
+    int goalDay = prog.lastGoalDay; prog.lastGoalDay = goalDay - 1; shot("pet_hachimaki_asleep"); prog.lastGoalDay = goalDay;
+    prog.pet.acc = 0;
+    prog.achieved = std::move(keep); }
   click(B_ACC0 + 7); CHECK(prog.pet.acc == 0, "locked accessory can't be worn");
   CHECK(click(B_PET_NONE) && prog.pet.acc == -1, "take it off");
   petSel = 0; padButton(SDL_CONTROLLER_BUTTON_A); CHECK(prog.pet.acc == 0, "A wears the selected one");

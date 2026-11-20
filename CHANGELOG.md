@@ -10,6 +10,8 @@ the release notes come from the matching section below.
 - New Kitsu brand icon across the BananaOS shelf, Welcome/unlock/Credits screens and README, with a banana-curved tail
   and kana tile. Home, Stats, feedback, results and Your fox now share one scalable cel-shaded anime Kitsu system,
   including four tail evolutions, three moods, seasonal details and equipped accessories.
+- Kitsu accessories use pose- and evolution-specific head, neck, body and ground anchors, so they stay attached in
+  the large portrait, compact accessory cards and sleeping poses instead of using the old fox coordinates.
 - Credits replaces the old blocky banana parade with smooth, outlined banana badges that match the redesigned palette.
 - Home has a visible, focusable Quit button and a Cancel-first confirmation dialog; F + START remains available.
 - Seasonal backgrounds still follow the calendar (or a fixed override) and motion still follows the user's setting.
