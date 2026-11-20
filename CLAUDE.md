@@ -63,7 +63,7 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   mixupSets/makeMixupQuestion), daily goal/streak (Settings.dailyGoal, today/todayCount/streak/bestStreak/lastGoalDay,
   goalJustMet, days history 90 days), timedBest[2] + makeTimedQuestion, kana keyboard (Settings.kanaKeys, Question.kanaInput,
   kanaTypedMatches accepts じ/ぢ for "ji"), Data::writeParts (combos traced as 2 glyphs, small kana use the full-size glyph).
-  Progress.clock = fake time for tests (0 = real). Progress file: `stat ... step gainSession gain srs due wlv wlvSession`, `day`, `mix`.
+  Progress.clock = fake time for tests (0 = real). Progress file: `stat ... step gainSession gain srs due wlv wlvSession gainAt last`, `day`, `mix`.
   Staging (user asked 2026-11-15, "writing straight away is hard"): typeAllowed(): step 0 choice only, romaji typing from
   TYPE_STEP 1, kana keyboard + writing from PRODUCE_STEP 2. Writing level Stat.wlv 0 full guide / 1 faint outline /
   2 memory, +1 per session on a right guided write; guided writes (recordWrite level<2) never move steps; a memory miss
@@ -118,6 +118,20 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   B_CHIP0 + 0..6 (A B X Y START L R; L/R chip split in halves; F = B_PAUSE; "+" and F+START not tappable), handled at
   the top of press() via chipTap -> padButton. Progress::saveError + App::save log failures to launch.log; main logs
   "progress: path, N kana/words, M answers" at start-up.
+
+- Codex soft-ui-rebuild ports (user 2026-11-20: "not going ahead with the codex build", picked the good bits; Codex's
+  raster anime Kitsu, ivory/plum palette and brand art were NOT taken): Stat.last (last answered; older files fall
+  back to gainAt) -> chart kana details (ACCURACY / LAST SEEN / REVIEW boxes + "Seen · right · missed · mixed up with X"
+  line from Progress::confusions). Missed.key + missedKana() -> Result "Review mistakes" (B_REVIEW_MISSED, X; kana only,
+  hidden while an unlock is pending; Again stays the A/accent button). Result boxes: Newly known / Strengthened (steps
+  won this session) / Daily goal. answerStreak: 3+ right in a row -> "N in a row! <pet name> is cheering." + fox in the
+  banner (not while she's an egg, not Timed). Home: NEXT line (lesson / held session / N questions · new · learning ·
+  ~min at 15 s a question); "<name> missed you!" when the last day with answers (prog.days) is 2+ days ago.
+  Quit button: last Home focus (down from the bottom-right tile), drawn like the "F+START Quit" chip (the "+ Move"
+  chip was dropped to fit it), opens quitConfirm (dialog over Home, Cancel focused, L/R/U/D toggle, B cancels, go()
+  closes it; text warns a held session is lost). F+START still quits at once. Welcome is now 5 steps: step 3 = try the
+  controls (welcomeControls bits 1 d-pad / 2 A; A advances once the d-pad is done; button "Skip (using the stylus)").
+  Bug fixed on the way: Result Again on a practice set restarted only its first kana (now a copy of focusSet).
 
 ## Known gaps / to verify on device
 - Device test 2026-11-15 passed (old UI): touch + tracing land correctly, A/B correct, F + START quits, bottom survives sleep.
@@ -264,8 +278,8 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   Summer stuttered on device (2026-11-16): seigaiha was ~51k triangles/frame; now R 34/40, 2 rings, 8 segments (~10k,
   like spring). Self-test budget: <= 8000 pattern triangles per screen per season (backdropTriangles()).
   Display row 6 "Background" (segments Plain/Auto/春/夏/秋/冬; 春夏秋冬 added to fallback.ttf) + settingPreview row 6.
-- Welcome has 4 steps (vibration added 2026-11-17: step 2 = Off/Light/Strong tiles B_WRUM0..+2, buzz on pick; "what you know"
-  is now step 3). Original 3-step notes: welcomeStep 0 = Light/Dark tiles (B_WTHEME0/+1, applied + saved at once,
+- Welcome has 5 steps (vibration added 2026-11-17: step 2 = Off/Light/Strong tiles B_WRUM0..+2, buzz on pick; controls step 3 added 2026-11-20; "what you know"
+  is now step 4). Original 3-step notes: welcomeStep 0 = Light/Dark tiles (B_WTHEME0/+1, applied + saved at once,
   d-pad L/R) and Next (B_WEL_NEXT / A); step 1 = background Seasons (backdrop 1 = Auto) / Plain (0) tiles (B_WBG0/+1,
   live + saved, added for 0.7.0); step 2 = the 4 "what do you know" choices. B goes back a step. Settings > Progress row 6
   "Run setup again" (welcomeAgain: title "Set up Banana Kana", Back on step 0 returns to Settings; progress kept).

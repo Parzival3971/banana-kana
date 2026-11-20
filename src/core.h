@@ -70,6 +70,7 @@ struct Stat {
   int srs = 0; Time due = 0;  // spaced review once known: level 1..SRS_LEVELS and when it is next due
   int wlv = 0, wlvSession = -1;  // writing level: 0 full guide, 1 faint outline, 2 from memory (one level per session)
   Time gainAt = 0;               // when the last step was won (0 = never / older file): see GAIN_GAP
+  Time last = 0;                 // last answered (0 = never / older file): kana details in the chart
 };
 
 struct Settings {

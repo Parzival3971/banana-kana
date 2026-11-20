@@ -148,6 +148,46 @@ int App::selfTest(const std::string& shotDir) {
   CHECK(screen == Screen::Home && prog.pet.seenStage == prog.petStage(), "hatch continue -> home");
   go(Screen::Home); CHECK(screen == Screen::Home, "no second celebration");
   render(); CHECK(!kanaHandOn(), "menus use the print font"); shot("home");
+  { // ---- 3b2. away 2+ days: Kitsu "missed you" (a picture only; the text is drawn from prog.days)
+    Progress keep = prog; prog.days.clear(); prog.days[dayNumber(prog.now() - 3 * 86400)] = Progress::Day{6, 5};
+    prog.lastGoalDay = dayNumber(prog.now() - 3 * 86400); prog.today = 0; prog.todayCount = 0; frame(); shot("home_missed"); prog = keep; frame(); }
+  { // ---- 3c. Quit from Home: a real button (tap or d-pad) that asks first; Cancel is focused
+    CHECK(click(B_QUIT) && quitConfirm && quitSel == 0 && running, "Quit asks first"); shot("quit_confirm");
+    padButton(SDL_CONTROLLER_BUTTON_A); CHECK(!quitConfirm && running && screen == Screen::Home, "A on Cancel closes it");
+    auto f = homeFocus(); homeSel = int(f.size()) - 2;  // bottom-right tile
+    padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); CHECK(f[homeSel] == B_QUIT, "down from the last tile: Quit");
+    padButton(SDL_CONTROLLER_BUTTON_DPAD_UP); CHECK(homeSel == int(f.size()) - 2, "up: back to the tile");
+    padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); padButton(SDL_CONTROLLER_BUTTON_A); CHECK(quitConfirm, "A on Quit opens the dialog");
+    frame(); CHECK(!click(B_CART0 + 1) && screen == Screen::Home, "the dialog blocks the screen under it");
+    padButton(SDL_CONTROLLER_BUTTON_B); CHECK(!quitConfirm, "B cancels");
+    click(B_QUIT); padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); padButton(SDL_CONTROLLER_BUTTON_A); CHECK(!running, "Quit really quits");
+    running = true; homeSel = 0; go(Screen::Home);
+    CHECK(click(B_QUIT) && quitConfirm, "open again"); go(Screen::Stats); CHECK(!quitConfirm, "leaving Home closes it"); go(Screen::Home); }
+  { // ---- 3d. Results: Review mistakes drills just the missed kana (words skipped); Again on a set keeps the whole set
+    int ka = data.findKana(Script::Hiragana, "あ"), ki = data.findKana(Script::Hiragana, "い");
+    auto keepMissed = missed; Mode keepMode = mode;
+    mode = Mode::Normal; pendingUnlocks.clear(); score = 8; sessionLen = 10; strengthened = 3;
+    missed = {{"h:い", "い", "i", "a"}, {"w:あい", "あい", "ai", "love?"}, {"h:あ", "あ", "a", "o"}, {"h:い", "い", "i", "u"}};
+    CHECK(missedKana() == std::vector<int>({ki, ka}), "missed kana, once each, words skipped");
+    go(Screen::Result); frame(); shot("result_mistakes");
+    padButton(SDL_CONTROLLER_BUTTON_X); CHECK(screen == Screen::Drill && mode == Mode::Focus && focusSet == std::vector<int>({ki, ka}), "X: Review mistakes");
+    CHECK(strengthened == 0 && answerStreak == 0, "a new session starts its counters at 0");
+    for (int i = 0; i < 40 && screen == Screen::Drill; i++) answer(true, true);
+    CHECK(screen == Screen::Result && strengthened >= 0 && results.size() == size_t(sessionLen), "mistakes session done");
+    CHECK(click(B_AGAIN) && mode == Mode::Focus && focusSet.size() == 2, "Again keeps the whole practice set");
+    for (int i = 0; i < 3 && screen == Screen::Drill; i++) answer(true, true);
+    CHECK(answerStreak == 3, "three right in a row");
+    for (int i = 0; i < 12 && screen == Screen::Drill; i++) {  // the next choice question, answered right: Kitsu cheers in the banner
+      frame();
+      if (!q.intro && !q.options.empty()) { click(B_TILE0 + q.correct); click(B_CHECK); break; }
+      answer(true, false);
+    }
+    CHECK(checked && correct && answerStreak > 3 && feedbackNote.find("in a row! " + prog.pet.name + " is cheering.") != std::string::npos, "streak cheer");
+    frame(); shot("q_streak"); click(B_CONTINUE);
+    missed = {{"w:あい", "あい", "ai", "x"}}; go(Screen::Result); frame(); CHECK(!click(B_REVIEW_MISSED), "no Review mistakes for words only");
+    pendingUnlocks.push_back({Script::Hiragana, 5}); missed = {{"h:あ", "あ", "a", "o"}}; frame();
+    CHECK(!click(B_REVIEW_MISSED), "an unlock comes first"); pendingUnlocks.clear();
+    missed = keepMissed; mode = keepMode; go(Screen::Home); }
 
   // ---- 4. stage map: passed stage replays its lesson, locked stage cannot start
   CHECK(click(B_CART0 + 1), "stages cart"); CHECK(screen == Screen::Stages, "stage map");
@@ -164,7 +204,7 @@ int App::selfTest(const std::string& shotDir) {
   CHECK(click(B_CART0 + 2), "chart cart"); CHECK(screen == Screen::Chart, "chart");
   int a = data.findKana(Script::Hiragana, "あ");
   CHECK(click(B_CELL0 + data.findKana(Script::Hiragana, "か")), "select か"); shot("chart");
-  CHECK(click(B_CELL0 + a), "select あ"); CHECK(chartSel == a, "chart selection");
+  CHECK(click(B_CELL0 + a), "select あ"); CHECK(chartSel == a, "chart selection"); shot("chart_details");
   CHECK(click(B_CELL0 + a), "tap again"); CHECK(chartPick.size() == 1 && chartPick[0] == a && screen == Screen::Chart, "added to set");
   shot("chart_set");
   CHECK(click(B_PICK_DRILL), "drill set"); CHECK(screen == Screen::Drill && mode == Mode::Focus && sessionLen == prog.settings.sessionLen, "set drill");
@@ -536,9 +576,14 @@ int App::selfTest(const std::string& shotDir) {
       { Progress re; re.load(statePath, &data); CHECK(re.settings.rumble == 1, "vibration saved straight away"); }
       CHECK(click(B_WRUM0) && prog.settings.rumble == 0, "off"); prog.settings.rumble = keep; }
     padButton(SDL_CONTROLLER_BUTTON_B); CHECK(welcomeStep == 1, "B: back to the background");
-    padButton(SDL_CONTROLLER_BUTTON_A); padButton(SDL_CONTROLLER_BUTTON_A); CHECK(welcomeStep == 3, "A, A: on to what you know");
+    padButton(SDL_CONTROLLER_BUTTON_A); padButton(SDL_CONTROLLER_BUTTON_A); CHECK(welcomeStep == 3, "A, A: on to the controls");
     padButton(SDL_CONTROLLER_BUTTON_B); CHECK(welcomeStep == 2, "B: back to vibration");
-    CHECK(click(B_WEL_NEXT) && welcomeStep == 3, "Next"); shot("welcome");
+    CHECK(click(B_WEL_NEXT) && welcomeStep == 3 && welcomeControls == 0, "Next: try the controls"); shot("welcome_controls_new");
+    padButton(SDL_CONTROLLER_BUTTON_A); CHECK(welcomeStep == 3 && welcomeControls == 2, "A first: ticked, but the d-pad is still to try");
+    padButton(SDL_CONTROLLER_BUTTON_DPAD_LEFT); CHECK(welcomeStep == 3 && welcomeControls == 3, "d-pad ticked"); shot("welcome_controls");
+    padButton(SDL_CONTROLLER_BUTTON_A); CHECK(welcomeStep == 4, "A once both are done: on to what you know");
+    padButton(SDL_CONTROLLER_BUTTON_B); CHECK(welcomeStep == 3, "B: back to the controls");
+    CHECK(click(B_WEL_NEXT) && welcomeStep == 4, "the skip button works for stylus players"); shot("welcome");
     padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); CHECK(welcomeSel == 1, "welcome move");
     CHECK(click(B_WELCOME0 + 1), "I know hiragana");
     CHECK(screen == Screen::Home && prog.knownCount(data, Script::Hiragana) == data.scriptCount(Script::Hiragana) && prog.settings.script == Script::Katakana &&
@@ -551,10 +596,10 @@ int App::selfTest(const std::string& shotDir) {
       CHECK(screen == Screen::Welcome && welcomeStep == 0 && welcomeAgain, "run setup again opens the welcome");
       shot("welcome_again");
       CHECK(click(B_BACK) && screen == Screen::SettingsGroup && !welcomeAgain, "back to settings");
-      padButton(SDL_CONTROLLER_BUTTON_A); click(B_WEL_NEXT); click(B_WEL_NEXT); click(B_WEL_NEXT);
+      padButton(SDL_CONTROLLER_BUTTON_A); click(B_WEL_NEXT); click(B_WEL_NEXT); click(B_WEL_NEXT); click(B_WEL_NEXT);
       CHECK(click(B_WELCOME0) && screen == Screen::Home, "new to kana -> home");
       CHECK(prog.knownCount(data, Script::Hiragana) == known && prog.bestStreak == streak, "setup again keeps progress"); }
-    go(Screen::Welcome); click(B_WEL_NEXT); click(B_WEL_NEXT); click(B_WEL_NEXT); CHECK(click(B_WELCOME0 + 3), "I know some"); CHECK(screen == Screen::SettingsGroup && setGroup == 2 && setRow == 1, "to script settings");
+    go(Screen::Welcome); click(B_WEL_NEXT); click(B_WEL_NEXT); click(B_WEL_NEXT); click(B_WEL_NEXT); CHECK(click(B_WELCOME0 + 3), "I know some"); CHECK(screen == Screen::SettingsGroup && setGroup == 2 && setRow == 1, "to script settings");
     for (int i = 0; i < 3; i++) click(B_SINC0 + 1);
     CHECK(skipPending[0] == 4 && prog.unlocked[0] == 1, "pending only"); shot("settings_skip");
     CHECK(click(B_FOOT_R), "confirm skip"); CHECK(prog.unlocked[0] == 4 && prog.lessons[0] == 3 && prog.stageKnown(data, Script::Hiragana, 2) == 5, "skipped to stage 4");

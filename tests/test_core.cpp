@@ -81,6 +81,11 @@ int main(int argc, char** argv) {
     p.record("h:あ", true); CHECK(p.step("h:あ") == 3);   // cap
     p.session = 4; p.clock += GAIN_GAP; p.record("h:あ", true); p.record("h:あ", true); CHECK(p.step("h:あ") == KNOWN_STEP);
     CHECK(p.save("/tmp/kt_gain.txt")); Progress b; CHECK(b.load("/tmp/kt_gain.txt") && b.stats["h:あ"].gainAt == p.stats["h:あ"].gainAt);
+    CHECK(b.stats["h:あ"].last == p.clock);  // last answered survives a save
+    p.recordWrite("h:い", true, 0); CHECK(p.stats["h:い"].last == p.clock);  // guided writes count as practice too
+    std::ofstream f("/tmp/kt_last.txt");  // a 0.8.x line without the last field: falls back to gainAt
+    f << "# banana-kana progress v2\nset version 2\nstat h:う 3 3 0 3 3 1 1 0 0 0 -1 1790000000\n"; f.close();
+    Progress c; CHECK(c.load("/tmp/kt_last.txt") && c.stats["h:う"].last == 1790000000);
   }
   {  // the daily goal: lowering it mid-day still meets it; "yesterday" survives the clocks going forward
     Progress p; p.clock = 1790000000; p.settings.dailyGoal = 20;
