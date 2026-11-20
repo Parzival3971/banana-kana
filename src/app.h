@@ -59,6 +59,7 @@ struct Missed { std::string key, prompt, answer, said; };
 struct App {
   Win top, bot; Data data; Progress prog; std::string statePath, dataDir;
   SDL_Texture* homeFoxSprite = nullptr;
+  SDL_Texture* homeFoxSpriteBot = nullptr;  // same atlas, created for the bottom-screen renderer
   SDL_Texture* brandIcon = nullptr;  // shared Kitsu/banana-tail mark, loaded for the top-screen renderer
   std::mt19937 rng{std::random_device{}()};
   Screen screen = Screen::Home; bool running = true, paused = false; int pauseSel = 0;

@@ -2022,7 +2022,9 @@ void App::drawPet() {
   const int st = prog.petStage(), days = prog.pet.days;
   header("きつね · Your fox", std::to_string(days) + (days == 1 ? " day practised" : " days practised"));
   card(top, SDL_Rect{16, 62, 272, 400}, 20);
-  drawFox(top, 152, 446, 330, petLook(st == 0 ? FoxMood::Awake : prog.petAwake() ? FoxMood::Awake : FoxMood::Asleep));
+  const FoxLook portrait = petLook(st == 0 ? FoxMood::Awake : prog.petAwake() ? FoxMood::Awake : FoxMood::Asleep);
+  if (!drawHomeFoxSprite(top, homeFoxSprite, SDL_Rect{36, 142, 232, 232}, portrait))
+    drawFox(top, 152, 446, 330, portrait);
   const int X = 306, W = 318;
   setBold(true); drawText(top, prog.pet.name, SDL_Rect{X, 66, W, 56}, FG, F_MID, A_LEFT); setBold(false);
   std::string line = PET_STAGE_NAME[st];
@@ -2052,7 +2054,8 @@ void App::drawPet() {
     if (have1) {
       card(bot, r, 18, wearing ? mix(PANEL, ACCENT, 0.18f) : PANEL);
       FoxLook L; L.stage = 1; L.mood = FoxMood::Awake; L.accessory = i; L.t = 0;
-      drawFox(bot, r.x + r.w / 2, r.y + 92, 96, L);
+      if (!drawHomeFoxSprite(bot, homeFoxSpriteBot, SDL_Rect{r.x + 34, r.y + 8, 76, 76}, L))
+        drawFox(bot, r.x + r.w / 2, r.y + 92, 96, L);
       setBold(true); drawText(bot, acc[i].name, SDL_Rect{r.x + 4, r.y + 98, r.w - 8, 22}, FG, F_MICRO); setBold(false);
       drawText(bot, wearing ? "wearing" : "tap to wear", SDL_Rect{r.x + 4, r.y + 116, r.w - 8, 20}, wearing ? ACCENT_TXT : DIM, F_MICRO);
     } else {
@@ -2074,7 +2077,9 @@ void App::drawPetEvolve() {
   const int st = prog.petStage();
   const bool hatched = prog.pet.seenStage < 1;
   setBold(true); drawText(top, hatched ? "うまれた! " + prog.pet.name + " hatched" : "しんか! " + prog.pet.name + " evolved", SDL_Rect{20, 14, 600, 56}, FG, F_MID); setBold(false);
-  drawFox(top, 320, 462, 360, petLook(FoxMood::Happy));
+  const FoxLook look = petLook(FoxMood::Happy);
+  if (!drawHomeFoxSprite(top, homeFoxSprite, SDL_Rect{190, 142, 260, 260}, look))
+    drawFox(top, 320, 462, 360, look);
   card(bot, SDL_Rect{24, 24, 592, 270}, 22);
   setBold(true); drawText(bot, PET_STAGE_NAME[st], SDL_Rect{40, 40, 560, 52}, FG, F_MID); setBold(false);
   drawWrapped(bot, PET_STAGE_TEXT[st], SDL_Rect{60, 100, 520, 90}, DIM, F_TINY, A_CENTER);
@@ -2094,7 +2099,9 @@ void App::drawPetName() {
   if (typed.empty()) drawText(top, "type with the kana keys", box, DIM, F_TINY);
   else drawText(top, typed, box, FG, F_BIG);
   drawText(top, "Up to " + std::to_string(PET_NAME_MAX) + " kana · now: " + prog.pet.name, SDL_Rect{20, 244, 600, 30}, DIM, F_MICRO);
-  FoxLook L = petLook(FoxMood::Happy); drawFox(top, 320, 466, 180, L);
+  FoxLook L = petLook(FoxMood::Happy);
+  if (!drawHomeFoxSprite(top, homeFoxSprite, SDL_Rect{240, 282, 160, 160}, L))
+    drawFox(top, 320, 466, 180, L);
   drawKanaKeyboard();
 }
 
@@ -2987,6 +2994,21 @@ void App::drawSettingsGroup() {
 
 void App::drawCredits() {
   const float t = SDL_GetTicks() / 1000.f;
+  auto creditBanana = [&](int x, int y) {  // polished crescent badge, matching the Kitsu icon's plum/cream palette
+    SDL_Rect badge{x, y, 58, 58};
+    fillRound(top, SDL_Rect{x, y + 4, 58, 58}, 17, CARD_SH);
+    boxRound(top, badge, 17, PANEL, LINE, 2);
+    Col peel = hex(0xFFB21F), light = hex(0xFFE19A), edge = hex(0x541033);
+    SDL_Rect fruit{x + 8, y + 7, 42, 43};
+    const Stroke curve{{24, 21}, {18, 36}, {20, 54}, {29, 70}, {43, 80}, {61, 82}, {76, 72}, {84, 60}};
+    drawStrokeIn(top, curve, fruit, edge, 16.f);
+    drawStrokeIn(top, curve, fruit, peel, 11.f);
+    // A short cream glint reads as peel, while the plum stem and flower tip keep the silhouette unmistakably banana-like.
+    const Stroke glint{{24, 30}, {22, 44}, {26, 57}, {35, 67}};
+    drawStrokeIn(top, glint, fruit, light, 2.5f);
+    fillRound(top, SDL_Rect{x + 13, y + 10, 9, 7}, 3, edge);
+    fillRound(top, SDL_Rect{x + 44, y + 29, 7, 9}, 3, edge);
+  };
   // top: twinkling confetti, a wavy thank-you and a banana parade
   Col conf[MC_COUNT];
   for (int m = 0; m < MC_COUNT; m++) conf[m] = modeCol(ModeCol(m));
@@ -3009,7 +3031,7 @@ void App::drawCredits() {
   drawText(top, "BANANA KANA  " + version, SDL_Rect{170, 232, 300, 44}, ON_ACCENT, F_TINY);
   for (int i = 0; i < 7; i++) {
     int bx = 40 + i * 82, by = 318 + int(14 * std::sin(t * 3.f + i * 0.9f));
-    iconBanana(top, bx + 2, by + 4, 5);
+    creditBanana(bx - 2, by - 2);
   }
   drawText(top, "For the Anbernic RG DS Plus · code MIT · licences in data/licenses",
            SDL_Rect{20, 420, 600, 34}, DIM, F_MICRO);

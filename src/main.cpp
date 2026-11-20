@@ -258,6 +258,7 @@ int main(int argc, char** argv) {
   }
   app.brandIcon = loadBmpTexture(app.top, dataDir + "/brand-icon.bmp");
   app.homeFoxSprite = loadHomeFoxSprite(app.top, dataDir);
+  app.homeFoxSpriteBot = loadHomeFoxSprite(app.bot, dataDir);
   SDL_ShowCursor(SDL_ENABLE);
   if (!loadFonts(dataDir, app.top.scale, &err)) { fprintf(stderr, "font: %s\n", err.c_str()); return 3; }
   setKanaHand(app.prog.settings.kanaHand);

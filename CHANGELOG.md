@@ -8,7 +8,8 @@ the release notes come from the matching section below.
 - Rebuilt every screen around the approved warm-ivory, deep-plum handheld design while keeping the two-screen
   640×480 layouts, controller focus, touch targets and progress format intact.
 - New Kitsu brand icon across the BananaOS shelf, Welcome/unlock/Credits screens and README, with a banana-curved tail
-  and kana tile. Home Kitsu keeps the refined pixel-art treatment and now displays equipped accessories.
+  and kana tile. Home and Your fox now consistently use the refined pixel-art Kitsu, including equipped accessories.
+- Credits replaces the old blocky banana parade with smooth, outlined banana badges that match the redesigned palette.
 - Home has a visible, focusable Quit button and a Cancel-first confirmation dialog; F + START remains available.
 - Seasonal backgrounds still follow the calendar (or a fixed override) and motion still follows the user's setting.
 - Home previews the next session's new/review balance and duration; Quick, Standard, Study and Review-only presets
