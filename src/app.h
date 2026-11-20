@@ -59,6 +59,7 @@ struct Missed { std::string prompt, answer, said; };
 struct App {
   Win top, bot; Data data; Progress prog; std::string statePath, dataDir;
   SDL_Texture* homeFoxSprite = nullptr;
+  SDL_Texture* brandIcon = nullptr;  // shared Kitsu/banana-tail mark, loaded for the top-screen renderer
   std::mt19937 rng{std::random_device{}()};
   Screen screen = Screen::Home; bool running = true, paused = false; int pauseSel = 0;
   bool quitConfirm = false; int quitSel = 0;  // Home Quit button: Cancel first, then explicit confirmation

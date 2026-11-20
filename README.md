@@ -13,6 +13,9 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 
 <img src="docs/img/home.png" width="240" alt="Home screen"> <img src="docs/img/write.png" width="240" alt="Writing drill"> <img src="docs/img/mixup.png" width="240" alt="Mix-up drill">
 
+**A warm modern handheld redesign:** ivory cards, deep-plum type, refined pixel-art Kitsu, controller-first focus states
+and seasonal Japanese backgrounds, fitted to two 640×480 screens and scaled sharply on the RG DS Plus.
+
 </div>
 
 ## ✨ Features
@@ -78,8 +81,11 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 ### 🍌 Made for the RG DS Plus (and RG DS)
 - 🖥️ Prompts on the top screen; answers, keyboards and the tracing canvas on the touch screen.
 - 🕹️ Everything works with the d-pad and buttons too, including the on-screen keyboards.
-- 🌗 A clean handheld look: glossy buttons, a colour for each mode, line icons and bilingual headings, in light or
-  dark, with text rendered at the panels' real resolution.
+- 🌗 A soft modern handheld look: warm ivory cards, deep-plum typography, framed bilingual headings, line icons and a
+  distinct pastel colour for each mode. Light and dark themes render text at the panels' real resolution.
+- 🖼️ A unified Kitsu identity: the Ports logo, in-app brand mark and README icon all use the fox's banana-curved tail
+  and kana tile; Home uses matching high-resolution pixel artwork.
+- 🚪 A visible **Quit** button on Home opens a safe confirmation dialog. **F + START** remains the quick shortcut.
 - 🔆 Volume and F + volume (brightness) work as usual, with a level bar across the top screen.
 - 💾 Progress is saved after every answer, so closing the lid or powering off loses nothing.
 - 🛟 A backup copy of your progress sits next to the app on the SD card (`roms/ports/BananaKana/progress-backup.txt`)
@@ -102,6 +108,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 | <img src="docs/img/match.png" width="250"><br>Hiragana ↔ katakana | <img src="docs/img/packs.png" width="250"><br>Word packs | <img src="docs/img/words.png" width="250"><br>Word pack quiz |
 | <img src="docs/img/new-word.png" width="250"><br>New word card | <img src="docs/img/word-list.png" width="250"><br>A pack's word list | <img src="docs/img/achievements.png" width="250"><br>Achievements |
 | <img src="docs/img/kitsu.png" width="250"><br>Kitsu, your fox | <img src="docs/img/kitsu-hatch.png" width="250"><br>Kitsu hatches | <img src="docs/img/kitsu-name.png" width="250"><br>Naming your fox |
+| <img src="docs/img/autumn-home.png" width="250"><br>Auto-synced autumn | <img src="docs/img/quit-confirm.png" width="250"><br>Safe Quit confirmation | <img src="docs/img/welcome.png" width="250"><br>New Kitsu identity |
 
 </details>
 
@@ -129,7 +136,7 @@ A backup copy is also kept in `roms/ports/BananaKana/progress-backup.txt`: copy 
 
 | | |
 |---|---|
-| ✏️ **Stylus / touch** (bottom screen) | Tap answers, keys and buttons. Buttons act when you lift, so slide off to cancel. Trace on the canvas. The button hints along the bottom can be tapped too: tapping **B Back** goes back, **A Open** opens, and so on (all but the d-pad and Quit). |
+| ✏️ **Stylus / touch** (bottom screen) | Tap answers, keys and buttons. Buttons act when you lift, so slide off to cancel. Trace on the canvas. The button hints along the bottom can be tapped too, and Home's **Quit** button always asks for confirmation. |
 | ✛ **D-pad** or the analogue **stick** (shown as a cross in the hint chips) | Move around the Home grid, stages, chart cells, settings and keyboard keys |
 | **A** | Choose / confirm (press again on a chosen answer to check it) |
 | **B** | Back. In drills: undo a stroke or delete a letter |
@@ -224,6 +231,8 @@ container (it needs QEMU on x86). The binary links BananaOS's own SDL2 and is bu
 **Data and screenshots.**
 - `python3 tools/gen_data.py` regenerates `app/data`: the kana, words, hints, KanjiVG strokes and font subsets.
   It needs `fonttools`.
+- `python3 tools/make_icon.py` rebuilds the BananaOS, in-app and README icon variants from
+  `assets/banana-kana-icon-master.png`. It needs Pillow.
 - `scripts/screenshots.sh` regenerates `docs/img` from the self-test. It needs Pillow.
 
 ### 🗂️ Project layout
@@ -237,6 +246,7 @@ src/main.cpp     start-up, event loop, evdev touch, gamepad, backlight keeper
 src/selftest.cpp scripted UI run used in CI (and for the screenshots)
 tests/           core logic tests
 tools/           data, font and screenshot generators
+assets/          master Banana Kana/Kitsu brand artwork
 launcher/        "Banana Kana.sh" for the Ports shelf, box art
 scripts/         device build, packaging, release notes, screenshots
 ```
@@ -263,6 +273,8 @@ self-test, plus the arm64 build and a package dry run.
   [Klee One](https://fonts.google.com/specimen/Klee+One) and [Noto Sans CJK JP](https://github.com/notofonts/noto-cjk),
   all under the SIL Open Font License 1.1.
 - **Text:** the lesson hints, words and look-alike notes were written for Banana Kana.
+- **Brand artwork:** the original Kitsu/banana-tail icon was generated for this project and refined into the launcher,
+  in-app and documentation assets; it is covered by the repository licence.
 - **BananaOS:** [BananaLinux](https://github.com/JorreFog/BananaLinux) by JorreFog, the OS this all runs on.
 - **Thanks:** [Banana Player](https://github.com/tonywei92/banana-player) for documenting how apps work on BananaOS.
 

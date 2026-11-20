@@ -15,6 +15,7 @@ SHOTS = {  # output name -> self-test shot
     "dark-home": "dark_home", "dark-stats": "dark_stats", "welcome": "welcome", "welcome-theme": "welcome_theme", "practice-set": "chart_set",
     "free-write": "free_write", "skip": "settings_skip", "guided": "q_write", "credits": "credits",
     "draw-any": "draw_any_checked", "extras": "lesson_extras_fa", "match": "q_match", "packs": "packs", "words": "q_pack_recall", "new-word": "q_intro", "word-list": "pack_words", "achievements": "awards", "kitsu": "pet", "welcome-background": "welcome_background", "kitsu-hatch": "pet_hatch", "kitsu-name": "pet_name", "handwriting": "lesson_handwriting_grid",
+    "quit-confirm": "quit_confirm", "autumn-home": "season_2",
 }
 WIDTH = 480  # README width of each device image
 BODY, HINGE = (27, 26, 23), (16, 15, 13)

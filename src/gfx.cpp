@@ -183,6 +183,18 @@ void setBold(bool on) { gBold = on; }
 
 void clearTextCache(Win& w) { for (auto& [_, t] : w.cache) SDL_DestroyTexture(t); w.cache.clear(); }
 
+SDL_Texture* loadBmpTexture(Win& w, const std::string& path, bool nearest) {
+  SDL_Surface* surface = SDL_LoadBMP(path.c_str());
+  if (!surface) return nullptr;
+  SDL_Texture* texture = SDL_CreateTextureFromSurface(w.r, surface);
+  SDL_FreeSurface(surface);
+  if (texture) {
+    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureScaleMode(texture, nearest ? SDL_ScaleModeNearest : SDL_ScaleModeLinear);
+  }
+  return texture;
+}
+
 // ------------------------------------------------------------------ shapes
 void clearWin(Win& w, Col c) { SDL_SetRenderDrawColor(w.r, c.r, c.g, c.b, 255); SDL_RenderClear(w.r); }
 void fillRect(Win& w, SDL_Rect r, Col c) { SDL_SetRenderDrawColor(w.r, c.r, c.g, c.b, c.a); SDL_RenderFillRect(w.r, &r); }

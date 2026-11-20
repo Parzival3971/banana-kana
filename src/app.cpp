@@ -1000,6 +1000,12 @@ void App::backup(bool force) {
 }
 
 void App::appTile(Win& w, int x, int y, int size) {
+  if (brandIcon) {
+    SDL_Rect dst{x, y, size, size};
+    SDL_RenderCopy(w.r, brandIcon, nullptr, &dst);
+    return;
+  }
+  // Asset fallback for development builds made without app/data/brand-icon.bmp.
   ModeCol keep = MC_ORANGE; (void)keep;
   Col a = ACCENT, al = ACC_LINE, as = ACC_SH, ah = ACC_HI, alo = ACC_LO, at = ACCENT_TXT, ao = ON_ACCENT;
   setAccent(MC_ORANGE);
@@ -2910,7 +2916,7 @@ void App::drawCredits() {
   drawText(top, "BANANA KANA  " + version, SDL_Rect{170, 232, 300, 44}, ON_ACCENT, F_TINY);
   for (int i = 0; i < 7; i++) {
     int bx = 40 + i * 82, by = 318 + int(14 * std::sin(t * 3.f + i * 0.9f));
-    appTile(top, bx, by, 52);
+    iconBanana(top, bx + 2, by + 4, 5);
   }
   drawText(top, "For the Anbernic RG DS Plus · code MIT · licences in data/licenses",
            SDL_Rect{20, 420, 600, 34}, DIM, F_MICRO);

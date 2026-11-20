@@ -3,6 +3,16 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
+## Unreleased - soft UI redesign test build
+
+- Rebuilt every screen around the approved warm-ivory, deep-plum handheld design while keeping the two-screen
+  640×480 layouts, controller focus, touch targets and progress format intact.
+- New Kitsu brand icon across the BananaOS shelf, Welcome/unlock/Credits screens and README, with a banana-curved tail
+  and kana tile. Home Kitsu keeps the refined pixel-art treatment and now displays equipped accessories.
+- Home has a visible, focusable Quit button and a Cancel-first confirmation dialog; F + START remains available.
+- Seasonal backgrounds still follow the calendar (or a fixed override) and motion still follows the user's setting.
+- Regenerated the complete README screenshot gallery from the redesigned executable.
+
 ## 0.8.3 - 2026-11-18
 
 - Flatter buttons: every button now has one smooth shade instead of the shiny two-tone gloss. Outlines, shadows and

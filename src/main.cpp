@@ -256,6 +256,7 @@ int main(int argc, char** argv) {
       !makeWin(app.bot, "Banana Kana - bottom (touch)", 80, 60 + pcH, pcW, pcH, dual && displays >= 2, botDisp)) {
     fprintf(stderr, "window: %s\n", SDL_GetError()); return 3;
   }
+  app.brandIcon = loadBmpTexture(app.top, dataDir + "/brand-icon.bmp");
   app.homeFoxSprite = loadHomeFoxSprite(app.top, dataDir);
   SDL_ShowCursor(SDL_ENABLE);
   if (!loadFonts(dataDir, app.top.scale, &err)) { fprintf(stderr, "font: %s\n", err.c_str()); return 3; }

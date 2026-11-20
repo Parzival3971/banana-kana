@@ -13,6 +13,7 @@ int App::selfTest(const std::string& shotDir) {
   int fails = 0;
   auto CHECK = [&](bool c, const char* m) { if (!c) { printf("FAIL: %s\n", m); fails++; } };
   rng.seed(12345);
+  CHECK(brandIcon != nullptr, "brand icon loaded");
   motion = false;  // screenshots and clicks see settled screens; motion has its own check at the end
   prog.settings.backdrop = 0;  // README shots stay the same whatever the month (the season shots set their own)
   auto frame = [&]() { render(); };

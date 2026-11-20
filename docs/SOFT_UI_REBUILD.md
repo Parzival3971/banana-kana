@@ -27,6 +27,7 @@ progress, input, and seasonal systems. The RG DS Plus scales each logical screen
 
 ## Phase 5 — Kitsu and seasonal polish
 
+- New Kitsu/banana-tail brand mark is shared by the BananaOS shelf, Welcome, unlock and Credits screens.
 - New pixel Kitsu appears on Home for the first growth stage, including equipped accessory overlays.
 - Later growth forms continue to use the scalable animated fox artwork.
 - Calendar auto-sync, fixed-season overrides and motion settings are preserved. Seasonal particles are clipped to each LCD

@@ -94,5 +94,6 @@ void drawStrokeNumbers(Win& w, const Glyph& g, SDL_Rect box, int highlightUpTo, 
 
 bool makeWin(Win& w, const char* title, int x, int y, int ww, int wh, bool onDisplay, int display);
 bool saveShot(Win& w, const std::string& path);
+SDL_Texture* loadBmpTexture(Win& w, const std::string& path, bool nearest = false);
 
 }  // namespace kt
