@@ -13,7 +13,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 
 <img src="docs/img/home.png" width="240" alt="Home screen"> <img src="docs/img/write.png" width="240" alt="Writing drill"> <img src="docs/img/mixup.png" width="240" alt="Mix-up drill">
 
-**A warm modern handheld redesign:** ivory cards, deep-plum type, refined pixel-art Kitsu, controller-first focus states
+**A warm modern handheld redesign:** ivory cards, deep-plum type, cel-shaded anime Kitsu, controller-first focus states
 and seasonal Japanese backgrounds, fitted to two 640×480 screens and scaled sharply on the RG DS Plus.
 
 </div>
@@ -89,7 +89,7 @@ and seasonal Japanese backgrounds, fitted to two 640×480 screens and scaled sha
 - 🌗 A soft modern handheld look: warm ivory cards, deep-plum typography, framed bilingual headings, line icons and a
   distinct pastel colour for each mode. Light and dark themes render text at the panels' real resolution.
 - 🖼️ A unified Kitsu identity: the Ports logo, in-app brand mark and README icon all use the fox's banana-curved tail
-  and kana tile; Home uses matching high-resolution pixel artwork.
+  and kana tile; Home, Stats, feedback, results and Your fox share the same cel-shaded anime character artwork.
 - 🚪 A visible **Quit** button on Home opens a safe confirmation dialog. **F + START** remains the quick shortcut.
 - 🔆 Volume and F + volume (brightness) work as usual, with a level bar across the top screen.
 - 💾 Progress is saved after every answer, so closing the lid or powering off loses nothing.
@@ -279,8 +279,8 @@ self-test, plus the arm64 build and a package dry run.
   [Klee One](https://fonts.google.com/specimen/Klee+One) and [Noto Sans CJK JP](https://github.com/notofonts/noto-cjk),
   all under the SIL Open Font License 1.1.
 - **Text:** the lesson hints, words and look-alike notes were written for Banana Kana.
-- **Brand artwork:** the original Kitsu/banana-tail icon was generated for this project and refined into the launcher,
-  in-app and documentation assets; it is covered by the repository licence.
+- **Brand artwork:** the original Kitsu/banana-tail icon and anime character atlas were generated for this project and
+  refined into the launcher, in-app and documentation assets; they are covered by the repository licence.
 - **BananaOS:** [BananaLinux](https://github.com/JorreFog/BananaLinux) by JorreFog, the OS this all runs on.
 - **Thanks:** [Banana Player](https://github.com/tonywei92/banana-player) for documenting how apps work on BananaOS.
 
@@ -292,7 +292,9 @@ maintainer directs the work, decides how the app should behave, and tests every 
 Commits written this way carry a `Co-Authored-By: Claude` trailer.
 
 Stroke data (KanjiVG) and fonts are third-party work by people, credited above. The README screenshots are rendered
-by the app's own self-test, not generated images. If you spot a mistake in a hint or a word, please
+by the app's own self-test, not generated images. Kitsu's anime character atlas was created with OpenAI image-generation
+tools from the maintainer-approved character direction, then integrated and tested at the app's real display sizes.
+If you spot a mistake in a hint or a word, please
 [open an issue](https://github.com/Parzival3971/banana-kana/issues).
 
 Licence texts for all bundled data are in [`app/data/licenses`](app/data/licenses) and in the app under

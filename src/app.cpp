@@ -1436,10 +1436,7 @@ void App::drawHome() {
     FoxMood mood = !lit ? FoxMood::Asleep : hop ? FoxMood::Happy : FoxMood::Awake;
     float hopY = hop ? -std::fabs(std::sin((nowT - petHopStart) / 1000.f * 7.f)) * 10.f : 0.f;
     const FoxLook look = petLook(mood);
-    // 80 logical pixels map to 128 output pixels on the Plus: each sprite pixel is 4×4.
-    SDL_Rect spriteBox{r.x + 8, r.y + 15 + int(hopY), 80, 80};
-    if (!drawHomeFoxSprite(top, homeFoxSprite, spriteBox, look))
-      drawFox(top, r.x + 48, r.y + r.h - 6 + hopY, 112, look);
+    drawFox(top, r.x + 48, r.y + r.h - 6 + hopY, 112, look);
     if (!lit && prog.petStage() > 0) { float zt = motion ? nowT / 1000.f : 0.f;
       for (int k = 0; k < 2; k++) drawText(top, "z", SDL_Rect{r.x + 78 + k * 8, r.y + 6 - k * 10 - int(std::fmod(zt * 6 + k * 5, 10.f)), 20, 20}, DIM, F_MICRO); }
     const std::string& nm = prog.pet.name;
@@ -1815,7 +1812,7 @@ void App::drawDrill() {
     SDL_Rect f{24, std::min(376, 468 - 52 - noteH), 592, std::max(88, 52 + noteH)};
     boxRound(top, f, 24, correct ? GOOD_FILL : BAD_FILL, correct ? GOOD : BAD, 2);
     const int my = f.y + f.h / 2;
-    if (correct && answerStreak >= 3) drawFox(top, 58, my + 27, 56, petLook(FoxMood::Happy));
+    if (correct && answerStreak >= 3) drawFox(top, 60, my + 32, 70, petLook(FoxMood::Happy));
     else if (correct) drawRing(top, 58, my, 26, 7, 1.f, hex(0xE03131), hex(0xE03131));
     else lineIcon(top, "cross", SDL_Rect{32, my - 26, 52, 52}, DIM, 3.f);  // ○ / × like a Japanese test
     std::string ans = q.answer;
@@ -2023,8 +2020,7 @@ void App::drawPet() {
   header("きつね · Your fox", std::to_string(days) + (days == 1 ? " day practised" : " days practised"));
   card(top, SDL_Rect{16, 62, 272, 400}, 20);
   const FoxLook portrait = petLook(st == 0 ? FoxMood::Awake : prog.petAwake() ? FoxMood::Awake : FoxMood::Asleep);
-  if (!drawHomeFoxSprite(top, homeFoxSprite, SDL_Rect{36, 142, 232, 232}, portrait))
-    drawFox(top, 152, 446, 330, portrait);
+  drawFox(top, 152, 446, 380, portrait);
   const int X = 306, W = 318;
   setBold(true); drawText(top, prog.pet.name, SDL_Rect{X, 66, W, 56}, FG, F_MID, A_LEFT); setBold(false);
   std::string line = PET_STAGE_NAME[st];
@@ -2054,8 +2050,7 @@ void App::drawPet() {
     if (have1) {
       card(bot, r, 18, wearing ? mix(PANEL, ACCENT, 0.18f) : PANEL);
       FoxLook L; L.stage = 1; L.mood = FoxMood::Awake; L.accessory = i; L.t = 0;
-      if (!drawHomeFoxSprite(bot, homeFoxSpriteBot, SDL_Rect{r.x + 34, r.y + 8, 76, 76}, L))
-        drawFox(bot, r.x + r.w / 2, r.y + 92, 96, L);
+      drawFox(bot, r.x + r.w / 2, r.y + 94, 112, L);
       setBold(true); drawText(bot, acc[i].name, SDL_Rect{r.x + 4, r.y + 98, r.w - 8, 22}, FG, F_MICRO); setBold(false);
       drawText(bot, wearing ? "wearing" : "tap to wear", SDL_Rect{r.x + 4, r.y + 116, r.w - 8, 20}, wearing ? ACCENT_TXT : DIM, F_MICRO);
     } else {
@@ -2078,8 +2073,7 @@ void App::drawPetEvolve() {
   const bool hatched = prog.pet.seenStage < 1;
   setBold(true); drawText(top, hatched ? "うまれた! " + prog.pet.name + " hatched" : "しんか! " + prog.pet.name + " evolved", SDL_Rect{20, 14, 600, 56}, FG, F_MID); setBold(false);
   const FoxLook look = petLook(FoxMood::Happy);
-  if (!drawHomeFoxSprite(top, homeFoxSprite, SDL_Rect{190, 142, 260, 260}, look))
-    drawFox(top, 320, 462, 360, look);
+  drawFox(top, 320, 462, 360, look);
   card(bot, SDL_Rect{24, 24, 592, 270}, 22);
   setBold(true); drawText(bot, PET_STAGE_NAME[st], SDL_Rect{40, 40, 560, 52}, FG, F_MID); setBold(false);
   drawWrapped(bot, PET_STAGE_TEXT[st], SDL_Rect{60, 100, 520, 90}, DIM, F_TINY, A_CENTER);
@@ -2100,8 +2094,7 @@ void App::drawPetName() {
   else drawText(top, typed, box, FG, F_BIG);
   drawText(top, "Up to " + std::to_string(PET_NAME_MAX) + " kana · now: " + prog.pet.name, SDL_Rect{20, 244, 600, 30}, DIM, F_MICRO);
   FoxLook L = petLook(FoxMood::Happy);
-  if (!drawHomeFoxSprite(top, homeFoxSprite, SDL_Rect{240, 282, 160, 160}, L))
-    drawFox(top, 320, 466, 180, L);
+  drawFox(top, 320, 466, 180, L);
   drawKanaKeyboard();
 }
 
@@ -2247,7 +2240,7 @@ void App::drawStats() {
   statBox(top, SDL_Rect{174, 58, 140, 96}, "ACCURACY", tot ? std::to_string(cor * 100 / tot) + "%" : "-");
   statBox(top, SDL_Rect{324, 58, 140, 96}, "STREAK", "", F_TINY);
   { bool lit = streak > 0 && prog.lastGoalDay == dayNumber(prog.now());
-    drawFox(top, 356, 143, 50, petLook(prog.petStage() == 0 || lit ? FoxMood::Awake : FoxMood::Asleep));  // Kitsu keeps the streak
+    drawFox(top, 356, 143, 60, petLook(prog.petStage() == 0 || lit ? FoxMood::Awake : FoxMood::Asleep));  // Kitsu keeps the streak
     setBold(true); drawText(top, std::to_string(streak), SDL_Rect{380, 92, 76, 28}, FG, F_SMALL, A_LEFT); setBold(false);
     drawText(top, "best " + std::to_string(std::max(streak, prog.bestStreak)), SDL_Rect{380, 120, 80, 20}, DIM, F_MICRO, A_LEFT); }
   statBox(top, SDL_Rect{474, 58, 140, 96}, "TIMED BEST", std::to_string(prog.timedBest[scI]));

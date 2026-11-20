@@ -397,7 +397,7 @@ int App::selfTest(const std::string& shotDir) {
       FoxLook L; L.stage = st; L.accessory = a; L.season = se; L.mood = FoxMood::Happy;
       worst = std::max(worst, drawFox(top, 320, 460, 340, L)); }
     printf("fox: worst %d triangles\n", worst);
-    CHECK(worst > 200 && worst <= 3500, "fox triangle budget"); }
+    CHECK(worst > 0 && worst <= 3500, "fox triangle budget"); }
   go(Screen::Home);
 
   // ---- 14. kana keyboard

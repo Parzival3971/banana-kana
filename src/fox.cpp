@@ -1,8 +1,10 @@
 // Kitsu, the streak pet. See fox.h. Coordinates below are "fox units": the fox stands on (0, 0) and its ears reach
-// about y = -196; drawFox() scales them to the requested height. Shapes follow the approved mockup (2026-11-16).
+// about y = -196; drawFox() scales them to the requested height. The renderer uses flat cel colour and a plum ink
+// outline so the same anime-style mascot stays readable from the large portrait down to the Stats/feedback icons.
 #include "fox.h"
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <vector>
 
 namespace kt {
@@ -14,10 +16,11 @@ const float PI = 3.14159265f;
 Col rgb(unsigned h, Uint8 a = 255) { return Col{Uint8(h >> 16), Uint8(h >> 8), Uint8(h), a}; }
 
 struct Shade { Col light, mid, dark; };
-const Shade FUR{rgb(0xFFC27A), rgb(0xF59231), rgb(0xC45A12)};
-const Shade TAIL{rgb(0xFFB867), rgb(0xEE8222), rgb(0xB24F0E)};
-const Shade CREAM{rgb(0xFFFFFF), rgb(0xFFF5E8), rgb(0xF0D2AE)};
-const Shade EYE{rgb(0x7A5340), rgb(0x3A2418), rgb(0x140B07)};
+const Col INK = rgb(0x4B1736);
+const Shade FUR{rgb(0xFFC267), rgb(0xF59A32), rgb(0xD96D1C)};
+const Shade TAIL{rgb(0xFFB45A), rgb(0xF08B27), rgb(0xD96D1C)};
+const Shade CREAM{rgb(0xFFFFFF), rgb(0xFFF1D9), rgb(0xE7C49E)};
+const Shade EYE{rgb(0xFFD36B), rgb(0x9B4C2C), rgb(0x321224)};
 const Shade EAR{rgb(0xFFD8D4), rgb(0xF6AFAB), rgb(0xE07F80)};
 const Shade GLOWTIP{rgb(0xFFFDF0), rgb(0xFFF1B8), rgb(0xFFD97A)};
 const Shade RED{rgb(0xFF8A7A), rgb(0xE0453A), rgb(0xA8221A)};
@@ -25,6 +28,8 @@ const Shade BLUE{rgb(0x9CCBFF), rgb(0x3F86E8), rgb(0x1F55B0)};
 const Shade GOLD{rgb(0xFFF1A8), rgb(0xF2C230), rgb(0xB8860B)};
 const Shade PINK{rgb(0xFFE3EC), rgb(0xF7B3C8), rgb(0xE07FA0)};
 const Shade WHITE{rgb(0xFFFFFF), rgb(0xF4F6F8), rgb(0xC9D2DC)};
+constexpr int ANIME_TILE = 362;
+std::map<SDL_Renderer*, SDL_Texture*> animeAtlas;
 
 struct Geo {
   std::vector<SDL_Vertex> v;
@@ -35,22 +40,14 @@ struct Geo {
     v.push_back({at(b), {cb.r, cb.g, cb.b, cb.a}, {0, 0}});
     v.push_back({at(c), {cc.r, cc.g, cc.b, cc.a}, {0, 0}});
   }
-  // A shaded shape: light at a point nudged towards the top-left, the base colour two thirds of the way out and a
-  // darker rim. The outline must be star-shaped around its centre (all of ours are).
+  // Anime cel shape: a flat base with one consistent plum outline. The previous radial gradient made Kitsu look like
+  // a glossy 3D toy and broke down at icon size; the inked silhouette remains clear at every app scale.
   void shaded(const std::vector<P>& ring, const Shade& sh, float lightX = -0.25f, float lightY = -0.3f) {
     if (ring.size() < 3) return;
-    P c{0, 0}; for (auto& p : ring) { c.x += p.x; c.y += p.y; } c.x /= ring.size(); c.y /= ring.size();
-    float minx = 1e9f, maxx = -1e9f, miny = 1e9f, maxy = -1e9f;
-    for (auto& p : ring) { minx = std::min(minx, p.x); maxx = std::max(maxx, p.x); miny = std::min(miny, p.y); maxy = std::max(maxy, p.y); }
-    P l{c.x + lightX * (maxx - minx) * 0.5f, c.y + lightY * (maxy - miny) * 0.5f};
-    size_t n = ring.size();
-    for (size_t i = 0; i < n; i++) {
-      P a = ring[i], b = ring[(i + 1) % n];
-      P ma{l.x + (a.x - l.x) * 0.62f, l.y + (a.y - l.y) * 0.62f}, mb{l.x + (b.x - l.x) * 0.62f, l.y + (b.y - l.y) * 0.62f};
-      tri(l, sh.light, ma, sh.mid, mb, sh.mid);
-      tri(ma, sh.mid, a, sh.dark, b, sh.dark);
-      tri(ma, sh.mid, b, sh.dark, mb, sh.mid);
-    }
+    (void)lightX; (void)lightY;
+    flat(ring, sh.mid);
+    std::vector<P> edge = ring; edge.push_back(ring.front());
+    stroke(edge, 4.4f, INK);
   }
   void flat(const std::vector<P>& ring, Col c) {
     if (ring.size() < 3) return;
@@ -113,9 +110,93 @@ std::vector<P> tailTip() {
   return p;
 }
 
+int drawAnimeFox(Win& w, float cx, float baseY, float height, const FoxLook& L) {
+  auto tex = animeAtlas.find(w.r);
+  if (tex == animeAtlas.end() || !tex->second || L.stage <= 0) return -1;
+  static const float GROWTH[5] = {0.8f, 0.8f, 0.9f, 0.96f, 1.f};
+  const int stage = std::clamp(L.stage, 1, 4);
+  const int mood = L.mood == FoxMood::Happy ? 1 : L.mood == FoxMood::Asleep ? 2 : 0;
+  const int size = std::max(16, int(std::lround(height * GROWTH[stage])));
+  SDL_Rect src{(stage - 1) * ANIME_TILE, mood * ANIME_TILE, ANIME_TILE, ANIME_TILE};
+  SDL_Rect dst{int(std::lround(cx - size / 2.f)), int(std::lround(baseY - size)), size, size};
+  if (SDL_RenderCopy(w.r, tex->second, &src, &dst) != 0) return -1;
+
+  // Accessories and seasonal details stay vector-based, so one compact atlas covers every unlock and calendar theme.
+  Geo g{{}, cx, baseY, size / 200.f};
+  if (L.stage >= 2 || L.season == 3) {
+    const Shade& sc = L.season == 3 ? BLUE : RED;
+    std::vector<P> band{{-35, -92}}; quad(band, {-35, -92}, {0, -78}, {35, -92}, 10);
+    band.push_back({34, -77}); quad(band, {34, -77}, {0, -64}, {-34, -77}, 10);
+    g.shaded(band, sc); g.shaded({{16, -73}, {30, -43}, {21, -40}, {14, -48}}, sc);
+  }
+  if (L.season == 0) {
+    for (int k = 0; k < 5; k++) { float a = k * 72 * PI / 180 - PI / 2; g.shaded(ellipse(30 + 7 * std::cos(a), -158 + 7 * std::sin(a), 6, 6, 10), PINK); }
+    g.flat(ellipse(30, -158, 3, 3, 8), RED.mid);
+  } else if (L.season == 1) {
+    g.stroke({{42, -38}, {51, -72}}, 4.f, rgb(0x8A5A2A));
+    g.shaded(ellipse(54, -90, 20, 20, 20), Shade{rgb(0xE6F5FF), rgb(0x8FCBF5), rgb(0x3C8EEA)});
+  } else if (L.season == 2) {
+    std::vector<P> leaf; const float ra = -15 * PI / 180, ca = std::cos(ra), sa = std::sin(ra);
+    for (auto q : mapleLeaf()) leaf.push_back({-22 + 18 * (q.x * ca - q.y * sa), -162 + 18 * (q.x * sa + q.y * ca)});
+    g.shaded(leaf, RED);
+  }
+  switch (L.accessory) {
+    case 0:  // suzu bell
+      g.stroke({{-29, -94}, {0, -86}, {29, -94}}, 4.f, RED.mid);
+      g.shaded(ellipse(0, -82, 8, 8, 14), GOLD); g.stroke({{-5, -80}, {5, -80}}, 1.6f, INK); break;
+    case 1: {  // hachimaki
+      std::vector<P> b{{-46, -139}}; quad(b, {-46, -139}, {0, -151}, {46, -139}, 10); b.push_back({46, -126}); quad(b, {46, -126}, {0, -138}, {-46, -126}, 10);
+      g.shaded(b, WHITE); g.shaded(ellipse(0, -139, 6, 6, 12), RED);
+      g.shaded({{43, -136}, {69, -128}, {62, -141}}, WHITE); g.shaded({{44, -131}, {65, -114}, {67, -126}}, WHITE); break; }
+    case 2:
+      g.stroke({{27, -88}, {33, -67}}, 2.f, GOLD.mid);
+      g.shaded({{25, -67}, {41, -67}, {41, -40}, {33, -35}, {25, -40}}, RED); break;
+    case 3:
+      g.glow({-67, -58}, 31, rgb(0xFFD86B, 120));
+      g.shaded(ellipse(-67, -58, 15, 21, 18), RED); g.stroke({{-80, -80}, {-54, -80}}, 4.f, INK); g.stroke({{-80, -36}, {-54, -36}}, 4.f, INK); break;
+    case 4:
+      g.shaded(ellipse(38, -151, 13, 15, 16, 20), WHITE); g.stroke({{31, -151}, {36, -154}}, 1.8f, RED.mid); g.stroke({{40, -147}, {45, -149}}, 1.8f, RED.mid); break;
+    case 5:
+      g.shaded({{-52, -48}, {-14, -62}, {-9, -50}, {-47, -36}}, CREAM); break;
+    case 6:
+      g.stroke({{-43, -136}, {-20, -159}}, 2.2f, GOLD.dark);
+      for (int k = 0; k < 5; k++) { float a = k * 72 * PI / 180; g.shaded(ellipse(-40 + 6 * std::cos(a), -139 + 6 * std::sin(a), 5, 5, 10), PINK); } break;
+    case 7:
+      g.shaded(ellipse(57, -20, 15, 18, 18), RED); g.shaded(ellipse(57, -24, 9, 8, 14), WHITE);
+      g.flat(ellipse(53, -25, 2, 2, 8), INK); g.flat(ellipse(61, -25, 2, 2, 8), INK); break;
+    default: break;
+  }
+  if (L.stage >= 4) {
+    for (int k = 0; k < 3; k++) {
+      float a = L.t * 0.6f + k * 2.094f, fx = std::cos(a) * 105, fy = -105 + std::sin(a) * 64;
+      g.glow({fx, fy - 8}, 18, rgb(0x8FD3FF, 100));
+      g.shaded({{fx, fy}, {fx - 8, fy - 14}, {fx, fy - 30}, {fx + 8, fy - 14}}, Shade{rgb(0xF2FBFF), rgb(0x8FD3FF), rgb(0x3C8EEA)});
+    }
+  }
+  if (!g.v.empty()) {
+    SDL_SetRenderDrawBlendMode(w.r, SDL_BLENDMODE_BLEND);
+    SDL_RenderGeometry(w.r, nullptr, g.v.data(), int(g.v.size()), nullptr, 0);
+    SDL_SetRenderDrawBlendMode(w.r, SDL_BLENDMODE_NONE);
+  }
+  return 2 + int(g.v.size() / 3);
+}
+
 }  // namespace
 
+bool loadAnimeFoxAtlas(Win& w, const std::string& dataDir) {
+  SDL_Surface* atlas = SDL_LoadBMP((dataDir + "/kitsu-anime.bmp").c_str());
+  if (!atlas || atlas->w != 4 * ANIME_TILE || atlas->h != 3 * ANIME_TILE) { if (atlas) SDL_FreeSurface(atlas); return false; }
+  SDL_Texture* texture = SDL_CreateTextureFromSurface(w.r, atlas); SDL_FreeSurface(atlas);
+  if (!texture) return false;
+  SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+  SDL_SetTextureScaleMode(texture, SDL_ScaleModeBest);
+  animeAtlas[w.r] = texture;
+  return true;
+}
+
 int drawFox(Win& w, float cx, float baseY, float height, const FoxLook& L) {
+  int anime = drawAnimeFox(w, cx, baseY, height, L);
+  if (anime >= 0) return anime;
   static const float GROWTH[5] = {0.8f, 0.8f, 0.9f, 0.96f, 1.f};  // the kit is small and grows up
   Geo g{{}, cx, baseY, height / 200.f * GROWTH[std::clamp(L.stage, 0, 4)]};
   const float t = L.t;
@@ -149,6 +230,7 @@ int drawFox(Win& w, float cx, float baseY, float height, const FoxLook& L) {
     for (int i = 0; i < nT; i++) {
       float a = FAN[L.stage][i], sc = 1.f;
       P base{std::clamp(a / 6.f, -16.f, 16.f), -18.f};
+      if (L.stage == 1) sc = 1.22f;  // the kit's single sweeping tail is a defining anime silhouette
       if (asleep) {  // curled round the front like a sleeping cat: low, smaller, overlapping the feet
         int side = (i % 2) ? -1 : 1;
         a = side * (76.f - (i / 2) * 9.f); sc = 0.7f - (i / 2) * 0.05f; base = {-side * 22.f, -2.f - (i / 2) * 4.f};
@@ -194,19 +276,22 @@ int drawFox(Win& w, float cx, float baseY, float height, const FoxLook& L) {
     } else if (happy) {           // happy: upturned arcs ^ ^
       std::vector<P> c; quad(c, {f * 19 - 9, -114}, {f * 19, -126}, {f * 19 + 9, -114}, 6); c.insert(c.begin(), {f * 19 - 9, -114});
       g.stroke(H(c), 3.f, rgb(0x3A2418));
-    } else {                      // big glossy eyes with two highlights
-      g.shaded(H(ellipse(f * 19, -118, 10, 13, 18)), EYE, 0.f, 0.45f);
-      g.flat(H(ellipse(f * 19 - 3, -123, 4.5f, 4.5f, 10)), rgb(0xFFFFFF));
-      g.flat(H(ellipse(f * 19 + 4, -111, 2, 2, 8)), rgb(0xFFFFFF, 215));
+    } else {                      // large amber anime eyes: dark lash, warm iris, restrained highlights
+      g.shaded(H(ellipse(f * 19, -118, 11, 13, 18, f * 7)), EYE, 0.f, 0.45f);
+      g.flat(H(ellipse(f * 20, -116, 4.5f, 8.f, 14, f * 5)), rgb(0x321224));
+      g.flat(H(ellipse(f * 16, -123, 3.4f, 3.4f, 10)), rgb(0xFFFFFF));
+      g.flat(H(ellipse(f * 23, -112, 1.7f, 1.7f, 8)), rgb(0xFFF4DC));
+      g.stroke(H({{f * 31, -125}, {f * 20, -132}, {f * 9, -126}}), 3.1f, INK);
     }
     g.flat(H(ellipse(f * 32, -100, 8, 4.5f, 12)), rgb(0xFF8A8A, 140));  // blush
   }
-  g.shaded(H(ellipse(0, -103, 5.5f, 3.8f, 12)), Shade{rgb(0x6A4636), rgb(0x2A1B14), rgb(0x150D09)});
+  // Small forehead markings echo the approved anime concept without adding noise to the tiny versions.
+  g.flat(H({{-10, -139}, {-5, -130}, {-1, -141}}), CREAM.mid);
+  g.flat(H({{1, -141}, {5, -130}, {10, -139}}), CREAM.mid);
+  g.shaded(H(ellipse(0, -103, 5.5f, 3.8f, 12)), Shade{rgb(0x6A4636), INK, INK});
   g.flat(H(ellipse(-1.5f, -104.5f, 2, 1, 8)), rgb(0xFFFFFF, 180));
   if (happy) g.shaded(H(ellipse(0, -92, 5, 4, 12)), EAR);
-  else { std::vector<P> m{{-7, -95}}; quad(m, {-7, -95}, {-3.5f, -90}, {0, -95}, 4); quad(m, {0, -95}, {3.5f, -90}, {7, -95}, 4); g.stroke(H(m), 2.f, rgb(0x5A3626)); }
-  g.flat(H(ellipse(-16, -140, 18, 7, 14, -18)), rgb(0xFFFFFF, 80));    // head shine
-  g.flat(ellipse(-20, -58, 7, 12, 12), rgb(0xFFFFFF, 45));             // body shine
+  else { std::vector<P> m{{-7, -95}}; quad(m, {-7, -95}, {-3.5f, -90}, {0, -95}, 4); quad(m, {0, -95}, {3.5f, -90}, {7, -95}, 4); g.stroke(H(m), 2.f, INK); }
 
   // ---- scarf from 3 tails on (blue knit in winter)
   if (L.stage >= 2 || L.season == 3) {
@@ -286,54 +371,6 @@ int drawFox(Win& w, float cx, float baseY, float height, const FoxLook& L) {
   SDL_RenderGeometry(w.r, nullptr, g.v.data(), int(g.v.size()), nullptr, 0);
   SDL_SetRenderDrawBlendMode(w.r, SDL_BLENDMODE_NONE);
   return int(g.v.size() / 3);
-}
-
-namespace {
-constexpr int HOME_FOX_TILE = 32;
-}
-
-SDL_Texture* loadHomeFoxSprite(Win& w, const std::string& dataDir) {
-  // Columns are awake/asleep. Rows are plain, spring, summer, autumn and winter.
-  const std::string path = dataDir + "/kitsu-home.bmp";
-  SDL_Surface* atlas = SDL_LoadBMP(path.c_str());
-  if (!atlas) return nullptr;
-  SDL_Texture* texture = nullptr;
-  if (atlas->w == 2 * HOME_FOX_TILE && atlas->h == 5 * HOME_FOX_TILE) {
-    SDL_SetColorKey(atlas, SDL_TRUE, SDL_MapRGB(atlas->format, 255, 0, 255));
-    texture = SDL_CreateTextureFromSurface(w.r, atlas);
-    if (texture) SDL_SetTextureScaleMode(texture, SDL_ScaleModeNearest);
-  }
-  SDL_FreeSurface(atlas);
-  return texture;
-}
-
-bool drawHomeFoxSprite(Win& w, SDL_Texture* sprite, const SDL_Rect& box, const FoxLook& look) {
-  // Later growth stages still use the scalable geometry fox. The first-stage sprite accepts accessories so an equipped
-  // reward never makes the modern Home artwork silently disappear.
-  if (!sprite || look.stage != 1) return false;
-  SDL_Rect frame{look.mood == FoxMood::Asleep ? HOME_FOX_TILE : 0,
-                 (look.season + 1) * HOME_FOX_TILE, HOME_FOX_TILE, HOME_FOX_TILE};
-  if (SDL_RenderCopy(w.r, sprite, &frame, &box) != 0) return false;
-  if (look.accessory < 0) return true;
-  // Compact pixel-style accessory overlays. At 80 logical pixels these land on whole output pixels on the RG DS Plus.
-  const int x = box.x, y = box.y;
-  auto R = [&](int px, int py, int pw, int ph, Col c) {
-    int x0 = x + px * box.w / 32, y0 = y + py * box.h / 32;
-    int x1 = x + (px + pw) * box.w / 32, y1 = y + (py + ph) * box.h / 32;
-    fillRect(w, SDL_Rect{x0, y0, std::max(1, x1 - x0), std::max(1, y1 - y0)}, c);
-  };
-  const Col plum = hex(0x4B062D), red = hex(0xD63C45), gold = hex(0xF6B91A), cream = hex(0xFFF4D6);
-  switch (look.accessory) {
-    case 0: R(15, 17, 4, 2, plum); R(16, 19, 2, 3, gold); break;                         // bell
-    case 1: R(9, 8, 14, 2, cream); R(15, 8, 2, 2, red); R(21, 10, 5, 2, cream); R(23, 12, 3, 2, cream); break; // hachimaki
-    case 2: R(19, 17, 4, 6, red); R(20, 18, 2, 3, gold); break;                            // omamori
-    case 3: R(3, 16, 6, 8, red); R(2, 15, 8, 2, plum); R(2, 24, 8, 2, plum); break;          // lantern
-    case 4: R(21, 7, 6, 7, cream); R(21, 7, 2, 2, red); R(26, 7, 2, 2, red); break;         // fox mask
-    case 5: R(5, 20, 9, 4, cream); R(4, 20, 2, 4, plum); R(13, 20, 2, 4, plum); break;      // scroll
-    case 6: R(8, 7, 9, 1, plum); R(7, 5, 3, 3, red); R(5, 6, 2, 2, gold); break;            // kanzashi
-    default: R(25, 21, 5, 7, red); R(26, 22, 3, 3, cream); break;                            // daruma
-  }
-  return true;
 }
 
 }  // namespace kt

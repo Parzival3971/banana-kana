@@ -1,6 +1,6 @@
-// Kitsu, the streak pet: an original kitsune drawn in a soft, shaded "3D" chibi style.
-// Everything is triangle fans with per-vertex colours (a light centre fading to a darker rim), batched into one
-// SDL_RenderGeometry call, so the fox stays sharp at any scale and cheap enough to animate on the device.
+// Kitsu, the streak pet: an original anime-style kitsune drawn with flat cel colour and plum ink outlines.
+// A high-resolution four-stage/three-mood atlas keeps the same character sharp from tiny status icons through the
+// large Your fox portrait; lightweight vector overlays add accessories, seasons and fox-fire on either renderer.
 #pragma once
 #include "gfx.h"
 #include "core.h"
@@ -17,12 +17,11 @@ struct FoxLook {
   int season = -1;       // -1 none, 0 sakura on the head, 1 uchiwa fan, 2 momiji leaf, 3 winter scarf
 };
 
+// Registers the shared 4-stage × 3-mood anime atlas for one screen renderer. The procedural egg remains the fallback.
+bool loadAnimeFoxAtlas(Win& w, const std::string& dataDir);
+
 // Draws the fox standing on (cx, baseY). `height` is the full height in logical pixels (ears to feet).
 // Returns the number of triangles drawn (the self-test keeps it within budget).
 int drawFox(Win& w, float cx, float baseY, float height, const FoxLook& look);
-
-// Home's one-tail Kitsu atlas. The texture belongs to the top screen renderer.
-SDL_Texture* loadHomeFoxSprite(Win& w, const std::string& dataDir);
-bool drawHomeFoxSprite(Win& w, SDL_Texture* sprite, const SDL_Rect& box, const FoxLook& look);
 
 }  // namespace kt
