@@ -230,6 +230,8 @@ container (it needs QEMU on x86). The binary links BananaOS's own SDL2 and is bu
 - `python3 tools/gen_data.py` regenerates `app/data`: the kana, words, hints, KanjiVG strokes and font subsets.
   It needs `fonttools`.
 - `scripts/screenshots.sh` regenerates `docs/img` from the self-test. It needs Pillow.
+- `python3 tools/make_icon.py` redraws the app icon (the Ports box art and `docs/img/icon.png`) with the app's own
+  Kitsu drawing (`banana_kana --icon`). It needs a built app and Pillow.
 
 ### 🗂️ Project layout
 

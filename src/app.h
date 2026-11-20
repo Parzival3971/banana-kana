@@ -170,7 +170,8 @@ struct App {
   void drawButtons();
   // Header bar across the top screen: bold title on the left, small text (or the wordmark) on the right;
   // coloured = filled with the mode colour (drills).
-  void appTile(Win& w, int x, int y, int size);            // the app icon: glossy orange tile with あ and a little ア
+  bool iconShots(const std::string& dir);                  // --icon DIR: appTile on black + white for tools/make_icon.py
+  void appTile(Win& w, int x, int y, int size);            // the app icon: Kitsu on a cream tile with an orange あ badge
   void medal(Win& w, SDL_Rect box, bool earned);              // achievement medal: ribbon + gold disc (grey when not earned)
   void header(const std::string& title, const std::string& right = "", bool coloured = false, int indent = 0);
   int chips(const std::vector<std::pair<std::string, std::string>>& items);  // returns the x where the row ends

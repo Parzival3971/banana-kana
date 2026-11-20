@@ -242,7 +242,11 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   header(title, right, coloured, indent): bar with bilingual title. Home top: goal ring card, week streak strip (weekday
   kanji added to fallback.ttf), script bars; Home bottom: see Home grid below.
   Settings rows: SRow.opts -> segmented pills (B_SSEG0 + row*8 + opt). Medals: App::medal; app tile: App::appTile.
-  Icon: tools/make_icon.py (option A "kana tile") -> launcher/media/box/Banana Kana.png.
+  Icon (2026-11-20, user liked Codex's fox logo, asked for one in the app's own style, "doesn't have to be anime"):
+  App::appTile = cream tile + orange outline, sun disc, vector Kitsu (stage 1, happy, suzu bell, FoxLook.tailScale 1.75 /
+  tailTurn -31 for a big swooping tail) + orange あ badge; fixed colours, used on Welcome/Unlocked/Credits. The shelf PNG
+  comes from the same drawing: `python3 tools/make_icon.py` runs `banana_kana --icon DIR` (black + white render at 4x ->
+  exact alpha) -> launcher/media/box/Banana Kana.png (512) + docs/img/icon.png (280). Needs a built app + Pillow.
 - Review polish (user said "do all", 2026-11-15): the streak flame (drawFlame, flameTier) was REMOVED 2026-11-16 (user:
   "the flame was replaced with the fox"): Kitsu shows on Home and in the Stats Streak box; app streakColour() keeps the
   1/7/30/100 colours for the Home week dots. Don't bring the flame back.
@@ -293,7 +297,7 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   Source TTFs: github.com/google/fonts (ofl/zenmarugothic). Licences ship in app/data/licenses/.
   Text is rendered per run (main.cpp renderMixed/pickFont): kana -> kana.ttf, Latin -> ui.ttf, else fallback.ttf.
 - Theme: Dark and Light (DONE M1: `set theme` in progress.txt, toggle on Settings top row; palettes in main.cpp Theme). On light, yellow is fill only; yellow-on-light text needs a darker shade.
-- Icon: "Cartridge" design, rendered to launcher/media/box/Banana Kana.png (512x512; shelf size still unverified).
+- Icon: "Cartridge" design (old, replaced by the kana tile and then the Kitsu tile; see Handheld theme above).
 - Stages: 14 per script (10 basic rows, が-ざ-だ, ば-ぱ, 2 yōon). Katakana unlocks after hiragana stage 10.
   Each stage starts with a lesson (stroke order + hint + untimed tracing). Drills only use unlocked kana;
   word questions only use words made entirely of unlocked kana; older stages return as weighted review.

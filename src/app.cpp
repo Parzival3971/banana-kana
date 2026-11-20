@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <sys/stat.h>
 #include <cstdio>
 #include <cstring>
 
@@ -1020,15 +1021,36 @@ void App::backup(bool force) {
 }
 
 void App::appTile(Win& w, int x, int y, int size) {
-  ModeCol keep = MC_ORANGE; (void)keep;
-  Col a = ACCENT, al = ACC_LINE, as = ACC_SH, ah = ACC_HI, alo = ACC_LO, at = ACCENT_TXT, ao = ON_ACCENT;
-  setAccent(MC_ORANGE);
-  SDL_Rect f = pill(w, SDL_Rect{x, y, size, size - size / 20}, size / 4, 1);
-  drawText(w, "あ", SDL_Rect{f.x, f.y - size / 30, f.w * 9 / 10, f.h * 9 / 10}, hex(0xFFFFFF), size >= 120 ? F_BIG : F_MID);
-  int b = size * 3 / 10; SDL_Rect bd{f.x + f.w - b - size / 14, f.y + f.h - b - size / 14, b, b};
-  fillRound(w, SDL_Rect{bd.x, bd.y + 3, bd.w, bd.h}, b / 3, ACC_SH); fillRound(w, bd, b / 3, hex(0xFFFFFF));
-  drawText(w, "ア", bd, hex(0xE8590C), F_SMALL);
-  ACCENT = a; ACC_LINE = al; ACC_SH = as; ACC_HI = ah; ACC_LO = alo; ACCENT_TXT = at; ON_ACCENT = ao;
+  // The app icon (2026-11-20): Kitsu on a cream tile with a little orange あ badge. Fixed colours (not the theme), so
+  // the in-app tile always matches the Ports shelf icon, which tools/make_icon.py renders from this same drawing.
+  const float u = size / 100.f;  // design units: the tile is 100 x 100
+  auto U = [&](float v) { return int(std::lround(v * u)); };
+  const int rad = U(24);
+  SDL_Rect tile{x, y, size, size - U(4)};
+  fillRound(w, SDL_Rect{tile.x, tile.y + U(4), tile.w, tile.h}, rad, hex(0xC96A14));        // hard drop shadow
+  fillRound(w, tile, rad, hex(0xD9741C));                                                      // orange outline
+  SDL_Rect face{tile.x + U(3.2f), tile.y + U(3.2f), tile.w - U(6.4f), tile.h - U(6.4f)};
+  gradRound(w, face, rad - U(3.2f), hex(0xFFF8EC), hex(0xFFE3BC));                            // warm cream
+  fillCircle(w, face.x + U(42), face.y + U(42), U(33), hex(0xFFD49A));                         // a soft sun behind her
+  fillCircle(w, face.x + U(42), face.y + U(42), U(25), hex(0xFFC57E));
+  FoxLook L; L.stage = 1; L.mood = FoxMood::Happy; L.accessory = 0; L.t = 0;  // the kit, beaming, with her suzu bell
+  L.tailScale = 1.75f; L.tailTurn = -31.f;                                       // and a big tail swooping up behind her
+  drawFox(w, face.x + U(38), face.y + face.h - U(4), U(90), L);
+  const int b = U(27); SDL_Rect bd{face.x + face.w - b - U(4), face.y + face.h - b - U(4), b, b};  // あ badge, bottom right
+  fillRound(w, SDL_Rect{bd.x - U(1.6f), bd.y - U(1.6f), bd.w + U(3.2f), bd.h + U(3.2f) + U(2)}, b / 3 + U(1.6f), hex(0xFFFFFF));
+  fillRound(w, SDL_Rect{bd.x, bd.y + U(2), bd.w, bd.h}, b / 3, hex(0xB8560B));
+  fillRound(w, bd, b / 3, hex(0xF28C28));
+  setBold(true); drawText(w, "あ", SDL_Rect{bd.x, bd.y - U(1), bd.w, bd.h}, hex(0xFFFFFF), size >= 300 ? F_HUGE : size >= 120 ? F_MID : F_TINY); setBold(false);
+}
+
+bool App::iconShots(const std::string& dir) {  // the icon on black and on white (tools/make_icon.py gets alpha from the pair)
+  mkdir(dir.c_str(), 0755);
+  bool ok = true;
+  for (int k = 0; k < 2; k++) {
+    clearWin(top, k ? hex(0xFFFFFF) : hex(0x000000)); appTile(top, 90, 10, 460);
+    ok = saveShot(top, dir + (k ? "/icon_white.bmp" : "/icon_black.bmp")) && ok;
+  }
+  return ok;
 }
 
 void App::medal(Win& w, SDL_Rect box, bool earned) {

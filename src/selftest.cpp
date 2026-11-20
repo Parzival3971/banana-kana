@@ -152,7 +152,8 @@ int App::selfTest(const std::string& shotDir) {
     Progress keep = prog; prog.days.clear(); prog.days[dayNumber(prog.now() - 3 * 86400)] = Progress::Day{6, 5};
     prog.lastGoalDay = dayNumber(prog.now() - 3 * 86400); prog.today = 0; prog.todayCount = 0; frame(); shot("home_missed"); prog = keep; frame(); }
   { // ---- 3c. Quit from Home: a real button (tap or d-pad) that asks first; Cancel is focused
-    CHECK(click(B_QUIT) && quitConfirm && quitSel == 0 && running, "Quit asks first"); shot("quit_confirm");
+    if (!shotDir.empty()) CHECK(iconShots(shotDir), "icon shots");
+  CHECK(click(B_QUIT) && quitConfirm && quitSel == 0 && running, "Quit asks first"); shot("quit_confirm");
     padButton(SDL_CONTROLLER_BUTTON_A); CHECK(!quitConfirm && running && screen == Screen::Home, "A on Cancel closes it");
     auto f = homeFocus(); homeSel = int(f.size()) - 2;  // bottom-right tile
     padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); CHECK(f[homeSel] == B_QUIT, "down from the last tile: Quit");
