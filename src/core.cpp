@@ -267,6 +267,7 @@ void Progress::record(const std::string& key, bool ok) {
     s.wrong++; s.streak = 0; s.step = std::max(0, s.step - 1);
     if (kana && wasKnown) s.srs = std::max(1, s.srs - 1);       // relearn it; it comes back sooner once known again
   }
+  s.last = t;
   countAnswer(ok, t);
 }
 
@@ -310,6 +311,7 @@ void Progress::recordWrite(const std::string& key, bool ok, int level) {
     return;
   }
   s.seen++; if (ok) s.correct++; else s.wrong++;  // guided practice: counted, but no step won or lost
+  s.last = now();
   if (ok && s.wlvSession != session) { s.wlv = std::min(WRITE_MEMORY, s.wlv + 1); s.wlvSession = session; }
   countAnswer(ok, now());
 }
@@ -434,6 +436,7 @@ bool Progress::load(const std::string& path, const Data* d) {
       else if (k == "writing") settings.writing = std::clamp(v, 0, 2);
       else if (k == "typing") settings.typing = std::clamp(v, 0, 2);
       else if (k == "session_len") settings.sessionLen = std::clamp(v, 5, 30);
+      else if (k == "session_preset") settings.sessionPreset = std::clamp(v, 0, 4);
       else if (k == "daily_goal") settings.dailyGoal = std::clamp(v, 5, 50);
       else if (k == "today") today = v;
       else if (k == "today_count") todayCount = std::max(0, v);
@@ -478,6 +481,7 @@ bool Progress::load(const std::string& path, const Data* d) {
       else if (!(is >> s.srs >> s.due)) { s.srs = 0; s.due = 0; }
       else if (!(is >> s.wlv >> s.wlvSession)) { s.wlv = 0; s.wlvSession = -1; }
       else if (!(is >> s.gainAt)) s.gainAt = 0;
+      else if (!(is >> s.last)) s.last = s.gainAt;
       stats[key] = s; anyStat = true;
     }
   }
@@ -507,7 +511,7 @@ bool Progress::save(const std::string& path) const {
   { std::ostringstream f;
     f << "# banana-kana progress v2\nset version 2\n";
     f << "set review " << settings.review << "\nset reading " << settings.reading << "\nset meanings " << settings.meanings
-      << "\nset writing " << settings.writing << "\nset typing " << settings.typing << "\nset session_len " << settings.sessionLen
+      << "\nset writing " << settings.writing << "\nset typing " << settings.typing << "\nset session_len " << settings.sessionLen << "\nset session_preset " << settings.sessionPreset
       << "\nset script " << (settings.script == Script::Katakana) << "\nset theme " << settings.light
       << "\nset daily_goal " << settings.dailyGoal << "\nset today " << today << "\nset today_count " << todayCount
       << "\nset kana_keys " << int(settings.kanaKeys) << "\nset kana_hand " << int(settings.kanaHand)
@@ -517,7 +521,7 @@ bool Progress::save(const std::string& path) const {
       << "\nset lessons_h " << lessons[0] << "\nset lessons_k " << lessons[1] << "\n";
     for (const auto& [k, s] : stats)
       f << "stat " << k << ' ' << s.seen << ' ' << s.correct << ' ' << s.wrong << ' ' << s.streak << ' ' << s.step << ' '
-        << s.gainSession << ' ' << s.gain << ' ' << s.srs << ' ' << s.due << ' ' << s.wlv << ' ' << s.wlvSession << ' ' << s.gainAt << '\n';
+        << s.gainSession << ' ' << s.gain << ' ' << s.srs << ' ' << s.due << ' ' << s.wlv << ' ' << s.wlvSession << ' ' << s.gainAt << ' ' << s.last << '\n';
     for (const auto& [dd, x] : days) f << "day " << dd << ' ' << x.answers << ' ' << x.correct << '\n';
     for (const auto& [k, n] : confusions) { auto bar = k.find('|'); f << "mix " << k.substr(0, bar) << ' ' << k.substr(bar + 1) << ' ' << n << '\n'; }
     for (const auto& [id, day] : achieved) f << "ach " << id << ' ' << day << '\n';

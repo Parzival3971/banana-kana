@@ -81,6 +81,7 @@ int main(int argc, char** argv) {
     p.record("h:あ", true); CHECK(p.step("h:あ") == 3);   // cap
     p.session = 4; p.clock += GAIN_GAP; p.record("h:あ", true); p.record("h:あ", true); CHECK(p.step("h:あ") == KNOWN_STEP);
     CHECK(p.save("/tmp/kt_gain.txt")); Progress b; CHECK(b.load("/tmp/kt_gain.txt") && b.stats["h:あ"].gainAt == p.stats["h:あ"].gainAt);
+    CHECK(b.stats["h:あ"].last == p.clock);
   }
   {  // the daily goal: lowering it mid-day still meets it; "yesterday" survives the clocks going forward
     Progress p; p.clock = 1790000000; p.settings.dailyGoal = 20;
@@ -186,10 +187,10 @@ int main(int argc, char** argv) {
 
   // ---- save/load roundtrip (v2)
   {
-    Progress a; a.settings.sessionLen = 15; a.settings.script = Script::Katakana; a.settings.light = true; a.settings.review = 2;
+    Progress a; a.settings.sessionLen = 15; a.settings.sessionPreset = 4; a.settings.script = Script::Katakana; a.settings.light = true; a.settings.review = 2;
     a.unlocked = {11, 2}; a.lessons = {11, 1}; a.session = 9; a.record("h:あ", true); a.record("h:あ", false);
     CHECK(a.save("/tmp/kt_prog.txt")); Progress b; CHECK(b.load("/tmp/kt_prog.txt", &d));
-    CHECK(!b.migrated && b.settings.light && b.settings.sessionLen == 15 && b.settings.review == 2);
+    CHECK(!b.migrated && b.settings.light && b.settings.sessionLen == 15 && b.settings.sessionPreset == 4 && b.settings.review == 2);
     CHECK(b.settings.script == Script::Katakana && b.unlocked[0] == 11 && b.unlocked[1] == 2 && b.lessons[1] == 1 && b.session == 9);
     CHECK(b.stats["h:あ"].seen == 2 && b.stats["h:あ"].wrong == 1 && b.stats["h:あ"].step == 0);
   }

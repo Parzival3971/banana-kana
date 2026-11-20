@@ -27,7 +27,7 @@ enum BtnId {
   // pause
   B_RESUME = 50, B_MENU, B_PAUSE = 58,
   // results / unlock
-  B_AGAIN = 60, B_LATER, B_START_LESSON,
+  B_AGAIN = 60, B_LATER, B_START_LESSON, B_REVIEW_MISSED,
   // stages
   B_STAGE0 = 70, B_STAGE_ACTION = 90, B_HOME_GO = 91,
   // lesson
@@ -54,7 +54,7 @@ struct Button {
   bool hidden = false;  // hit area only; the screen draws it itself
 };
 
-struct Missed { std::string prompt, answer, said; };
+struct Missed { std::string key, prompt, answer, said; };
 
 struct App {
   Win top, bot; Data data; Progress prog; std::string statePath, dataDir;
@@ -87,6 +87,7 @@ struct App {
   Script lessonScript = Script::Hiragana; int lessonStage = 0, lessonIdx = 0; bool lessonReplay = false;
   // session
   Question q; int index = 0, score = 0, sel = -1, cursor = 0, sessionLen = 10, focusKana = -1;
+  int answerStreak = 0, bestAnswerStreak = 0, strengthened = 0;
   bool checked = false, correct = false, showHint = false, drawing = false;
   std::string typed, lastKey; std::vector<Stroke> strokes; Stroke cur; std::vector<int> strokeOk, results;
   std::vector<Missed> missed; std::vector<std::string> newlyKnown; std::string feedbackNote;
@@ -112,7 +113,7 @@ struct App {
   int keyRow = 0, keyCol = 0;  // d-pad cursor on the on-screen keyboards
   int kbRows() const; int kbRowLen(int r) const; int kbItemId(int r, int c) const; void kbMove(int dc, int dr);
   bool inPractice() const { return screen == Screen::Drill || screen == Screen::Lesson || screen == Screen::FreeWrite; }
-  bool firstRun = false; int welcomeSel = 0; int welcomeStep = 0; bool welcomeAgain = false;  // first launch: 0 pick light/dark, 1 background (seasons/plain), 2 vibration, 3 what you know
+  bool firstRun = false; int welcomeSel = 0; int welcomeStep = 0; int welcomeControls = 0; bool welcomeAgain = false;  // setup: look, background, vibration, controls, prior knowledge
   int skipPending[2] = {0, 0};
   // timed challenge
   int timedLeft = 0; Uint32 timedLast = 0; bool timedNewBest = false; int flash = 0; std::string flashText;  // flash 1 right, 2 wrong
@@ -134,6 +135,7 @@ struct App {
   // Anything that starts another session, a script switch or a progress reset drops it. Not kept across app restarts.
   struct Held { bool on = false; Mode mode = Mode::Normal; Script script = Script::Hiragana;
                 int session = 0, index = 0, score = 0, sessionLen = 0, focusKana = -1, packIdx = -1; bool goalMet = false;
+                int answerStreak = 0, bestAnswerStreak = 0, strengthened = 0;
                 std::vector<int> results, focusSet; std::vector<Missed> missed; std::vector<std::string> newlyKnown;
                 PackSession packSession; std::string lastKey; } held;
   void holdSession();     // leaving a drill for Home

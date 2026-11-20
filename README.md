@@ -28,7 +28,7 @@ and seasonal Japanese backgrounds, fitted to two 640×480 screens and scaled sha
   before it's tested.
 - 🪜 **One step at a time.** A brand-new kana is only asked as multiple choice. Typing comes once you've got it right,
   then writing: first over the full guide, then over a faint outline, then from memory, one level per session.
-- ⏩ **Already know some?** On first launch, pick light or dark, a background and how much vibration you like, then say how much you know (or skip ahead later in Settings > Script). Settings › Progress › Run setup again goes through it any time.
+- ⏩ **Already know some?** On first launch, pick light or dark, a background and how much vibration you like, try the controls, then say how much you know (or skip ahead later in Settings > Script). Settings › Progress › Run setup again goes through it any time.
   Skipped kana count as known, with a quick review in a day or two to check.
 
 ### 🎮 Practise
@@ -48,6 +48,8 @@ and seasonal Japanese backgrounds, fitted to two 640×480 screens and scaled sha
   shown on a card before they're ever tested, and each pack has a word list you can browse.
 - 🎯 **Practice sets.** Pick kana in the chart and drill just those. A single kana is mixed with its look-alikes, so
   the answer isn't always the same.
+- 🕒 **Session presets.** Choose Quick, Standard, Study or Review only. Home previews the likely mix and duration before
+  you begin, and a paused session clearly becomes Continue.
 
 ### ✍️ Write
 - 🎬 **See the stroke order.** Show me (or START) animates each stroke in turn, and arrows on the guide show which way
@@ -70,7 +72,10 @@ and seasonal Japanese backgrounds, fitted to two 640×480 screens and scaled sha
   her with the kana keys (Stats, then START).
 - 🏅 **Achievements.** 17 badges for learning kana and words, streaks, timed scores and perfect sessions, with your
   progress towards each one (Stats, then X).
-- 📊 **Stats.** Your last 14 days and an accuracy heatmap of every kana. Tap one to see it in the chart.
+- 📊 **Stats.** Your last 14 days and an accuracy heatmap of every kana. Tap one for its learning steps, accuracy,
+  last practice, next review and recorded mix-ups.
+- 🧾 **Useful results.** See newly known and strengthened kana, daily-goal progress and mistakes, then jump directly
+  into a focused Review mistakes session.
 - 🎉 **Celebrations.** Confetti when a kana becomes known, a stage unlocks, you hit your daily goal or beat your
   timed best.
 - 🔊 **Sound effects.** Little chimes for right answers, newly known kana, unlocks and your daily goal (made in code,
@@ -109,6 +114,7 @@ and seasonal Japanese backgrounds, fitted to two 640×480 screens and scaled sha
 | <img src="docs/img/new-word.png" width="250"><br>New word card | <img src="docs/img/word-list.png" width="250"><br>A pack's word list | <img src="docs/img/achievements.png" width="250"><br>Achievements |
 | <img src="docs/img/kitsu.png" width="250"><br>Kitsu, your fox | <img src="docs/img/kitsu-hatch.png" width="250"><br>Kitsu hatches | <img src="docs/img/kitsu-name.png" width="250"><br>Naming your fox |
 | <img src="docs/img/autumn-home.png" width="250"><br>Auto-synced autumn | <img src="docs/img/quit-confirm.png" width="250"><br>Safe Quit confirmation | <img src="docs/img/welcome.png" width="250"><br>New Kitsu identity |
+| <img src="docs/img/welcome-controls.png" width="250"><br>Controller introduction | <img src="docs/img/session-presets.png" width="250"><br>Session presets | <img src="docs/img/result.png" width="250"><br>Review mistakes |
 
 </details>
 

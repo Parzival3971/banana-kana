@@ -39,3 +39,11 @@ progress, input, and seasonal systems. The RG DS Plus scales each logical screen
 - The scripted suite captures every major screen, both themes, all seasons and the Quit confirmation.
 - The aarch64/QEMU job must build, run tests and produce the BananaOS ZIP artifact.
 - Final acceptance happens on the RG DS Plus; no release is tagged until that device test passes.
+
+## Phase 7 — learning and onboarding polish
+
+- Home previews session composition and time; Sessions offers Quick, Standard, Study and Review-only presets.
+- Feedback tracks a session answer streak and lets Kitsu celebrate without adding expensive animation assets.
+- Results show strengthened steps and daily-goal progress, with a focused Review mistakes action.
+- Kana details expose accuracy, last practice, next review and mix-ups.
+- Setup teaches D-pad movement and A-button selection before asking how much kana the learner already knows.

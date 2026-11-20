@@ -11,6 +11,13 @@ the release notes come from the matching section below.
   and kana tile. Home Kitsu keeps the refined pixel-art treatment and now displays equipped accessories.
 - Home has a visible, focusable Quit button and a Cancel-first confirmation dialog; F + START remains available.
 - Seasonal backgrounds still follow the calendar (or a fixed override) and motion still follows the user's setting.
+- Home previews the next session's new/review balance and duration; Quick, Standard, Study and Review-only presets
+  make session length and intent easier to choose.
+- Answer streaks now bring Kitsu into feedback, while results show strengthened kana, daily-goal progress and a direct
+  Review mistakes action.
+- Kana details now show accuracy, last practice, next review and mix-up counts, backed by a compatible extension to
+  existing progress files.
+- First-run setup includes an interactive D-pad and A-button introduction.
 - Regenerated the complete README screenshot gallery from the redesigned executable.
 
 ## 0.8.3 - 2026-11-18

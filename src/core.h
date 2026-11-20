@@ -70,12 +70,14 @@ struct Stat {
   int srs = 0; Time due = 0;  // spaced review once known: level 1..SRS_LEVELS and when it is next due
   int wlv = 0, wlvSession = -1;  // writing level: 0 full guide, 1 faint outline, 2 from memory (one level per session)
   Time gainAt = 0;               // when the last step was won (0 = never / older file): see GAIN_GAP
+  Time last = 0;                 // most recent practice, for the kana detail screen
 };
 
 struct Settings {
   int review = 1;  // older stages in practice: 0 off (weak ones only), 1 some, 2 lots
   int reading = 2, meanings = 1, writing = 1, typing = 1;  // drill weights 0..2
   int sessionLen = 10;
+  int sessionPreset = 1;  // 0 quick, 1 standard, 2 study, 3 review only, 4 custom
   int dailyGoal = 10;  // answers per day for the streak
   bool kanaKeys = false;  // Typing answers with a kana keyboard (see romaji, type kana) instead of romaji
   bool kanaHand = false;  // kana drawn in a handwriting (textbook) font instead of rounded print

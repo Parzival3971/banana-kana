@@ -13,6 +13,7 @@ namespace {
 const char* WEIGHT_NAMES[3] = {"Off", "Sometimes", "Often"};
 const char* REVIEW_NAMES[3] = {"Off", "Some", "Lots"};
 const int SESSION_LENS[4] = {5, 10, 15, 20};
+const char* PRESET_NAMES[5] = {"Quick", "Standard", "Study", "Review only", "Custom"};
  // home mode row, left to right: Review, Mix-ups, Words, Timed, Stats (B_MODE0 + id)
 int vowelCol(const std::string& romaji) {
   const std::string v = "aiueo";
@@ -105,7 +106,18 @@ void App::setScript(Script s) {
 }
 
 void App::startSession(int focus) {
-  if (focus >= 0) startFocus({focus}); else startMode(Mode::Normal);
+  if (focus >= 0) { startFocus({focus}); return; }
+  if (prog.settings.sessionPreset == 3) {
+    if (modeAvailable(Mode::Review)) { startMode(Mode::Review); return; }
+    std::vector<int> practised;
+    for (size_t i = 0; i < data.kana.size(); i++) {
+      auto it = prog.stats.find(Progress::keyKana(data.kana[i]));
+      if (data.kana[i].script == prog.settings.script && prog.isUnlocked(data, int(i)) && it != prog.stats.end() && it->second.seen > 0)
+        practised.push_back(int(i));
+    }
+    if (!practised.empty()) { startFocus(practised); return; }
+  }
+  startMode(Mode::Normal);
 }
 
 void App::startFocus(const std::vector<int>& set) {
@@ -189,6 +201,7 @@ void App::holdSession() {
   int idx = index + (checked && !q.intro ? 1 : 0);  // an answered question already counts
   held.on = true; held.mode = mode; held.script = prog.settings.script; held.session = prog.session; held.index = idx;
   held.score = score; held.sessionLen = sessionLen; held.focusKana = focusKana; held.packIdx = packIdx; held.goalMet = goalMet;
+  held.answerStreak = answerStreak; held.bestAnswerStreak = bestAnswerStreak; held.strengthened = strengthened;
   held.results = results; held.focusSet = focusSet; held.missed = missed; held.newlyKnown = newlyKnown;
   held.packSession = packSession; held.lastKey = lastKey;
 }
@@ -198,6 +211,7 @@ bool App::resumeSession() {
   held.on = false;
   mode = held.mode; index = held.index; score = held.score; sessionLen = held.sessionLen; focusKana = held.focusKana;
   packIdx = held.packIdx; goalMet = held.goalMet; results = held.results; focusSet = held.focusSet; missed = held.missed;
+  answerStreak = held.answerStreak; bestAnswerStreak = held.bestAnswerStreak; strengthened = held.strengthened;
   newlyKnown = held.newlyKnown; packSession = held.packSession; lastKey = held.lastKey;
   go(Screen::Drill);
   if (index >= sessionLen) finishSession(); else nextQuestion(true);
@@ -219,7 +233,7 @@ void App::startMode(Mode m) {
   sessionLen = prog.settings.sessionLen;
   if (m == Mode::Review) sessionLen = std::min(sessionLen, prog.dueCount(data, prog.settings.script));
   if (m == Mode::Timed) { sessionLen = 0; timedLeft = TIMED_MS; timedLast = SDL_GetTicks(); timedNewBest = false; flash = 0; flashText.clear(); }
-  index = 0; score = 0; results.clear(); missed.clear(); newlyKnown.clear(); lastKey.clear(); goalMet = false;
+  index = 0; score = 0; answerStreak = bestAnswerStreak = strengthened = 0; results.clear(); missed.clear(); newlyKnown.clear(); lastKey.clear(); goalMet = false;
   go(Screen::Drill); nextQuestion(true); save();
 }
 
@@ -370,9 +384,11 @@ void App::check() {
   }
   int before = prog.step(q.key);
   checked = true; correct = ok; results.push_back(ok ? 1 : 0); if (motion) answerAnim = SDL_GetTicks() | 1;  // pop / shake
+  answerStreak = ok ? answerStreak + 1 : 0; bestAnswerStreak = std::max(bestAnswerStreak, answerStreak);
   int wlvBefore = prog.writeLevel(q.key);
   if (q.type == QType::Write) prog.recordWrite(q.key, ok, q.writeLevel); else prog.record(q.key, ok);
   int after = prog.step(q.key);
+  if (after > before) strengthened++;
   const Word* word = nullptr;
   if (q.isWord) for (const Word& w : data.words) if (Progress::keyWord(w) == q.key) { word = &w; break; }
   bool wordKnown = word && ok && before < KNOWN_STEP && after >= KNOWN_STEP;
@@ -396,7 +412,7 @@ void App::check() {
   } else {
     if (k) { auto it = data.hints.find(k->glyph); feedbackNote = it != data.hints.end() ? it->second : ""; }
     else if (word) feedbackNote = word->kana + " (" + word->romaji + ") = " + word->english;
-    missed.push_back({k ? k->glyph : q.prompt, k ? k->romaji : q.answer, said});
+    missed.push_back({q.key, k ? k->glyph : q.prompt, k ? k->romaji : q.answer, said});
     if (k && !q.options.empty() && sel >= 0)  // remember which kana it was mixed up with
       for (size_t i = 0; i < data.kana.size(); i++) {
         const Kana& o = data.kana[i];
@@ -417,6 +433,10 @@ void App::check() {
       int dd = int((st.due - prog.now() + 43200) / 86400);
       feedbackNote = "Next review in " + std::to_string(dd) + (dd == 1 ? " day." : " days.");
     }
+  }
+  if (ok && answerStreak >= 3 && !q.mixup) {
+    std::string spark = std::to_string(answerStreak) + " right in a row! Kitsu is cheering.";
+    feedbackNote = feedbackNote.empty() ? spark : spark + " " + feedbackNote;
   }
   snd::play(wordKnown || (!newlyKnown.empty() && newlyKnown.back() == (k ? k->glyph : "") && ok) ? snd::Sfx::Known : ok ? snd::Sfx::Right : snd::Sfx::Wrong);
   if (prog.goalJustMet) {
@@ -445,7 +465,7 @@ void App::finishLesson() {
   int& done = prog.lessons[si(lessonScript)];
   done = std::max(done, lessonStage + 1);
   prog.settings.script = lessonScript; save();
-  startSession();
+  startMode(Mode::Normal);  // a new lesson always practises its kana, even with the Review-only preset
 }
 
 void App::togglePause() {
@@ -534,9 +554,16 @@ void App::press(int id) {
       else if (id == B_SHOWME && !checked && q.type == QType::Write) { showHint = true; playStrokes(); }
       break;
     case Screen::Result:
-      if (id == B_AGAIN) {
+      if (id == B_REVIEW_MISSED) {
+        std::vector<int> set;
+        for (const Missed& m : missed)
+          for (size_t i = 0; i < data.kana.size(); i++)
+            if (Progress::keyKana(data.kana[i]) == m.key && !std::count(set.begin(), set.end(), int(i))) set.push_back(int(i));
+        if (!set.empty()) startFocus(set);
+      }
+      else if (id == B_AGAIN) {
         if (!pendingUnlocks.empty()) go(Screen::Unlocked);
-        else if (mode == Mode::Focus) startSession(focusKana);
+        else if (mode == Mode::Focus) startFocus(focusSet);
         else startMode(mode);  // same mode again (review falls back to practice once nothing is due)
       }
       else if (id == B_HOME) go(!pendingUnlocks.empty() ? Screen::Unlocked : mode == Mode::Pack ? Screen::Packs : Screen::Home);
@@ -643,7 +670,9 @@ void App::press(int id) {
         if (id >= B_WRUM0 && id < B_WRUM0 + 3) {
           prog.settings.rumble = id - B_WRUM0; snd::setRumble(prog.settings.rumble); save();
           if (prog.settings.rumble) snd::rumble(snd::Sfx::Known);
-        } else if (id == B_WEL_NEXT) { welcomeStep = 3; welcomeSel = 0; }
+        } else if (id == B_WEL_NEXT) { welcomeStep = 3; welcomeControls = 0; }
+      } else if (welcomeStep == 3) {
+        if (id == B_WEL_NEXT) { welcomeStep = 4; welcomeSel = 0; }
       } else if (id >= B_WELCOME0 && id < B_WELCOME0 + 4) welcomeChoice(id - B_WELCOME0);
       break;
     case Screen::Stats:
@@ -803,7 +832,7 @@ void App::padButton(SDL_GameControllerButton b) {
       }
       break; }
     case Screen::Result:
-      if (b == A) press(B_AGAIN); else if (b == B) press(B_HOME);
+      if (b == A) press(B_AGAIN); else if (b == X) press(B_REVIEW_MISSED); else if (b == B) press(B_HOME);
       break;
     case Screen::Packs: {
       int n = int(data.packs.size());
@@ -880,10 +909,15 @@ void App::padButton(SDL_GameControllerButton b) {
         if (b == L) press(B_WRUM0 + std::max(0, prog.settings.rumble - 1)); else if (b == R) press(B_WRUM0 + std::min(2, prog.settings.rumble + 1));
         else if (b == A || b == ST) press(B_WEL_NEXT);
         else if (b == B) welcomeStep = 1;
+      } else if (welcomeStep == 3) {
+        if (b == L || b == R || b == U || b == D) welcomeControls |= 1;
+        else if (b == A) welcomeControls |= 2;
+        else if (b == B) welcomeStep = 2;
+        if (welcomeControls == 3) { welcomeStep = 4; welcomeSel = 0; }
       } else {
         if (b == U) welcomeSel = (welcomeSel + 3) % 4; else if (b == D) welcomeSel = (welcomeSel + 1) % 4;
         else if (b == A || b == ST) press(B_WELCOME0 + welcomeSel);
-        else if (b == B) welcomeStep = 2;  // back to vibration
+        else if (b == B) welcomeStep = 3;
       }
       break;
     case Screen::Stats:
@@ -1370,7 +1404,18 @@ void App::drawHome() {
     if (sc == Script::Hiragana && curSt == KATAKANA_AFTER - 1) next = "katakana";
     msg = curSt == STAGE_COUNT - 1 ? "Last stage! Get " + join(left, " ") + " to step 4." : "Get " + join(left, " ") + " to step 4 to unlock " + next + ".";
   }
-  drawWrapped(top, msg, SDL_Rect{42, 210, 352, 80}, DIM, F_TINY);
+  int newN = 0;
+  for (int ki : st.kana) {
+    auto it = prog.stats.find(Progress::keyKana(data.kana[ki]));
+    if (it == prog.stats.end() || it->second.seen == 0) newN++;
+  }
+  int reviewN = std::min(prog.settings.sessionLen, prog.dueCount(data, sc));
+  int mins = std::max(2, (prog.settings.sessionLen * 18 + 59) / 60);
+  std::string plan = prog.settings.sessionPreset == 3
+      ? "NEXT · review only · " + std::to_string(prog.settings.sessionLen) + " questions · about " + std::to_string(mins) + " min"
+      : "NEXT · up to " + std::to_string(std::min(newN, prog.settings.sessionLen)) + " new · " + std::to_string(reviewN) + " due · about " + std::to_string(mins) + " min";
+  drawText(top, plan, SDL_Rect{42, 206, 352, 24}, ACCENT_TXT, F_MICRO, A_LEFT);
+  drawWrapped(top, msg, SDL_Rect{42, 234, 352, 54}, DIM, F_MICRO);
   // ---- today's goal ring
   int goal = prog.settings.dailyGoal, todayN = prog.today == dayNumber(prog.now()) ? prog.todayCount : 0;
   { SDL_Rect r{428, 64, 190, 232}; card(top, r, 20);
@@ -1401,7 +1446,12 @@ void App::drawHome() {
     std::string title, sub; Col subCol = DIM;
     int left = std::max(0, prog.settings.dailyGoal - (prog.today == dayNumber(prog.now()) ? prog.todayCount : 0));
     if (st == 0) { title = "An egg!"; sub = "Hatches at today's goal"; subCol = ACCENT_TXT; }
-    else if (!lit) { title = nm + " is asleep"; sub = std::to_string(left) + (left == 1 ? " more answer" : " more answers") + " to wake her"; subCol = ACCENT_TXT; }
+    else if (!lit) {
+      Time recent = 0; for (const auto& [_, x] : prog.stats) recent = std::max(recent, x.last);
+      int away = recent > 0 ? int((prog.now() - recent) / 86400) : 0;
+      title = away >= 2 ? nm + " missed you" : nm + " is asleep";
+      sub = std::to_string(left) + (left == 1 ? " more answer" : " more answers") + " to wake her"; subCol = ACCENT_TXT;
+    }
     else { title = nm + " · " + std::to_string(PET_TAILS[st]) + (st == 1 ? " tail" : " tails"); sub = std::to_string(streak) + "-day streak · best " + std::to_string(std::max(streak, prog.bestStreak)); }
     // text column stops before the weekday strip (its labels start at r.x + 280); a long line wraps to two
     const int TW = 172, subH = std::min(wrappedHeight(top, sub, TW, F_MICRO), 48), ty = r.y + (r.h - 34 - subH) / 2;
@@ -1765,7 +1815,9 @@ void App::drawDrill() {
     SDL_Rect f{24, std::min(376, 468 - 52 - noteH), 592, std::max(88, 52 + noteH)};
     boxRound(top, f, 24, correct ? GOOD_FILL : BAD_FILL, correct ? GOOD : BAD, 2);
     const int my = f.y + f.h / 2;
-    if (correct) drawRing(top, 58, my, 26, 7, 1.f, hex(0xE03131), hex(0xE03131)); else lineIcon(top, "cross", SDL_Rect{32, my - 26, 52, 52}, DIM, 3.f);  // ○ / × like a Japanese test
+    if (correct && answerStreak >= 3) drawFox(top, 58, my + 27, 56, petLook(FoxMood::Happy));
+    else if (correct) drawRing(top, 58, my, 26, 7, 1.f, hex(0xE03131), hex(0xE03131));
+    else lineIcon(top, "cross", SDL_Rect{32, my - 26, 52, 52}, DIM, 3.f);  // ○ / × like a Japanese test
     std::string ans = q.answer;
     if (k && (q.type == QType::Write || q.type == QType::RecallKana)) ans = k->glyph + " (" + k->romaji + ")";
     drawText(top, correct ? "せいかい! Correct!" : "ざんねん · it's " + ans, SDL_Rect{96, f.y + 8, 504, 36}, FG, F_SMALL, A_LEFT);
@@ -1829,10 +1881,10 @@ void App::drawDrill() {
 void App::drawWelcome() {
   appTile(top, 270, 8, 96);
   drawText(top, welcomeAgain ? "Set up Banana Kana" : "Welcome to Banana Kana", SDL_Rect{20, 112, 600, 60}, FG, F_MID);
-  if (welcomeStep == 0) {  // step 1 of 4: light or dark, shown live
+  if (welcomeStep == 0) {  // step 1 of 5: light or dark, shown live
     drawWrapped(top, "First, pick a look. Tap one to try it: the whole app changes straight away.",
                 SDL_Rect{60, 190, 520, 100}, DIM, F_TINY);
-    drawText(top, "Step 1 of 4 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+    drawText(top, "Step 1 of 5 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
     for (int k = 0; k < 2; k++) {
       bool light = k == 0, on = prog.settings.light == light;
       SDL_Rect r{16 + k * 312, 16, 296, 300};
@@ -1857,10 +1909,10 @@ void App::drawWelcome() {
     else chips({{"+", "Light / Dark"}, {"A", "Next"}});
     return;
   }
-  if (welcomeStep == 1) {  // step 2 of 4: seasons of Japan or plain, shown live behind the tiles
+  if (welcomeStep == 1) {  // step 2 of 5: seasons of Japan or plain, shown live behind the tiles
     drawWrapped(top, "And a background. Seasons of Japan follows the calendar: sakura, summer waves, autumn leaves, snow.",
                 SDL_Rect{60, 190, 520, 100}, DIM, F_TINY);
-    drawText(top, "Step 2 of 4 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+    drawText(top, "Step 2 of 5 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
     const Col SEAS[4] = {hex(0xF29BB4), hex(0x3F8FD8), hex(0xE2683A), hex(0x5F8FC6)};
     const char* SK[4] = {"春", "夏", "秋", "冬"};
     for (int k = 0; k < 2; k++) {
@@ -1889,10 +1941,10 @@ void App::drawWelcome() {
     chips({{"+", "Seasons / Plain"}, {"A", "Next"}, {"B", "Back"}});
     return;
   }
-  if (welcomeStep == 2) {  // step 3 of 4: vibration, felt straight away
+  if (welcomeStep == 2) {  // step 3 of 5: vibration, felt straight away
     drawWrapped(top, "Vibration: one tick for a right answer, two buzzes for a wrong one, and a long rumble for unlocks. Tap one to feel it.",
                 SDL_Rect{60, 190, 520, 100}, DIM, F_TINY);
-    drawText(top, "Step 3 of 4 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+    drawText(top, "Step 3 of 5 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
     const char* RN[3] = {"Off", "Light", "Strong"};
     const char* RS[3] = {"no buzzing", "gentle ticks", "you'll feel it"};
     for (int k = 0; k < 3; k++) {
@@ -1917,10 +1969,29 @@ void App::drawWelcome() {
     chips({{"+", "Off / Light / Strong"}, {"A", "Next"}, {"B", "Back"}});
     return;
   }
+  if (welcomeStep == 3) {
+    drawWrapped(top, "Try the controls now. Move the D-pad, then press A. You can also use the stylus on the bottom screen.",
+                SDL_Rect{60, 190, 520, 100}, DIM, F_TINY);
+    drawText(top, "Step 4 of 5 · B goes back · F pauses during lessons", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+    SDL_Rect move{48, 40, 248, 250}, choose{344, 40, 248, 250};
+    card(bot, move, 26); card(bot, choose, 26);
+    Col dc = welcomeControls & 1 ? GOOD : ACCENT; int cx = move.x + move.w / 2, cy = move.y + 86;
+    fillRound(bot, SDL_Rect{cx - 18, cy - 58, 36, 116}, 8, dc);
+    fillRound(bot, SDL_Rect{cx - 58, cy - 18, 116, 36}, 8, dc);
+    fillRound(bot, SDL_Rect{choose.x + 84, choose.y + 46, 80, 80}, 40, welcomeControls & 2 ? GOOD : FG);
+    drawText(bot, "A", SDL_Rect{choose.x + 84, choose.y + 46, 80, 80}, BG, F_MID);
+    setBold(true); drawText(bot, welcomeControls & 1 ? "D-pad moved ✓" : "Move the D-pad", SDL_Rect{move.x, move.y + 154, move.w, 42}, FG, F_TINY); setBold(false);
+    setBold(true); drawText(bot, welcomeControls & 2 ? "A pressed ✓" : "Press A to choose", SDL_Rect{choose.x, choose.y + 154, choose.w, 42}, FG, F_TINY); setBold(false);
+    drawText(bot, "navigate menus", SDL_Rect{move.x, move.y + 200, move.w, 28}, DIM, F_MICRO);
+    drawText(bot, "open and confirm", SDL_Rect{choose.x, choose.y + 200, choose.w, 28}, DIM, F_MICRO);
+    addBtn(SDL_Rect{16, 330, 608, 84}, B_WEL_NEXT, "Use touch / Continue", F_SMALL); accent(lastBtn());
+    chips({{"+", "Move"}, {"A", "Choose"}, {"B", "Back"}});
+    return;
+  }
   drawWrapped(top, "Learn hiragana, then katakana, a few kana at a time: a short lesson, then drills. "
                    "Already know some? Skip ahead. Kana you skip count as known, with a quick review soon to check.",
               SDL_Rect{60, 190, 520, 140}, DIM, F_TINY);
-  drawText(top, "Step 4 of 4 · you can change this later in Settings > Script", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+  drawText(top, "Step 5 of 5 · you can change this later in Settings > Script", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
   const char* l[4] = {"New to kana", "I know hiragana", "I know both", "I know some"};
   const char* sub[4] = {"start at \u3042 \u3044 \u3046 \u3048 \u304a", "all 105, start on katakana", "straight to reviews", "choose the stages in Settings"};
   for (int i = 0; i < 4; i++) {
@@ -2246,7 +2317,6 @@ void App::drawResult() {
   } else {
   header("けっか · Session complete", mode == Mode::Review ? "Review" : mode == Mode::Mixup ? "Mix-ups" : mode == Mode::Focus ? "Practice set"
                                      : mode == Mode::Pack && packIdx >= 0 && packIdx < int(data.packs.size()) ? data.packs[packIdx].name : scriptName(prog.settings.script));
-  Script sc = prog.settings.script; int curSt = prog.currentStage(sc); const Stage& st = data.stages[si(sc)][curSt];
   drawText(top, std::to_string(shown), SDL_Rect{24, 60, 150, 190}, ACCENT_TXT, F_HUGE, A_RIGHT);
   if (score == sessionLen && shown == score) medal(top, SDL_Rect{232, 66, 64, 64}, true);  // perfect session: a medal
   drawText(top, "/ " + std::to_string(sessionLen), SDL_Rect{184, 150, 130, 70}, DIM, F_MID, A_LEFT);
@@ -2263,13 +2333,12 @@ void App::drawResult() {
     statBox(top, SDL_Rect{226, 300, 188, 140}, "WORDS KNOWN", std::to_string(pi.known) + " / " + std::to_string(pi.total));
     statBox(top, SDL_Rect{428, 300, 188, 140}, "WAITING ON KANA", pi.total - pi.ready ? std::to_string(pi.total - pi.ready) + " words" : "none", F_TINY);
   } else {
-  std::vector<std::string> left;
-  for (int ki : st.kana) if (prog.step(Progress::keyKana(data.kana[ki])) < KNOWN_STEP && left.size() < 4) left.push_back(data.kana[ki].glyph);
   if (newlyKnown.empty()) statBox(top, SDL_Rect{24, 300, 188, 140}, "NEWLY KNOWN", "Not this time: steps still count", F_MICRO);
   else statBox(top, SDL_Rect{24, 300, 188, 140}, "NEWLY KNOWN", join(newlyKnown, " "));
-  statBox(top, SDL_Rect{226, 300, 188, 140}, "STAGE " + std::to_string(curSt + 1),
-          std::to_string(prog.stageKnown(data, sc, curSt)) + " / " + std::to_string(st.kana.size()) + " known", F_TINY);
-  statBox(top, SDL_Rect{428, 300, 188, 140}, "STILL TO LEARN", left.empty() ? "all done" : join(left, " "));
+  statBox(top, SDL_Rect{226, 300, 188, 140}, "STRENGTHENED", std::to_string(strengthened) + (strengthened == 1 ? " step" : " steps"), F_TINY);
+  int todayN = prog.today == dayNumber(prog.now()) ? prog.todayCount : 0;
+  statBox(top, SDL_Rect{428, 300, 188, 140}, "DAILY GOAL",
+          std::to_string(std::min(todayN, prog.settings.dailyGoal)) + " / " + std::to_string(prog.settings.dailyGoal), F_TINY);
   }
   }
 
@@ -2288,11 +2357,18 @@ void App::drawResult() {
   }
   if (missed.size() > 3) drawText(bot, "+" + std::to_string(missed.size() - 3) + " more", SDL_Rect{16, 214, 608, 24}, DIM, F_MICRO);
   bool unlock = !pendingUnlocks.empty();
-  addBtn(SDL_Rect{16, 330, 180, 84}, B_HOME, mode == Mode::Pack && !unlock ? "Packs" : "Home", F_SMALL);
+  bool canReviewMissed = false; for (const Missed& m : missed) if (m.key.rfind("h:", 0) == 0 || m.key.rfind("k:", 0) == 0) canReviewMissed = true;
+  addBtn(SDL_Rect{16, 330, canReviewMissed ? 150 : 180, 84}, B_HOME, mode == Mode::Pack && !unlock ? "Packs" : "Home", F_SMALL);
   std::string again = unlock ? "Continue" : mode == Mode::Timed ? "Try again" : mode == Mode::Review ? (modeAvailable(Mode::Review) ? "More reviews" : "Practice")
                    : mode == Mode::Mixup ? "More mix-ups" : mode == Mode::Pack ? "More words" : "Practise again";
-  addBtn(SDL_Rect{212, 330, 412, 84}, B_AGAIN, again, F_SMALL); accent(lastBtn());
-  chips({{"A", unlock ? "Continue" : "Again"}, {"B", mode == Mode::Pack && !unlock ? "Packs" : "Home"}});
+  if (canReviewMissed) {
+    addBtn(SDL_Rect{178, 330, 222, 84}, B_REVIEW_MISSED, "Review mistakes", F_TINY); accent(lastBtn());
+    addBtn(SDL_Rect{412, 330, 212, 84}, B_AGAIN, again, F_TINY);
+    chips({{"X", "Review mistakes"}, {"A", unlock ? "Continue" : "Again"}, {"B", mode == Mode::Pack && !unlock ? "Packs" : "Home"}});
+  } else {
+    addBtn(SDL_Rect{212, 330, 412, 84}, B_AGAIN, again, F_SMALL); accent(lastBtn());
+    chips({{"A", unlock ? "Continue" : "Again"}, {"B", mode == Mode::Pack && !unlock ? "Packs" : "Home"}});
+  }
 }
 
 void App::drawPacks() {
@@ -2521,11 +2597,20 @@ void App::drawChart() {
     fillRound(top, SDL_Rect{264, 182, bw, 30}, 15, bf); drawText(top, badge, SDL_Rect{264, 182, bw, 30}, bt, F_MICRO);
     stepPips(top, 264 + bw + 16, 191, prog.step(Progress::keyKana(k)));
     auto it = prog.stats.find(Progress::keyKana(k)); Stat s = it != prog.stats.end() ? it->second : Stat{};
-    statBox(top, SDL_Rect{264, 222, 110, 76}, "SEEN", std::to_string(s.seen));
-    statBox(top, SDL_Rect{385, 222, 110, 76}, "RIGHT", std::to_string(s.correct));
-    statBox(top, SDL_Rect{506, 222, 110, 76}, "MISSED", std::to_string(s.wrong));
+    std::string acc = s.seen ? std::to_string(s.correct * 100 / s.seen) + "%" : "-";
+    int lastDays = s.last ? dayDiff(dayNumber(s.last), dayNumber(prog.now())) : -1;
+    std::string last = lastDays < 0 ? "not yet" : lastDays == 0 ? "today" : std::to_string(lastDays) + "d ago";
+    std::string next = s.step < KNOWN_STEP ? "pending" : s.due <= prog.now() ? "due now"
+                       : "in " + std::to_string(std::max(1, dayDiff(dayNumber(prog.now()), dayNumber(s.due)))) + "d";
+    statBox(top, SDL_Rect{264, 222, 110, 76}, "ACCURACY", acc, F_TINY);
+    statBox(top, SDL_Rect{385, 222, 110, 76}, "LAST", last, F_TINY);
+    statBox(top, SDL_Rect{506, 222, 110, 76}, "NEXT", next, F_TINY);
+    int mix = 0; std::string kk = Progress::keyKana(k);
+    for (const auto& [pair, n] : prog.confusions) if (pair.rfind(kk + "|", 0) == 0 || pair.find("|" + kk) != std::string::npos) mix += n;
+    drawText(top, "Seen " + std::to_string(s.seen) + " · missed " + std::to_string(s.wrong) + " · mix-ups " + std::to_string(mix),
+             SDL_Rect{264, 302, 352, 24}, DIM, F_MICRO, A_LEFT);
     auto h = data.hints.find(k.glyph);
-    if (h != data.hints.end()) drawWrapped(top, h->second, SDL_Rect{24, 312, 592, 92}, DIM, F_TINY);
+    if (h != data.hints.end()) drawWrapped(top, h->second, SDL_Rect{24, 332, 592, 70}, DIM, F_TINY);
     bool picked = std::count(chartPick.begin(), chartPick.end(), chartSel) > 0;
     drawText(top, ks == KanaState::Locked ? "Unlocks with stage " + std::to_string(stI + 1) + ". You can still write it freely."
                   : picked ? "In your practice set. Tap it again or press A to take it out."
@@ -2604,6 +2689,8 @@ std::vector<App::SRow> App::settingRows(int g) const {
       const char* SN[3] = {"Relaxed", "Normal", "Strict"};
       choice("Writing check", st.strict, 3, SN[st.strict],
              "How closely your strokes must follow the real ones. Strict also wants the right length and position; relaxed forgives wobbly lines.", {"Relaxed", "Normal", "Strict"});
+      choice("Session preset", st.sessionPreset, 5, PRESET_NAMES[st.sessionPreset],
+             "Quick is 5 questions, Standard 10, Study 20. Review only uses due or previously practised kana and never introduces new ones.");
       break; }
     case 2: {
       bool kat = prog.scriptUnlocked(Script::Katakana);
@@ -2674,7 +2761,7 @@ std::string App::groupSummary(int g) const {
               int w[4] = {st.reading, st.meanings, st.writing, st.typing};
               for (int i = 0; i < 4; i++) if (w[i] > 0) on.push_back(n[i]);
               return on.empty() ? "all off" : on.size() == 4 ? "all four on" : std::to_string(on.size()) + " of 4 on"; }
-    case 1: return std::to_string(st.sessionLen) + " a go · goal " + std::to_string(st.dailyGoal);  // short: tile subtitles are one line
+    case 1: return std::string(PRESET_NAMES[st.sessionPreset]) + " · goal " + std::to_string(st.dailyGoal);
     case 2: { std::string s = scriptName(st.script); s[0] = char(std::tolower(s[0])); return s; }
     case 3: return std::string(st.light ? "Light" : "Dark") + (st.sound ? " · sound on" : " · sound off");
     case 4: return std::to_string(prog.knownCount(data, Script::Hiragana) + prog.knownCount(data, Script::Katakana)) + " kana known";
@@ -2688,10 +2775,16 @@ void App::changeSetting(int g, int r, int dir) {
   switch (g) {
     case 0: { int* w[4] = {&st.reading, &st.meanings, &st.writing, &st.typing}; if (r < 4) step3(*w[r]); else st.kanaKeys = dir > 0; break; }
     case 1:
-      if (r == 0) { int li = 1; for (int i = 0; i < 4; i++) if (SESSION_LENS[i] == st.sessionLen) li = i; st.sessionLen = SESSION_LENS[std::clamp(li + dir, 0, 3)]; }
-      else if (r == 1) step3(st.review);
-      else if (r == 2) { int gi = 1; for (int i = 0; i < 4; i++) if (GOALS[i] == st.dailyGoal) gi = i; st.dailyGoal = GOALS[std::clamp(gi + dir, 0, 3)]; }
-      else st.strict = std::clamp(st.strict + dir, 0, 2);
+      if (r == 0) { int li = 1; for (int i = 0; i < 4; i++) if (SESSION_LENS[i] == st.sessionLen) li = i; st.sessionLen = SESSION_LENS[std::clamp(li + dir, 0, 3)]; st.sessionPreset = 4; }
+      else if (r == 1) { step3(st.review); st.sessionPreset = 4; }
+      else if (r == 2) { int gi = 1; for (int i = 0; i < 4; i++) if (GOALS[i] == st.dailyGoal) gi = i; st.dailyGoal = GOALS[std::clamp(gi + dir, 0, 3)]; st.sessionPreset = 4; }
+      else if (r == 3) { st.strict = std::clamp(st.strict + dir, 0, 2); st.sessionPreset = 4; }
+      else {
+        st.sessionPreset = std::clamp(st.sessionPreset + dir, 0, 4);
+        if (st.sessionPreset == 4) break;
+        const int lens[4] = {5, 10, 20, 10}, goals[4] = {5, 10, 20, 10}, reviews[4] = {1, 1, 2, 2};
+        st.sessionLen = lens[st.sessionPreset]; st.dailyGoal = goals[st.sessionPreset]; st.review = reviews[st.sessionPreset];
+      }
       break;
     case 2:
       if (r == 0) setScript(dir > 0 ? Script::Katakana : Script::Hiragana);

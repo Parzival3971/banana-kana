@@ -118,6 +118,10 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   B_CHIP0 + 0..6 (A B X Y START L R; L/R chip split in halves; F = B_PAUSE; "+" and F+START not tappable), handled at
   the top of press() via chipTap -> padButton. Progress::saveError + App::save log failures to launch.log; main logs
   "progress: path, N kana/words, M answers" at start-up.
+- Learning polish (2026-11-20): Home previews the next session and Settings > Sessions has Quick/Standard/Study/
+  Review-only presets; Review only uses due or already-practised kana. Results track strengthened steps and offer a
+  focused Review mistakes action. `Stat.last` extends the compatible v2 `stat` line for kana last-practised details.
+  First-run setup now has a controller step before the prior-knowledge choice.
 
 ## Known gaps / to verify on device
 - Device test 2026-11-15 passed (old UI): touch + tracing land correctly, A/B correct, F + START quits, bottom survives sleep.

@@ -224,6 +224,9 @@ int App::selfTest(const std::string& shotDir) {
   shot("settings_sessions");
   CHECK(click(B_SSEG0 + 0 * 8 + 0), "length <"); CHECK(prog.settings.sessionLen == 5, "length 5");
   padButton(SDL_CONTROLLER_BUTTON_DPAD_RIGHT); CHECK(prog.settings.sessionLen == 10, "length via d-pad");
+  setRow = 4; go(Screen::SettingsGroup);
+  for (int i = 0; i < 3; i++) padButton(SDL_CONTROLLER_BUTTON_DPAD_LEFT);
+  CHECK(prog.settings.sessionPreset == 1 && prog.settings.sessionLen == 10 && prog.settings.dailyGoal == 10, "standard session preset");
   padButton(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER); CHECK(setGroup == 2, "script group");
   CHECK(click(B_SINC0 + 0), "script >"); CHECK(prog.settings.script == Script::Hiragana, "katakana stays locked");
   shot("settings_script");
@@ -539,9 +542,11 @@ int App::selfTest(const std::string& shotDir) {
       { Progress re; re.load(statePath, &data); CHECK(re.settings.rumble == 1, "vibration saved straight away"); }
       CHECK(click(B_WRUM0) && prog.settings.rumble == 0, "off"); prog.settings.rumble = keep; }
     padButton(SDL_CONTROLLER_BUTTON_B); CHECK(welcomeStep == 1, "B: back to the background");
-    padButton(SDL_CONTROLLER_BUTTON_A); padButton(SDL_CONTROLLER_BUTTON_A); CHECK(welcomeStep == 3, "A, A: on to what you know");
+    padButton(SDL_CONTROLLER_BUTTON_A); padButton(SDL_CONTROLLER_BUTTON_A); CHECK(welcomeStep == 3, "A, A: on to controls");
     padButton(SDL_CONTROLLER_BUTTON_B); CHECK(welcomeStep == 2, "B: back to vibration");
-    CHECK(click(B_WEL_NEXT) && welcomeStep == 3, "Next"); shot("welcome");
+    CHECK(click(B_WEL_NEXT) && welcomeStep == 3, "Next: controls"); shot("welcome_controls");
+    padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); CHECK(welcomeControls & 1, "control tutorial sees d-pad");
+    padButton(SDL_CONTROLLER_BUTTON_A); CHECK(welcomeStep == 4, "control tutorial sees A"); shot("welcome");
     padButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN); CHECK(welcomeSel == 1, "welcome move");
     CHECK(click(B_WELCOME0 + 1), "I know hiragana");
     CHECK(screen == Screen::Home && prog.knownCount(data, Script::Hiragana) == data.scriptCount(Script::Hiragana) && prog.settings.script == Script::Katakana &&
@@ -554,10 +559,10 @@ int App::selfTest(const std::string& shotDir) {
       CHECK(screen == Screen::Welcome && welcomeStep == 0 && welcomeAgain, "run setup again opens the welcome");
       shot("welcome_again");
       CHECK(click(B_BACK) && screen == Screen::SettingsGroup && !welcomeAgain, "back to settings");
-      padButton(SDL_CONTROLLER_BUTTON_A); click(B_WEL_NEXT); click(B_WEL_NEXT); click(B_WEL_NEXT);
+      padButton(SDL_CONTROLLER_BUTTON_A); click(B_WEL_NEXT); click(B_WEL_NEXT); click(B_WEL_NEXT); click(B_WEL_NEXT);
       CHECK(click(B_WELCOME0) && screen == Screen::Home, "new to kana -> home");
       CHECK(prog.knownCount(data, Script::Hiragana) == known && prog.bestStreak == streak, "setup again keeps progress"); }
-    go(Screen::Welcome); click(B_WEL_NEXT); click(B_WEL_NEXT); click(B_WEL_NEXT); CHECK(click(B_WELCOME0 + 3), "I know some"); CHECK(screen == Screen::SettingsGroup && setGroup == 2 && setRow == 1, "to script settings");
+    go(Screen::Welcome); click(B_WEL_NEXT); click(B_WEL_NEXT); click(B_WEL_NEXT); click(B_WEL_NEXT); CHECK(click(B_WELCOME0 + 3), "I know some"); CHECK(screen == Screen::SettingsGroup && setGroup == 2 && setRow == 1, "to script settings");
     for (int i = 0; i < 3; i++) click(B_SINC0 + 1);
     CHECK(skipPending[0] == 4 && prog.unlocked[0] == 1, "pending only"); shot("settings_skip");
     CHECK(click(B_FOOT_R), "confirm skip"); CHECK(prog.unlocked[0] == 4 && prog.lessons[0] == 3 && prog.stageKnown(data, Script::Hiragana, 2) == 5, "skipped to stage 4");
