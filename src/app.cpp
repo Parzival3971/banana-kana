@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <sys/stat.h>
 #include <cstdio>
 #include <cstring>
 
@@ -74,6 +75,7 @@ bool isKataText(const std::string& s) { auto c = utf8Codepoints(s); return !c.em
 
 // ================================================================== flow
 void App::go(Screen s) {
+  quitConfirm = false;  // the Quit dialog only lives on Home
   if (s == Screen::Home && petEvolvePending()) s = Screen::PetEvolve;  // a new stage is celebrated on the way Home
   if (motion && s != screen) transStart = SDL_GetTicks() | 1;  // soft fade-in of the new screen
   if (s == Screen::Home && petHopPending) { petHopPending = false; petHopStart = SDL_GetTicks() | 1; }
@@ -189,6 +191,7 @@ void App::holdSession() {
   int idx = index + (checked && !q.intro ? 1 : 0);  // an answered question already counts
   held.on = true; held.mode = mode; held.script = prog.settings.script; held.session = prog.session; held.index = idx;
   held.score = score; held.sessionLen = sessionLen; held.focusKana = focusKana; held.packIdx = packIdx; held.goalMet = goalMet;
+  held.answerStreak = answerStreak; held.strengthened = strengthened;
   held.results = results; held.focusSet = focusSet; held.missed = missed; held.newlyKnown = newlyKnown;
   held.packSession = packSession; held.lastKey = lastKey;
 }
@@ -199,6 +202,7 @@ bool App::resumeSession() {
   mode = held.mode; index = held.index; score = held.score; sessionLen = held.sessionLen; focusKana = held.focusKana;
   packIdx = held.packIdx; goalMet = held.goalMet; results = held.results; focusSet = held.focusSet; missed = held.missed;
   newlyKnown = held.newlyKnown; packSession = held.packSession; lastKey = held.lastKey;
+  answerStreak = held.answerStreak; strengthened = held.strengthened;
   go(Screen::Drill);
   if (index >= sessionLen) finishSession(); else nextQuestion(true);
   return true;
@@ -219,7 +223,8 @@ void App::startMode(Mode m) {
   sessionLen = prog.settings.sessionLen;
   if (m == Mode::Review) sessionLen = std::min(sessionLen, prog.dueCount(data, prog.settings.script));
   if (m == Mode::Timed) { sessionLen = 0; timedLeft = TIMED_MS; timedLast = SDL_GetTicks(); timedNewBest = false; flash = 0; flashText.clear(); }
-  index = 0; score = 0; results.clear(); missed.clear(); newlyKnown.clear(); lastKey.clear(); goalMet = false;
+  index = 0; score = 0; answerStreak = 0; strengthened = 0;
+  results.clear(); missed.clear(); newlyKnown.clear(); lastKey.clear(); goalMet = false;
   go(Screen::Drill); nextQuestion(true); save();
 }
 
@@ -373,6 +378,8 @@ void App::check() {
   int wlvBefore = prog.writeLevel(q.key);
   if (q.type == QType::Write) prog.recordWrite(q.key, ok, q.writeLevel); else prog.record(q.key, ok);
   int after = prog.step(q.key);
+  if (after > before) strengthened++;
+  answerStreak = ok ? answerStreak + 1 : 0;
   const Word* word = nullptr;
   if (q.isWord) for (const Word& w : data.words) if (Progress::keyWord(w) == q.key) { word = &w; break; }
   bool wordKnown = word && ok && before < KNOWN_STEP && after >= KNOWN_STEP;
@@ -396,7 +403,7 @@ void App::check() {
   } else {
     if (k) { auto it = data.hints.find(k->glyph); feedbackNote = it != data.hints.end() ? it->second : ""; }
     else if (word) feedbackNote = word->kana + " (" + word->romaji + ") = " + word->english;
-    missed.push_back({k ? k->glyph : q.prompt, k ? k->romaji : q.answer, said});
+    missed.push_back({q.key, k ? k->glyph : q.prompt, k ? k->romaji : q.answer, said});
     if (k && !q.options.empty() && sel >= 0)  // remember which kana it was mixed up with
       for (size_t i = 0; i < data.kana.size(); i++) {
         const Kana& o = data.kana[i];
@@ -417,6 +424,10 @@ void App::check() {
       int dd = int((st.due - prog.now() + 43200) / 86400);
       feedbackNote = "Next review in " + std::to_string(dd) + (dd == 1 ? " day." : " days.");
     }
+  }
+  if (ok && answerStreak >= 3 && mode != Mode::Timed) {  // a run of right answers: Kitsu cheers (once she's hatched)
+    std::string run = std::to_string(answerStreak) + " in a row!" + (prog.petStage() > 0 ? " " + prog.pet.name + " is cheering." : "");
+    feedbackNote = feedbackNote.empty() ? run : run + " " + feedbackNote;
   }
   snd::play(wordKnown || (!newlyKnown.empty() && newlyKnown.back() == (k ? k->glyph : "") && ok) ? snd::Sfx::Known : ok ? snd::Sfx::Right : snd::Sfx::Wrong);
   if (prog.goalJustMet) {
@@ -457,6 +468,12 @@ void App::togglePause() {
 void App::press(int id) {
   Script sc = prog.settings.script;
   snd::play(snd::Sfx::Tap);  // a later sound (right, wrong...) replaces it
+  if (quitConfirm) {  // Home's Quit dialog takes every press until it's answered
+    if (id == B_QUIT) running = false;
+    else if (id == B_BACK) { quitConfirm = false; quitSel = 0; }
+    else if (id >= B_CHIP0 && id < B_CHIP0 + 7) chipTap(id - B_CHIP0);  // the dialog's hint chips
+    return;
+  }
   if (id == B_PAUSE) { togglePause(); return; }
   if (id >= B_CHIP0 && id < B_CHIP0 + 7) { chipTap(id - B_CHIP0); return; }
   if (paused) {
@@ -480,6 +497,7 @@ void App::press(int id) {
       else if (id == B_MODE0 + 4) go(Screen::Packs);
       else if (id == B_SCRIPT_H) setScript(Script::Hiragana);
       else if (id == B_SCRIPT_K) setScript(Script::Katakana);
+      else if (id == B_QUIT) { quitConfirm = true; quitSel = 0; }  // Cancel is focused first
       break;
     case Screen::Stages: {
       int curSt = prog.currentStage(mapScript);
@@ -528,9 +546,10 @@ void App::press(int id) {
       else if (id == B_SHOWME && !checked && q.type == QType::Write) { showHint = true; playStrokes(); }
       break;
     case Screen::Result:
-      if (id == B_AGAIN) {
+      if (id == B_REVIEW_MISSED && pendingUnlocks.empty()) { auto set = missedKana(); if (!set.empty()) startFocus(set); }
+      else if (id == B_AGAIN) {
         if (!pendingUnlocks.empty()) go(Screen::Unlocked);
-        else if (mode == Mode::Focus) startSession(focusKana);
+        else if (mode == Mode::Focus) { std::vector<int> set = focusSet; startFocus(set); }  // the whole set again (a copy: startFocus clears focusSet)
         else startMode(mode);  // same mode again (review falls back to practice once nothing is due)
       }
       else if (id == B_HOME) go(!pendingUnlocks.empty() ? Screen::Unlocked : mode == Mode::Pack ? Screen::Packs : Screen::Home);
@@ -637,7 +656,9 @@ void App::press(int id) {
         if (id >= B_WRUM0 && id < B_WRUM0 + 3) {
           prog.settings.rumble = id - B_WRUM0; snd::setRumble(prog.settings.rumble); save();
           if (prog.settings.rumble) snd::rumble(snd::Sfx::Known);
-        } else if (id == B_WEL_NEXT) { welcomeStep = 3; welcomeSel = 0; }
+        } else if (id == B_WEL_NEXT) { welcomeStep = 3; welcomeControls = 0; }
+      } else if (welcomeStep == 3) {  // try the controls (the button is there for stylus-only players)
+        if (id == B_WEL_NEXT) { welcomeStep = 4; welcomeSel = 0; }
       } else if (id >= B_WELCOME0 && id < B_WELCOME0 + 4) welcomeChoice(id - B_WELCOME0);
       break;
     case Screen::Stats:
@@ -721,6 +742,12 @@ void App::padButton(SDL_GameControllerButton b) {
           X = SDL_CONTROLLER_BUTTON_X, Y = SDL_CONTROLLER_BUTTON_Y, LS = SDL_CONTROLLER_BUTTON_LEFTSHOULDER,
           RS = SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, ST = SDL_CONTROLLER_BUTTON_START;
   Script sc = prog.settings.script;
+  if (quitConfirm) {  // Quit dialog: L/R (or U/D) between Cancel and Quit, A picks, B cancels
+    if (b == L || b == R || b == U || b == D) quitSel = 1 - quitSel;
+    else if (b == A) press(quitSel ? B_QUIT : B_BACK);
+    else if (b == B) press(B_BACK);
+    return;
+  }
   if (paused) {
     const int ids[3] = {B_RESUME, B_MENU, B_QUIT};
     if (b == U) pauseSel = (pauseSel + 2) % 3; else if (b == D) pauseSel = (pauseSel + 1) % 3;
@@ -729,10 +756,12 @@ void App::padButton(SDL_GameControllerButton b) {
   }
   switch (screen) {
     case Screen::Home: {
-      // focus: 0 pill, 1 script switch (top row); 2-5 and 6-9 the two tile rows (4 columns)
+      // focus: 0 pill, 1 script switch (top row); 2-5 and 6-9 the two tile rows (4 columns); last = Quit (bottom right)
       auto f = homeFocus(); int n = int(f.size()); homeSel = std::clamp(homeSel, 0, n - 1);
-      int s = homeSel;
-      if (s <= 1) {
+      int s = homeSel; const int quitIdx = n - 1, lastTile = n - 2;
+      if (s == quitIdx) {
+        if (b == U || b == L) s = lastTile;
+      } else if (s <= 1) {
         if (b == L) s = 0; else if (b == R) s = 1;
         else if (b == D) s = s == 0 ? 2 : 5;
       } else {
@@ -740,6 +769,7 @@ void App::padButton(SDL_GameControllerButton b) {
         if (b == L && col > 0) s--; else if (b == R && col < 3) s++;
         else if (b == U) s = row == 0 ? (col < 3 ? 0 : 1) : s - 4;
         else if (b == D && row == 0) s += 4;
+        else if (b == D && col == 3) s = quitIdx;  // down from the bottom-right tile: Quit
       }
       if (s != homeSel) { homeSel = s; break; }
       if (b == A) press(f[homeSel]);
@@ -789,6 +819,7 @@ void App::padButton(SDL_GameControllerButton b) {
       break; }
     case Screen::Result:
       if (b == A) press(B_AGAIN); else if (b == B) press(B_HOME);
+      else if (b == X && pendingUnlocks.empty() && !missedKana().empty()) press(B_REVIEW_MISSED);
       break;
     case Screen::Packs: {
       int n = int(data.packs.size());
@@ -865,10 +896,15 @@ void App::padButton(SDL_GameControllerButton b) {
         if (b == L) press(B_WRUM0 + std::max(0, prog.settings.rumble - 1)); else if (b == R) press(B_WRUM0 + std::min(2, prog.settings.rumble + 1));
         else if (b == A || b == ST) press(B_WEL_NEXT);
         else if (b == B) welcomeStep = 1;
+      } else if (welcomeStep == 3) {  // any direction ticks the d-pad card; A ticks the A card, and carries on once both are done
+        if (b == L || b == R || b == U || b == D) welcomeControls |= 1;
+        else if (b == A) { bool ready = welcomeControls & 1; welcomeControls |= 2; if (ready) press(B_WEL_NEXT); }
+        else if (b == ST) press(B_WEL_NEXT);
+        else if (b == B) welcomeStep = 2;
       } else {
         if (b == U) welcomeSel = (welcomeSel + 3) % 4; else if (b == D) welcomeSel = (welcomeSel + 1) % 4;
         else if (b == A || b == ST) press(B_WELCOME0 + welcomeSel);
-        else if (b == B) welcomeStep = 2;  // back to vibration
+        else if (b == B) welcomeStep = 3;  // back to the controls
       }
       break;
     case Screen::Stats:
@@ -985,15 +1021,36 @@ void App::backup(bool force) {
 }
 
 void App::appTile(Win& w, int x, int y, int size) {
-  ModeCol keep = MC_ORANGE; (void)keep;
-  Col a = ACCENT, al = ACC_LINE, as = ACC_SH, ah = ACC_HI, alo = ACC_LO, at = ACCENT_TXT, ao = ON_ACCENT;
-  setAccent(MC_ORANGE);
-  SDL_Rect f = pill(w, SDL_Rect{x, y, size, size - size / 20}, size / 4, 1);
-  drawText(w, "あ", SDL_Rect{f.x, f.y - size / 30, f.w * 9 / 10, f.h * 9 / 10}, hex(0xFFFFFF), size >= 120 ? F_BIG : F_MID);
-  int b = size * 3 / 10; SDL_Rect bd{f.x + f.w - b - size / 14, f.y + f.h - b - size / 14, b, b};
-  fillRound(w, SDL_Rect{bd.x, bd.y + 3, bd.w, bd.h}, b / 3, ACC_SH); fillRound(w, bd, b / 3, hex(0xFFFFFF));
-  drawText(w, "ア", bd, hex(0xE8590C), F_SMALL);
-  ACCENT = a; ACC_LINE = al; ACC_SH = as; ACC_HI = ah; ACC_LO = alo; ACCENT_TXT = at; ON_ACCENT = ao;
+  // The app icon (2026-11-20): Kitsu on a cream tile with a little orange あ badge. Fixed colours (not the theme), so
+  // the in-app tile always matches the Ports shelf icon, which tools/make_icon.py renders from this same drawing.
+  const float u = size / 100.f;  // design units: the tile is 100 x 100
+  auto U = [&](float v) { return int(std::lround(v * u)); };
+  const int rad = U(24);
+  SDL_Rect tile{x, y, size, size - U(4)};
+  fillRound(w, SDL_Rect{tile.x, tile.y + U(4), tile.w, tile.h}, rad, hex(0xC96A14));        // hard drop shadow
+  fillRound(w, tile, rad, hex(0xD9741C));                                                      // orange outline
+  SDL_Rect face{tile.x + U(3.2f), tile.y + U(3.2f), tile.w - U(6.4f), tile.h - U(6.4f)};
+  gradRound(w, face, rad - U(3.2f), hex(0xFFF8EC), hex(0xFFE3BC));                            // warm cream
+  fillCircle(w, face.x + U(42), face.y + U(42), U(33), hex(0xFFD49A));                         // a soft sun behind her
+  fillCircle(w, face.x + U(42), face.y + U(42), U(25), hex(0xFFC57E));
+  FoxLook L; L.stage = 1; L.mood = FoxMood::Happy; L.accessory = 0; L.t = 0;  // the kit, beaming, with her suzu bell
+  L.tailScale = 1.75f; L.tailTurn = -31.f;                                       // and a big tail swooping up behind her
+  drawFox(w, face.x + U(38), face.y + face.h - U(4), U(90), L);
+  const int b = U(27); SDL_Rect bd{face.x + face.w - b - U(4), face.y + face.h - b - U(4), b, b};  // あ badge, bottom right
+  fillRound(w, SDL_Rect{bd.x - U(1.6f), bd.y - U(1.6f), bd.w + U(3.2f), bd.h + U(3.2f) + U(2)}, b / 3 + U(1.6f), hex(0xFFFFFF));
+  fillRound(w, SDL_Rect{bd.x, bd.y + U(2), bd.w, bd.h}, b / 3, hex(0xB8560B));
+  fillRound(w, bd, b / 3, hex(0xF28C28));
+  setBold(true); drawText(w, "あ", SDL_Rect{bd.x, bd.y - U(1), bd.w, bd.h}, hex(0xFFFFFF), size >= 300 ? F_HUGE : size >= 120 ? F_MID : F_TINY); setBold(false);
+}
+
+bool App::iconShots(const std::string& dir) {  // the icon on black and on white (tools/make_icon.py gets alpha from the pair)
+  mkdir(dir.c_str(), 0755);
+  bool ok = true;
+  for (int k = 0; k < 2; k++) {
+    clearWin(top, k ? hex(0xFFFFFF) : hex(0x000000)); appTile(top, 90, 10, 460);
+    ok = saveShot(top, dir + (k ? "/icon_white.bmp" : "/icon_black.bmp")) && ok;
+  }
+  return ok;
 }
 
 void App::medal(Win& w, SDL_Rect box, bool earned) {
@@ -1040,7 +1097,7 @@ void App::header(const std::string& title, const std::string& right, bool colour
   setBold(true); drawText(top, title, SDL_Rect{20 + indent, 0, LW - 60 - rw - indent, 50}, ink, F_TINY, A_LEFT); setBold(false);
 }
 
-void App::chips(const std::vector<std::pair<std::string, std::string>>& items) {
+int App::chips(const std::vector<std::pair<std::string, std::string>>& items) {
   // a tighter layout when the row would overflow (hints used to be dropped silently: the Home quit hint went missing)
   int full = 16; for (auto& [k, label] : items) full += 4 + std::max(28, textWidth(bot, F_MICRO, k) + 14) + 8 + textWidth(bot, F_MICRO, label) + 14 + 8;
   const bool tight = full > LW - 8;
@@ -1074,6 +1131,7 @@ void App::chips(const std::vector<std::pair<std::string, std::string>>& items) {
     }
     x += w + gap;
   }
+  return x;
 }
 
 void App::segBar(Win& w, SDL_Rect r, int total, int done, const std::vector<int>& res) {
@@ -1217,6 +1275,7 @@ void App::render() {
     case Screen::PetEvolve: drawPetEvolve(); break;
     case Screen::PetName: drawPetName(); break;
   }
+  if (quitConfirm) { buttons.clear(); drawQuitConfirm(); }  // Home's Quit dialog sits over the screen
   drawButtons();
   if (transStart) {  // new screen fades in from the backdrop colour
     float t = std::clamp((SDL_GetTicks() - transStart) / float(TRANS_MS), 0.f, 1.f), a = (1.f - t) * (1.f - t);
@@ -1292,6 +1351,7 @@ std::vector<App::HomeItem> App::homeItems() const {
 std::vector<int> App::homeFocus() const {
   std::vector<int> f{B_HOME_GO, prog.settings.script == Script::Hiragana ? B_SCRIPT_K : B_SCRIPT_H};
   for (auto& it : homeItems()) f.push_back(it.id);
+  f.push_back(B_QUIT);  // last: the Quit button, bottom right
   return f;
 }
 int App::homeItemIndex(int id) const {
@@ -1346,7 +1406,26 @@ void App::drawHome() {
     if (sc == Script::Hiragana && curSt == KATAKANA_AFTER - 1) next = "katakana";
     msg = curSt == STAGE_COUNT - 1 ? "Last stage! Get " + join(left, " ") + " to step 4." : "Get " + join(left, " ") + " to step 4 to unlock " + next + ".";
   }
-  drawWrapped(top, msg, SDL_Rect{42, 210, 352, 80}, DIM, F_TINY);
+  // what START does next, in numbers: the lesson, the paused session, or a practice session (new kana from this stage)
+  std::string plan;
+  const int qs = prog.settings.sessionLen, mins = std::max(1, (qs * 15 + 59) / 60);  // ~15 s a question
+  if (sessionHeld()) plan = "NEXT · " + std::to_string(std::max(0, held.sessionLen - held.index)) + " questions left in your session";
+  else if (prog.lessonPending(sc)) {
+    const Stage& ls = stages[std::min(prog.lessons[scI], STAGE_COUNT - 1)];
+    plan = "NEXT · lesson: " + std::to_string(ls.kana.size()) + " new kana, then " + std::to_string(qs) + " questions";
+  } else {
+    int fresh = 0, learning = 0;
+    for (int ki : st.kana) {
+      auto it = prog.stats.find(Progress::keyKana(data.kana[ki]));
+      if (it == prog.stats.end() || it->second.seen == 0) fresh++; else if (it->second.step < KNOWN_STEP) learning++;
+    }
+    plan = "NEXT · " + std::to_string(qs) + " questions";
+    if (fresh) plan += " · " + std::to_string(fresh) + " new";
+    if (learning) plan += " · " + std::to_string(learning) + " learning";
+    plan += " · ~" + std::to_string(mins) + " min";
+  }
+  drawText(top, plan, SDL_Rect{42, 206, 352, 24}, ACCENT_TXT, F_MICRO, A_LEFT);
+  drawWrapped(top, msg, SDL_Rect{42, 234, 352, 56}, DIM, wrappedHeight(top, msg, 352, F_TINY) <= 56 ? F_TINY : F_MICRO);
   // ---- today's goal ring
   int goal = prog.settings.dailyGoal, todayN = prog.today == dayNumber(prog.now()) ? prog.todayCount : 0;
   { SDL_Rect r{428, 64, 190, 232}; card(top, r, 20);
@@ -1373,7 +1452,11 @@ void App::drawHome() {
     std::string title, sub; Col subCol = DIM;
     int left = std::max(0, prog.settings.dailyGoal - (prog.today == dayNumber(prog.now()) ? prog.todayCount : 0));
     if (st == 0) { title = "An egg!"; sub = "Hatches at today's goal"; subCol = ACCENT_TXT; }
-    else if (!lit) { title = nm + " is asleep"; sub = std::to_string(left) + (left == 1 ? " more answer" : " more answers") + " to wake her"; subCol = ACCENT_TXT; }
+    else if (!lit) {
+      int lastDay = 0, today = dayNumber(prog.now());  // last day with any answers (history keeps 90 days)
+      for (const auto& [d, x] : prog.days) if (x.answers > 0 && d <= today) lastDay = std::max(lastDay, d);
+      bool away = lastDay > 0 && lastDay != today && dayDiff(lastDay, today) >= 2;
+      title = away ? nm + " missed you!" : nm + " is asleep"; sub = std::to_string(left) + (left == 1 ? " more answer" : " more answers") + " to wake her"; subCol = ACCENT_TXT; }
     else { title = nm + " · " + std::to_string(PET_TAILS[st]) + (st == 1 ? " tail" : " tails"); sub = std::to_string(streak) + "-day streak · best " + std::to_string(std::max(streak, prog.bestStreak)); }
     // text column stops before the weekday strip (its labels start at r.x + 280); a long line wraps to two
     const int TW = 172, subH = std::min(wrappedHeight(top, sub, TW, F_MICRO), 48), ty = r.y + (r.h - 34 - subH) / 2;
@@ -1439,7 +1522,49 @@ void App::drawHome() {
     addBtn(r, it.id, it.name, F_TINY, it.enabled); lastBtn().hidden = true; lastBtn().sub = it.sub;
   }
   setAccent(MC_ORANGE);
-  chips({{"A", "Open"}, {"+", "Move"}, {"START", sessionHeld() ? "Continue" : lesson ? "Lesson" : "Practise"}, {"Y", "Script"}, {"F+START", "Quit"}});
+  if (quitConfirm) return;  // the dialog draws its own hints over this
+  // no "+ Move" chip: it made room for Quit, and setup now teaches the d-pad
+  int chipsEnd = chips({{"A", "Open"}, {"START", sessionHeld() ? "Continue" : lesson ? "Lesson" : "Practise"}, {"Y", "Script"}});
+  { // Quit: looks like the old "F+START Quit" hint, but it's a real button (tap or d-pad) that asks first
+    const std::string label = "Quit";
+    std::string key = "F+START";
+    int kw = textWidth(bot, F_MICRO, key) + 14, w = 4 + kw + 8 + textWidth(bot, F_MICRO, label) + 14, x = LW - 12 - w;
+    if (x < chipsEnd + 6) {  // no room for the shortcut badge: a plain Quit pill (the dialog still mentions F+START)
+      key.clear(); kw = 0; w = textWidth(bot, F_MICRO, label) + 32; x = LW - 12 - w;
+    }
+    SDL_Rect r{x, 438, w, 34};
+    const bool qf = homeSel == int(focus.size()) - 1, down = pressedId == B_QUIT;
+    if (qf) fillRound(bot, SDL_Rect{r.x - 4, r.y - 4, r.w + 8, r.h + 8}, 21, ACC_LINE);
+    boxRound(bot, r, 17, down ? PANEL2 : PANEL, qf ? ACC_LINE : mix(PANEL, FG, 0.3f), 2);
+    if (!key.empty()) {
+      fillRound(bot, SDL_Rect{x + 3, 441, kw, 28}, 14, FG);
+      drawText(bot, key, SDL_Rect{x + 3, 441, kw, 28}, BG, F_MICRO);
+      drawText(bot, label, SDL_Rect{x + 4 + kw + 8, 438, w - kw - 12, 34}, FG, F_MICRO, A_LEFT);
+    } else drawText(bot, label, r, FG, F_MICRO);
+    addBtn(SDL_Rect{r.x - 4, 432, r.w + 8, 46}, B_QUIT, label); lastBtn().hidden = true;
+  }
+}
+
+void App::drawQuitConfirm() {  // over Home: dim both screens, a question on top, Cancel / Quit on the bottom
+  for (Win* w : {&top, &bot}) {
+    SDL_SetRenderDrawBlendMode(w->r, SDL_BLENDMODE_BLEND);
+    fillRect(*w, SDL_Rect{0, 0, LW, LH}, Col{0, 0, 0, 120});
+    SDL_SetRenderDrawBlendMode(w->r, SDL_BLENDMODE_NONE);
+  }
+  SDL_Rect c{70, 110, 500, 250}; card(top, c, 30);
+  setBold(true); drawText(top, "Quit Banana Kana?", SDL_Rect{c.x, c.y + 30, c.w, 56}, FG, F_MID); setBold(false);
+  std::string body = sessionHeld()
+      ? "Your progress is saved. The paused session (" + std::to_string(std::max(0, held.sessionLen - held.index)) + " questions left) won't be kept."
+      : "Your progress is saved after every answer.";
+  drawWrapped(top, body, SDL_Rect{c.x + 40, c.y + 104, c.w - 80, 80}, DIM, F_TINY, A_CENTER);
+  drawText(top, "F + START quits straight away from any menu", SDL_Rect{c.x, c.y + 196, c.w, 30}, DIM, F_MICRO);
+  SDL_Rect p{70, 110, 500, 230}; card(bot, p, 30);
+  drawText(bot, "Back to BananaOS?", SDL_Rect{p.x, p.y + 24, p.w, 50}, FG, F_SMALL);
+  addBtn(SDL_Rect{p.x + 24, p.y + 100, 214, 96}, B_BACK, "Cancel", F_SMALL); lastBtn().radius = 30;
+  if (quitSel == 0) accent(lastBtn());
+  addBtn(SDL_Rect{p.x + 262, p.y + 100, 214, 96}, B_QUIT, "Quit", F_SMALL); lastBtn().radius = 30;
+  if (quitSel == 1) accent(lastBtn());
+  chips({{"+", "Move"}, {"A", "Choose"}, {"B", "Cancel"}});
 }
 
 void App::drawStages() {
@@ -1708,7 +1833,8 @@ void App::drawDrill() {
     SDL_Rect f{24, std::min(376, 468 - 52 - noteH), 592, std::max(88, 52 + noteH)};
     boxRound(top, f, 24, correct ? GOOD_FILL : BAD_FILL, correct ? GOOD : BAD, 2);
     const int my = f.y + f.h / 2;
-    if (correct) drawRing(top, 58, my, 26, 7, 1.f, hex(0xE03131), hex(0xE03131)); else lineIcon(top, "cross", SDL_Rect{32, my - 26, 52, 52}, DIM, 3.f);  // ○ / × like a Japanese test
+    if (correct && answerStreak >= 3 && prog.petStage() > 0) drawFox(top, 58, my + 34, 74, petLook(FoxMood::Happy));  // on a run: Kitsu cheers
+    else if (correct) drawRing(top, 58, my, 26, 7, 1.f, hex(0xE03131), hex(0xE03131)); else lineIcon(top, "cross", SDL_Rect{32, my - 26, 52, 52}, DIM, 3.f);  // ○ / × like a Japanese test
     std::string ans = q.answer;
     if (k && (q.type == QType::Write || q.type == QType::RecallKana)) ans = k->glyph + " (" + k->romaji + ")";
     drawText(top, correct ? "せいかい! Correct!" : "ざんねん · it's " + ans, SDL_Rect{96, f.y + 8, 504, 36}, FG, F_SMALL, A_LEFT);
@@ -1772,10 +1898,10 @@ void App::drawDrill() {
 void App::drawWelcome() {
   appTile(top, 270, 8, 96);
   drawText(top, welcomeAgain ? "Set up Banana Kana" : "Welcome to Banana Kana", SDL_Rect{20, 112, 600, 60}, FG, F_MID);
-  if (welcomeStep == 0) {  // step 1 of 4: light or dark, shown live
+  if (welcomeStep == 0) {  // step 1 of 5: light or dark, shown live
     drawWrapped(top, "First, pick a look. Tap one to try it: the whole app changes straight away.",
                 SDL_Rect{60, 190, 520, 100}, DIM, F_TINY);
-    drawText(top, "Step 1 of 4 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+    drawText(top, "Step 1 of 5 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
     for (int k = 0; k < 2; k++) {
       bool light = k == 0, on = prog.settings.light == light;
       SDL_Rect r{16 + k * 312, 16, 296, 300};
@@ -1800,10 +1926,10 @@ void App::drawWelcome() {
     else chips({{"+", "Light / Dark"}, {"A", "Next"}});
     return;
   }
-  if (welcomeStep == 1) {  // step 2 of 4: seasons of Japan or plain, shown live behind the tiles
+  if (welcomeStep == 1) {  // step 2 of 5: seasons of Japan or plain, shown live behind the tiles
     drawWrapped(top, "And a background. Seasons of Japan follows the calendar: sakura, summer waves, autumn leaves, snow.",
                 SDL_Rect{60, 190, 520, 100}, DIM, F_TINY);
-    drawText(top, "Step 2 of 4 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+    drawText(top, "Step 2 of 5 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
     const Col SEAS[4] = {hex(0xF29BB4), hex(0x3F8FD8), hex(0xE2683A), hex(0x5F8FC6)};
     const char* SK[4] = {"春", "夏", "秋", "冬"};
     for (int k = 0; k < 2; k++) {
@@ -1832,10 +1958,10 @@ void App::drawWelcome() {
     chips({{"+", "Seasons / Plain"}, {"A", "Next"}, {"B", "Back"}});
     return;
   }
-  if (welcomeStep == 2) {  // step 3 of 4: vibration, felt straight away
+  if (welcomeStep == 2) {  // step 3 of 5: vibration, felt straight away
     drawWrapped(top, "Vibration: one tick for a right answer, two buzzes for a wrong one, and a long rumble for unlocks. Tap one to feel it.",
                 SDL_Rect{60, 190, 520, 100}, DIM, F_TINY);
-    drawText(top, "Step 3 of 4 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+    drawText(top, "Step 3 of 5 · you can change it later in Settings > Display", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
     const char* RN[3] = {"Off", "Light", "Strong"};
     const char* RS[3] = {"no buzzing", "gentle ticks", "you'll feel it"};
     for (int k = 0; k < 3; k++) {
@@ -1860,10 +1986,40 @@ void App::drawWelcome() {
     chips({{"+", "Off / Light / Strong"}, {"A", "Next"}, {"B", "Back"}});
     return;
   }
+  if (welcomeStep == 3) {  // step 4 of 5: try the d-pad and A (each card ticks when you do)
+    const bool moved = welcomeControls & 1, pressedA = welcomeControls & 2, done = moved && pressedA;
+    drawWrapped(top, done ? "That's it! The d-pad (or the stick) moves around, A chooses. Press A to carry on."
+                          : "Now try the buttons. Press any direction on the d-pad, then press A.",
+                SDL_Rect{60, 190, 520, 100}, done ? FG : DIM, F_TINY);
+    drawText(top, "Step 4 of 5 · B goes back · F pauses a lesson or drill", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+    for (int k = 0; k < 2; k++) {
+      const bool ok = k == 0 ? moved : pressedA;
+      SDL_Rect r{16 + k * 312, 16, 296, 300};
+      if (ok) { fillRound(bot, SDL_Rect{r.x - 6, r.y - 6, r.w + 12, r.h + 12}, 30, GOOD); fillRound(bot, SDL_Rect{r.x - 2, r.y - 2, r.w + 4, r.h + 4}, 26, BG2); }
+      card(bot, r, 24);
+      const int cx = r.x + r.w / 2, cy = r.y + 110;
+      Col ink = ok ? GOOD : FG;
+      if (k == 0) {  // a d-pad cross
+        fillRound(bot, SDL_Rect{cx - 22, cy - 66, 44, 132}, 10, ink);
+        fillRound(bot, SDL_Rect{cx - 66, cy - 22, 132, 44}, 10, ink);
+        drawRing(bot, cx, cy, 9, 9, 1.f, PANEL, PANEL);
+      } else {
+        drawRing(bot, cx, cy, 58, 58, 1.f, ink, ink);
+        setBold(true); drawText(bot, "A", SDL_Rect{cx - 58, cy - 58, 116, 116}, PANEL, F_BIG); setBold(false);
+      }
+      setBold(true); drawText(bot, k == 0 ? (moved ? "Moved!" : "Press the d-pad") : (pressedA ? "Pressed!" : "Then press A"),
+                              SDL_Rect{r.x, r.y + 196, r.w, 40}, FG, F_SMALL); setBold(false);
+      drawText(bot, k == 0 ? "moves around menus and keys" : "opens, picks and confirms", SDL_Rect{r.x, r.y + 240, r.w, 28}, DIM, F_MICRO);
+    }
+    addBtn(SDL_Rect{16, 336, 608, 84}, B_WEL_NEXT, done ? "Next" : "Skip (using the stylus)", F_SMALL); lastBtn().radius = 30;
+    if (done) accent(lastBtn());
+    chips({{"+", "Try it"}, {"A", done ? "Next" : "Try it"}, {"B", "Back"}});
+    return;
+  }
   drawWrapped(top, "Learn hiragana, then katakana, a few kana at a time: a short lesson, then drills. "
                    "Already know some? Skip ahead. Kana you skip count as known, with a quick review soon to check.",
               SDL_Rect{60, 190, 520, 140}, DIM, F_TINY);
-  drawText(top, "Step 4 of 4 · you can change this later in Settings > Script", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
+  drawText(top, "Step 5 of 5 · you can change this later in Settings > Script", SDL_Rect{20, 400, 600, 30}, DIM, F_MICRO);
   const char* l[4] = {"New to kana", "I know hiragana", "I know both", "I know some"};
   const char* sub[4] = {"start at \u3042 \u3044 \u3046 \u3048 \u304a", "all 105, start on katakana", "straight to reviews", "choose the stages in Settings"};
   for (int i = 0; i < 4; i++) {
@@ -2171,6 +2327,14 @@ void App::drawStats() {
   chips({{"X", "Awards"}, {"START", "Your fox"}, {"Y", "Script"}, {"B", "Back"}});
 }
 
+std::vector<int> App::missedKana() const {  // kana missed this session, in order, once each (words are skipped)
+  std::vector<int> out;
+  for (const Missed& m : missed)
+    for (size_t i = 0; i < data.kana.size(); i++)
+      if (Progress::keyKana(data.kana[i]) == m.key && prog.isUnlocked(data, int(i)) && !std::count(out.begin(), out.end(), int(i))) out.push_back(int(i));
+  return out;
+}
+
 void App::drawResult() {
   int shown = score;  // counts up from 0 over ~0.7 s (after the fade), easing out
   if (countStart) { float t = std::clamp((SDL_GetTicks() - countStart - 150.f) / 700.f, 0.f, 1.f); shown = int(std::lround(score * (1.f - (1.f - t) * (1.f - t) * (1.f - t)))); }
@@ -2189,7 +2353,6 @@ void App::drawResult() {
   } else {
   header("けっか · Session complete", mode == Mode::Review ? "Review" : mode == Mode::Mixup ? "Mix-ups" : mode == Mode::Focus ? "Practice set"
                                      : mode == Mode::Pack && packIdx >= 0 && packIdx < int(data.packs.size()) ? data.packs[packIdx].name : scriptName(prog.settings.script));
-  Script sc = prog.settings.script; int curSt = prog.currentStage(sc); const Stage& st = data.stages[si(sc)][curSt];
   drawText(top, std::to_string(shown), SDL_Rect{24, 60, 150, 190}, ACCENT_TXT, F_HUGE, A_RIGHT);
   if (score == sessionLen && shown == score) medal(top, SDL_Rect{232, 66, 64, 64}, true);  // perfect session: a medal
   drawText(top, "/ " + std::to_string(sessionLen), SDL_Rect{184, 150, 130, 70}, DIM, F_MID, A_LEFT);
@@ -2206,13 +2369,12 @@ void App::drawResult() {
     statBox(top, SDL_Rect{226, 300, 188, 140}, "WORDS KNOWN", std::to_string(pi.known) + " / " + std::to_string(pi.total));
     statBox(top, SDL_Rect{428, 300, 188, 140}, "WAITING ON KANA", pi.total - pi.ready ? std::to_string(pi.total - pi.ready) + " words" : "none", F_TINY);
   } else {
-  std::vector<std::string> left;
-  for (int ki : st.kana) if (prog.step(Progress::keyKana(data.kana[ki])) < KNOWN_STEP && left.size() < 4) left.push_back(data.kana[ki].glyph);
   if (newlyKnown.empty()) statBox(top, SDL_Rect{24, 300, 188, 140}, "NEWLY KNOWN", "Not this time: steps still count", F_MICRO);
   else statBox(top, SDL_Rect{24, 300, 188, 140}, "NEWLY KNOWN", join(newlyKnown, " "));
-  statBox(top, SDL_Rect{226, 300, 188, 140}, "STAGE " + std::to_string(curSt + 1),
-          std::to_string(prog.stageKnown(data, sc, curSt)) + " / " + std::to_string(st.kana.size()) + " known", F_TINY);
-  statBox(top, SDL_Rect{428, 300, 188, 140}, "STILL TO LEARN", left.empty() ? "all done" : join(left, " "));
+  statBox(top, SDL_Rect{226, 300, 188, 140}, "STRENGTHENED", strengthened ? std::to_string(strengthened) + (strengthened == 1 ? " step won" : " steps won") : "no steps this time", F_TINY);
+  int todayN = prog.today == dayNumber(prog.now()) ? prog.todayCount : 0, goal = prog.settings.dailyGoal;
+  statBox(top, SDL_Rect{428, 300, 188, 140}, "DAILY GOAL", todayN >= goal ? "met · " + std::to_string(todayN) + " today"
+                                                   : std::to_string(todayN) + " / " + std::to_string(goal), F_TINY);
   }
   }
 
@@ -2231,11 +2393,19 @@ void App::drawResult() {
   }
   if (missed.size() > 3) drawText(bot, "+" + std::to_string(missed.size() - 3) + " more", SDL_Rect{16, 214, 608, 24}, DIM, F_MICRO);
   bool unlock = !pendingUnlocks.empty();
-  addBtn(SDL_Rect{16, 330, 180, 84}, B_HOME, mode == Mode::Pack && !unlock ? "Packs" : "Home", F_SMALL);
   std::string again = unlock ? "Continue" : mode == Mode::Timed ? "Try again" : mode == Mode::Review ? (modeAvailable(Mode::Review) ? "More reviews" : "Practice")
                    : mode == Mode::Mixup ? "More mix-ups" : mode == Mode::Pack ? "More words" : "Practise again";
-  addBtn(SDL_Rect{212, 330, 412, 84}, B_AGAIN, again, F_SMALL); accent(lastBtn());
-  chips({{"A", unlock ? "Continue" : "Again"}, {"B", mode == Mode::Pack && !unlock ? "Packs" : "Home"}});
+  std::string homeLbl = mode == Mode::Pack && !unlock ? "Packs" : "Home";
+  if (!unlock && !missedKana().empty()) {  // Again stays the big accent button (A); Review mistakes is X
+    addBtn(SDL_Rect{16, 330, 160, 84}, B_HOME, homeLbl, F_SMALL);
+    addBtn(SDL_Rect{188, 330, 200, 84}, B_REVIEW_MISSED, "Review mistakes", F_TINY);
+    addBtn(SDL_Rect{400, 330, 224, 84}, B_AGAIN, again, F_SMALL); accent(lastBtn());
+    chips({{"A", "Again"}, {"X", "Mistakes"}, {"B", homeLbl}});
+  } else {
+    addBtn(SDL_Rect{16, 330, 180, 84}, B_HOME, homeLbl, F_SMALL);
+    addBtn(SDL_Rect{212, 330, 412, 84}, B_AGAIN, again, F_SMALL); accent(lastBtn());
+    chips({{"A", unlock ? "Continue" : "Again"}, {"B", homeLbl}});
+  }
 }
 
 void App::drawPacks() {
@@ -2464,11 +2634,28 @@ void App::drawChart() {
     fillRound(top, SDL_Rect{264, 182, bw, 30}, 15, bf); drawText(top, badge, SDL_Rect{264, 182, bw, 30}, bt, F_MICRO);
     stepPips(top, 264 + bw + 16, 191, prog.step(Progress::keyKana(k)));
     auto it = prog.stats.find(Progress::keyKana(k)); Stat s = it != prog.stats.end() ? it->second : Stat{};
-    statBox(top, SDL_Rect{264, 222, 110, 76}, "SEEN", std::to_string(s.seen));
-    statBox(top, SDL_Rect{385, 222, 110, 76}, "RIGHT", std::to_string(s.correct));
-    statBox(top, SDL_Rect{506, 222, 110, 76}, "MISSED", std::to_string(s.wrong));
+    // details: accuracy, when it was last answered, when its next review is due, and what it gets mixed up with
+    const int today = dayNumber(prog.now());
+    std::string acc = s.seen ? std::to_string(s.correct * 100 / s.seen) + "%" : "-";
+    int ago = s.last ? dayDiff(dayNumber(s.last), today) : -1;
+    std::string last = !s.seen ? "not yet" : ago < 0 ? "-" : ago == 0 ? "today" : ago == 1 ? "yesterday" : std::to_string(ago) + " days ago";
+    int inDays = s.srs > 0 ? dayDiff(today, dayNumber(s.due)) : 0;
+    std::string next = s.step < KNOWN_STEP || s.srs == 0 ? "once known" : s.due <= prog.now() || inDays <= 0 ? "due now"
+                     : inDays == 1 ? "tomorrow" : "in " + std::to_string(inDays) + " days";
+    statBox(top, SDL_Rect{264, 222, 110, 76}, "ACCURACY", acc, F_TINY);
+    statBox(top, SDL_Rect{385, 222, 110, 76}, "LAST SEEN", last, F_TINY);
+    statBox(top, SDL_Rect{506, 222, 110, 76}, "REVIEW", next, F_TINY);
+    const std::string kk = Progress::keyKana(k); std::string mixWith; int mixN = 0, mixTop = 0;
+    for (const auto& [pair, n] : prog.confusions) {  // "h:a|h:b", counted both ways
+      auto bar = pair.find('|'); std::string a = pair.substr(0, bar), b = pair.substr(bar + 1), other = a == kk ? b : b == kk ? a : "";
+      if (other.empty()) continue;
+      mixN += n; if (n > mixTop) { mixTop = n; mixWith = other.substr(2); }
+    }
+    std::string line = "Seen " + std::to_string(s.seen) + " · right " + std::to_string(s.correct) + " · missed " + std::to_string(s.wrong)
+                     + (mixN ? " · mixed up with " + mixWith + (mixN > mixTop ? " and others" : "") + " ×" + std::to_string(mixN) : "");
+    drawText(top, line, SDL_Rect{24, 306, 592, 26}, mixN ? BAD : DIM, F_MICRO, A_LEFT);
     auto h = data.hints.find(k.glyph);
-    if (h != data.hints.end()) drawWrapped(top, h->second, SDL_Rect{24, 312, 592, 92}, DIM, F_TINY);
+    if (h != data.hints.end()) drawWrapped(top, h->second, SDL_Rect{24, 336, 592, 76}, DIM, F_TINY);
     bool picked = std::count(chartPick.begin(), chartPick.end(), chartSel) > 0;
     drawText(top, ks == KanaState::Locked ? "Unlocks with stage " + std::to_string(stI + 1) + ". You can still write it freely."
                   : picked ? "In your practice set. Tap it again or press A to take it out."

@@ -27,7 +27,7 @@ enum BtnId {
   // pause
   B_RESUME = 50, B_MENU, B_PAUSE = 58,
   // results / unlock
-  B_AGAIN = 60, B_LATER, B_START_LESSON,
+  B_AGAIN = 60, B_LATER, B_START_LESSON, B_REVIEW_MISSED,
   // stages
   B_STAGE0 = 70, B_STAGE_ACTION = 90, B_HOME_GO = 91,
   // lesson
@@ -54,12 +54,13 @@ struct Button {
   bool hidden = false;  // hit area only; the screen draws it itself
 };
 
-struct Missed { std::string prompt, answer, said; };
+struct Missed { std::string key, prompt, answer, said; };  // key: progress key (h:/k:/w:), for Review mistakes
 
 struct App {
   Win top, bot; Data data; Progress prog; std::string statePath, dataDir;
   std::mt19937 rng{std::random_device{}()};
   Screen screen = Screen::Home; bool running = true, paused = false; int pauseSel = 0;
+  bool quitConfirm = false; int quitSel = 0;  // Home Quit button: a dialog with Cancel focused first
   std::vector<Button> buttons; int pressedId = -1;
 
   // home / stage map / settings / chart selections
@@ -84,6 +85,7 @@ struct App {
   Script lessonScript = Script::Hiragana; int lessonStage = 0, lessonIdx = 0; bool lessonReplay = false;
   // session
   Question q; int index = 0, score = 0, sel = -1, cursor = 0, sessionLen = 10, focusKana = -1;
+  int answerStreak = 0, strengthened = 0;  // this session: right answers in a row, steps won
   bool checked = false, correct = false, showHint = false, drawing = false;
   std::string typed, lastKey; std::vector<Stroke> strokes; Stroke cur; std::vector<int> strokeOk, results;
   std::vector<Missed> missed; std::vector<std::string> newlyKnown; std::string feedbackNote;
@@ -109,7 +111,7 @@ struct App {
   int keyRow = 0, keyCol = 0;  // d-pad cursor on the on-screen keyboards
   int kbRows() const; int kbRowLen(int r) const; int kbItemId(int r, int c) const; void kbMove(int dc, int dr);
   bool inPractice() const { return screen == Screen::Drill || screen == Screen::Lesson || screen == Screen::FreeWrite; }
-  bool firstRun = false; int welcomeSel = 0; int welcomeStep = 0; bool welcomeAgain = false;  // first launch: 0 pick light/dark, 1 background (seasons/plain), 2 vibration, 3 what you know
+  bool firstRun = false; int welcomeSel = 0; int welcomeStep = 0; int welcomeControls = 0; bool welcomeAgain = false;  // first launch: 0 light/dark, 1 background, 2 vibration, 3 try the controls (bits: 1 d-pad, 2 A), 4 what you know
   int skipPending[2] = {0, 0};
   // timed challenge
   int timedLeft = 0; Uint32 timedLast = 0; bool timedNewBest = false; int flash = 0; std::string flashText;  // flash 1 right, 2 wrong
@@ -131,6 +133,7 @@ struct App {
   // Anything that starts another session, a script switch or a progress reset drops it. Not kept across app restarts.
   struct Held { bool on = false; Mode mode = Mode::Normal; Script script = Script::Hiragana;
                 int session = 0, index = 0, score = 0, sessionLen = 0, focusKana = -1, packIdx = -1; bool goalMet = false;
+                int answerStreak = 0, strengthened = 0;
                 std::vector<int> results, focusSet; std::vector<Missed> missed; std::vector<std::string> newlyKnown;
                 PackSession packSession; std::string lastKey; } held;
   void holdSession();     // leaving a drill for Home
@@ -167,10 +170,11 @@ struct App {
   void drawButtons();
   // Header bar across the top screen: bold title on the left, small text (or the wordmark) on the right;
   // coloured = filled with the mode colour (drills).
-  void appTile(Win& w, int x, int y, int size);            // the app icon: glossy orange tile with あ and a little ア
+  bool iconShots(const std::string& dir);                  // --icon DIR: appTile on black + white for tools/make_icon.py
+  void appTile(Win& w, int x, int y, int size);            // the app icon: Kitsu on a cream tile with an orange あ badge
   void medal(Win& w, SDL_Rect box, bool earned);              // achievement medal: ribbon + gold disc (grey when not earned)
   void header(const std::string& title, const std::string& right = "", bool coloured = false, int indent = 0);
-  void chips(const std::vector<std::pair<std::string, std::string>>& items);
+  int chips(const std::vector<std::pair<std::string, std::string>>& items);  // returns the x where the row ends
   void segBar(Win& w, SDL_Rect r, int total, int done, const std::vector<int>& res);
   void settingPreview(int row);
   // Kitsu the streak pet (0.7.0; fox.h draws it): Home streak card, evolution celebration, Your fox page, renaming
@@ -189,7 +193,8 @@ struct App {
   int writePartCount() const;
   int currentLessonKana() const;
 
-  void drawHome(); void drawStages(); void drawLesson(); void drawUnlocked(); void drawDrill(); void drawResult();
+  std::vector<int> missedKana() const;  // Results > Review mistakes
+  void drawHome(); void drawQuitConfirm(); void drawStages(); void drawLesson(); void drawUnlocked(); void drawDrill(); void drawResult();
   void drawChart(); void drawSettings(); void drawSettingsGroup(); void drawCredits(); void drawPause(); void drawStats(); void drawWelcome(); void drawFreeWrite(); void drawPacks(); void drawPackWords(); void drawAwards(); void drawToast();
   void drawKanaKeyboard();
   // settings model

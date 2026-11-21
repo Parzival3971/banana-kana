@@ -147,7 +147,7 @@ int drawFox(Win& w, float cx, float baseY, float height, const FoxLook& L) {
   const auto tail = tailShape(), tip = tailTip();
   auto drawTails = [&](bool front) {
     for (int i = 0; i < nT; i++) {
-      float a = FAN[L.stage][i], sc = 1.f;
+      float a = FAN[L.stage][i] + L.tailTurn, sc = L.tailScale;
       P base{std::clamp(a / 6.f, -16.f, 16.f), -18.f};
       if (asleep) {  // curled round the front like a sleeping cat: low, smaller, overlapping the feet
         int side = (i % 2) ? -1 : 1;

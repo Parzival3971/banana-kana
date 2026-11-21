@@ -25,7 +25,7 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
   before it's tested.
 - 🪜 **One step at a time.** A brand-new kana is only asked as multiple choice. Typing comes once you've got it right,
   then writing: first over the full guide, then over a faint outline, then from memory, one level per session.
-- ⏩ **Already know some?** On first launch, pick light or dark, a background and how much vibration you like, then say how much you know (or skip ahead later in Settings > Script). Settings › Progress › Run setup again goes through it any time.
+- ⏩ **Already know some?** On first launch, pick light or dark, a background and how much vibration you like, try the d-pad and A, then say how much you know (or skip ahead later in Settings > Script). Settings › Progress › Run setup again goes through it any time.
   Skipped kana count as known, with a quick review in a day or two to check.
 
 ### 🎮 Practise
@@ -64,10 +64,15 @@ Lessons, drills and stylus tracing for [BananaOS](https://github.com/JorreFog/ba
 - 🦊 **Kitsu, your streak fox.** Hatch an egg on your first goal day, then watch her grow: 1 tail, 3 tails and a red
   scarf at 7 days practised, 5 glowing tails at 30, and a nine-tailed kyūbi with fox-fire at 100. Tails are never lost.
   She naps until today's goal is met, dresses for the season, and wears accessories you win with achievements. Rename
-  her with the kana keys (Stats, then START).
+  her with the kana keys (Stats, then START). Get 3 or more right in a row and she pops up to cheer; stay away a
+  couple of days and she missed you.
 - 🏅 **Achievements.** 17 badges for learning kana and words, streaks, timed scores and perfect sessions, with your
   progress towards each one (Stats, then X).
 - 📊 **Stats.** Your last 14 days and an accuracy heatmap of every kana. Tap one to see it in the chart.
+- 🔍 **Kana details.** Pick a kana in the chart to see its accuracy, when you last answered it, when its next review is
+  due and which kana you mix it up with.
+- 🧾 **Useful results.** After a session: newly known kana, steps won and your daily goal, plus **Review mistakes** (X)
+  to drill just the kana you got wrong. Home shows what START does next ("10 questions · 2 new · ~3 min").
 - 🎉 **Celebrations.** Confetti when a kana becomes known, a stage unlocks, you hit your daily goal or beat your
   timed best.
 - 🔊 **Sound effects.** Little chimes for right answers, newly known kana, unlocks and your daily goal (made in code,
@@ -129,17 +134,17 @@ A backup copy is also kept in `roms/ports/BananaKana/progress-backup.txt`: copy 
 
 | | |
 |---|---|
-| ✏️ **Stylus / touch** (bottom screen) | Tap answers, keys and buttons. Buttons act when you lift, so slide off to cancel. Trace on the canvas. The button hints along the bottom can be tapped too: tapping **B Back** goes back, **A Open** opens, and so on (all but the d-pad and Quit). |
+| ✏️ **Stylus / touch** (bottom screen) | Tap answers, keys and buttons. Buttons act when you lift, so slide off to cancel. Trace on the canvas. The button hints along the bottom can be tapped too: tapping **B Back** goes back, **A Open** opens, and so on (all but the d-pad). Home's **F+START Quit** hint is a real button that asks before quitting. |
 | ✛ **D-pad** or the analogue **stick** (shown as a cross in the hint chips) | Move around the Home grid, stages, chart cells, settings and keyboard keys |
 | **A** | Choose / confirm (press again on a chosen answer to check it) |
 | **B** | Back. In drills: undo a stroke or delete a letter |
-| **X** | Check the answer. On Stats: achievements. On Your fox: take the accessory off |
+| **X** | Check the answer. On results: review mistakes. On Stats: achievements. On Your fox: take the accessory off |
 | **Y** | Hint while writing, guide in free writing. On Home and stats: switch hiragana / katakana |
 | ▶️ **START** | On Home: start your lesson or practice. Show me (stroke-order animation) when writing; in the chart, write the practice set freely |
 | **L / R** | Switch tabs, scripts or settings groups |
 | ⏸️ **F** (or **SELECT**) | Pause during practice, lessons and free writing: resume, back to menu or quit. Back to menu keeps your place: the big Home button turns into **Continue** |
 | ↩️ **Back** (right of F) | Same as B |
-| 🚪 **F + START** | Quit from the menus; during practice it opens the pause menu instead |
+| 🚪 **F + START** | Quit from the menus straight away (or use Home's Quit button, which asks first); during practice it opens the pause menu instead |
 
 ## 🧠 How learning works
 
@@ -225,6 +230,8 @@ container (it needs QEMU on x86). The binary links BananaOS's own SDL2 and is bu
 - `python3 tools/gen_data.py` regenerates `app/data`: the kana, words, hints, KanjiVG strokes and font subsets.
   It needs `fonttools`.
 - `scripts/screenshots.sh` regenerates `docs/img` from the self-test. It needs Pillow.
+- `python3 tools/make_icon.py` redraws the app icon (the Ports box art and `docs/img/icon.png`) with the app's own
+  Kitsu drawing (`banana_kana --icon`). It needs a built app and Pillow.
 
 ### 🗂️ Project layout
 

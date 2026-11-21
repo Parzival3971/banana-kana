@@ -183,11 +183,12 @@ static const SDL_GameControllerButton STICK_BUTTON[4] = {SDL_CONTROLLER_BUTTON_D
                                                          SDL_CONTROLLER_BUTTON_DPAD_LEFT, SDL_CONTROLLER_BUTTON_DPAD_RIGHT};
 
 int main(int argc, char** argv) {
-  bool self = false, forceDual = false; std::string shotDir, dataDir, stateDir;
+  bool self = false, forceDual = false; std::string shotDir, iconDir, dataDir, stateDir;
   for (int i = 1; i < argc; i++) {
     std::string a = argv[i];
     if (a == "--selftest") self = true;
     else if (a == "--dual") forceDual = true;
+    else if (a == "--icon" && i + 1 < argc) iconDir = argv[++i];  // tools/make_icon.py: the icon on black + white, then exit
     else if (a == "--shots" && i + 1 < argc) shotDir = argv[++i];
     else if (a == "--data" && i + 1 < argc) dataDir = argv[++i];
     else if (a == "--state-dir" && i + 1 < argc) stateDir = argv[++i];
@@ -261,6 +262,7 @@ int main(int argc, char** argv) {
   setKanaHand(app.prog.settings.kanaHand);
   snd::setVolume(app.prog.settings.sound); snd::setRumble(app.prog.settings.rumble);
 
+  if (!iconDir.empty()) { bool ok = app.iconShots(iconDir); SDL_Quit(); return ok ? 0 : 1; }
   if (self) {
     if (!shotDir.empty() && !mkdirs(shotDir)) { fprintf(stderr, "cannot create shots folder %s\n", shotDir.c_str()); return 2; }
     int rc = app.selfTest(shotDir); SDL_Quit(); return rc;

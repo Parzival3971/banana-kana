@@ -15,6 +15,7 @@ struct FoxLook {
   float t = 0.f;         // seconds: breathing, blinking, swaying tails, fox-fire (0 = still)
   int accessory = -1;    // petAccessories() index, -1 none
   int season = -1;       // -1 none, 0 sakura on the head, 1 uchiwa fan, 2 momiji leaf, 3 winter scarf
+  float tailScale = 1.f, tailTurn = 0.f;  // awake tails: size and extra turn in degrees (the app icon's big swoosh)
 };
 
 // Draws the fox standing on (cx, baseY). `height` is the full height in logical pixels (ears to feet).

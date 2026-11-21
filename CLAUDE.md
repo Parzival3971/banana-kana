@@ -63,7 +63,7 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   mixupSets/makeMixupQuestion), daily goal/streak (Settings.dailyGoal, today/todayCount/streak/bestStreak/lastGoalDay,
   goalJustMet, days history 90 days), timedBest[2] + makeTimedQuestion, kana keyboard (Settings.kanaKeys, Question.kanaInput,
   kanaTypedMatches accepts じ/ぢ for "ji"), Data::writeParts (combos traced as 2 glyphs, small kana use the full-size glyph).
-  Progress.clock = fake time for tests (0 = real). Progress file: `stat ... step gainSession gain srs due wlv wlvSession`, `day`, `mix`.
+  Progress.clock = fake time for tests (0 = real). Progress file: `stat ... step gainSession gain srs due wlv wlvSession gainAt last`, `day`, `mix`.
   Staging (user asked 2026-11-15, "writing straight away is hard"): typeAllowed(): step 0 choice only, romaji typing from
   TYPE_STEP 1, kana keyboard + writing from PRODUCE_STEP 2. Writing level Stat.wlv 0 full guide / 1 faint outline /
   2 memory, +1 per session on a right guided write; guided writes (recordWrite level<2) never move steps; a memory miss
@@ -118,6 +118,20 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   B_CHIP0 + 0..6 (A B X Y START L R; L/R chip split in halves; F = B_PAUSE; "+" and F+START not tappable), handled at
   the top of press() via chipTap -> padButton. Progress::saveError + App::save log failures to launch.log; main logs
   "progress: path, N kana/words, M answers" at start-up.
+
+- Codex soft-ui-rebuild ports (user 2026-11-20: "not going ahead with the codex build", picked the good bits; Codex's
+  raster anime Kitsu, ivory/plum palette and brand art were NOT taken): Stat.last (last answered; older files fall
+  back to gainAt) -> chart kana details (ACCURACY / LAST SEEN / REVIEW boxes + "Seen · right · missed · mixed up with X"
+  line from Progress::confusions). Missed.key + missedKana() -> Result "Review mistakes" (B_REVIEW_MISSED, X; kana only,
+  hidden while an unlock is pending; Again stays the A/accent button). Result boxes: Newly known / Strengthened (steps
+  won this session) / Daily goal. answerStreak: 3+ right in a row -> "N in a row! <pet name> is cheering." + fox in the
+  banner (not while she's an egg, not Timed). Home: NEXT line (lesson / held session / N questions · new · learning ·
+  ~min at 15 s a question); "<name> missed you!" when the last day with answers (prog.days) is 2+ days ago.
+  Quit button: last Home focus (down from the bottom-right tile), drawn like the "F+START Quit" chip (the "+ Move"
+  chip was dropped to fit it), opens quitConfirm (dialog over Home, Cancel focused, L/R/U/D toggle, B cancels, go()
+  closes it; text warns a held session is lost). F+START still quits at once. Welcome is now 5 steps: step 3 = try the
+  controls (welcomeControls bits 1 d-pad / 2 A; A advances once the d-pad is done; button "Skip (using the stylus)").
+  Bug fixed on the way: Result Again on a practice set restarted only its first kana (now a copy of focusSet).
 
 ## Known gaps / to verify on device
 - Device test 2026-11-15 passed (old UI): touch + tracing land correctly, A/B correct, F + START quits, bottom survives sleep.
@@ -228,7 +242,11 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   header(title, right, coloured, indent): bar with bilingual title. Home top: goal ring card, week streak strip (weekday
   kanji added to fallback.ttf), script bars; Home bottom: see Home grid below.
   Settings rows: SRow.opts -> segmented pills (B_SSEG0 + row*8 + opt). Medals: App::medal; app tile: App::appTile.
-  Icon: tools/make_icon.py (option A "kana tile") -> launcher/media/box/Banana Kana.png.
+  Icon (2026-11-20, user liked Codex's fox logo, asked for one in the app's own style, "doesn't have to be anime"):
+  App::appTile = cream tile + orange outline, sun disc, vector Kitsu (stage 1, happy, suzu bell, FoxLook.tailScale 1.75 /
+  tailTurn -31 for a big swooping tail) + orange あ badge; fixed colours, used on Welcome/Unlocked/Credits. The shelf PNG
+  comes from the same drawing: `python3 tools/make_icon.py` runs `banana_kana --icon DIR` (black + white render at 4x ->
+  exact alpha) -> launcher/media/box/Banana Kana.png (512) + docs/img/icon.png (280). Needs a built app + Pillow.
 - Review polish (user said "do all", 2026-11-15): the streak flame (drawFlame, flameTier) was REMOVED 2026-11-16 (user:
   "the flame was replaced with the fox"): Kitsu shows on Home and in the Stats Streak box; app streakColour() keeps the
   1/7/30/100 colours for the Home week dots. Don't bring the flame back.
@@ -264,8 +282,8 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   Summer stuttered on device (2026-11-16): seigaiha was ~51k triangles/frame; now R 34/40, 2 rings, 8 segments (~10k,
   like spring). Self-test budget: <= 8000 pattern triangles per screen per season (backdropTriangles()).
   Display row 6 "Background" (segments Plain/Auto/春/夏/秋/冬; 春夏秋冬 added to fallback.ttf) + settingPreview row 6.
-- Welcome has 4 steps (vibration added 2026-11-17: step 2 = Off/Light/Strong tiles B_WRUM0..+2, buzz on pick; "what you know"
-  is now step 3). Original 3-step notes: welcomeStep 0 = Light/Dark tiles (B_WTHEME0/+1, applied + saved at once,
+- Welcome has 5 steps (vibration added 2026-11-17: step 2 = Off/Light/Strong tiles B_WRUM0..+2, buzz on pick; controls step 3 added 2026-11-20; "what you know"
+  is now step 4). Original 3-step notes: welcomeStep 0 = Light/Dark tiles (B_WTHEME0/+1, applied + saved at once,
   d-pad L/R) and Next (B_WEL_NEXT / A); step 1 = background Seasons (backdrop 1 = Auto) / Plain (0) tiles (B_WBG0/+1,
   live + saved, added for 0.7.0); step 2 = the 4 "what do you know" choices. B goes back a step. Settings > Progress row 6
   "Run setup again" (welcomeAgain: title "Set up Banana Kana", Back on step 0 returns to Settings; progress kept).
@@ -279,7 +297,7 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   Source TTFs: github.com/google/fonts (ofl/zenmarugothic). Licences ship in app/data/licenses/.
   Text is rendered per run (main.cpp renderMixed/pickFont): kana -> kana.ttf, Latin -> ui.ttf, else fallback.ttf.
 - Theme: Dark and Light (DONE M1: `set theme` in progress.txt, toggle on Settings top row; palettes in main.cpp Theme). On light, yellow is fill only; yellow-on-light text needs a darker shade.
-- Icon: "Cartridge" design, rendered to launcher/media/box/Banana Kana.png (512x512; shelf size still unverified).
+- Icon: "Cartridge" design (old, replaced by the kana tile and then the Kitsu tile; see Handheld theme above).
 - Stages: 14 per script (10 basic rows, が-ざ-だ, ば-ぱ, 2 yōon). Katakana unlocks after hiragana stage 10.
   Each stage starts with a lesson (stroke order + hint + untimed tracing). Drills only use unlocked kana;
   word questions only use words made entirely of unlocked kana; older stages return as weighted review.
@@ -305,6 +323,7 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   self-test checks), FoxLook stage/mood/accessory/season/t. app: Home streak card fox (z's when asleep, hop on goal),
   Screen::Pet (Stats START / chip; 4x2 accessory tiles, Back/Rename/Take it off), PetEvolve (go(Home) redirects while
   petEvolvePending), PetName (drill kana keyboard, 6 kana max, Cancel/Save name).
+- RELEASED 0.9.0 on 2026-11-21 (Codex soft-ui-rebuild ports + Kitsu app icon; PR #6; user said "release").
 - RELEASED 0.8.3 on 2026-11-18 (flatter buttons, pause corners, even Draw any column; user said "release 0.8.3").
 - RELEASED 0.8.2 on 2026-11-18 (RG DS support via BANANA_TOP/BANANA_TOUCH; user said "commit to main, increment the release version").
 - RELEASED 0.8.1 on 2026-11-18 (meaning pill hidden when it sounds like the reading, bigger bottom romaji keyboard + cursor ring on top, Kitsu/Display text overlap fixes; user said "release 0.8.1").
