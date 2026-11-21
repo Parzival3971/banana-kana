@@ -323,6 +323,7 @@ README uses emojis on headings, feature bullets and table rows (user asked 2026-
   self-test checks), FoxLook stage/mood/accessory/season/t. app: Home streak card fox (z's when asleep, hop on goal),
   Screen::Pet (Stats START / chip; 4x2 accessory tiles, Back/Rename/Take it off), PetEvolve (go(Home) redirects while
   petEvolvePending), PetName (drill kana keyboard, 6 kana max, Cancel/Save name).
+- RELEASED 0.9.0 on 2026-11-21 (Codex soft-ui-rebuild ports + Kitsu app icon; PR #6; user said "release").
 - RELEASED 0.8.3 on 2026-11-18 (flatter buttons, pause corners, even Draw any column; user said "release 0.8.3").
 - RELEASED 0.8.2 on 2026-11-18 (RG DS support via BANANA_TOP/BANANA_TOUCH; user said "commit to main, increment the release version").
 - RELEASED 0.8.1 on 2026-11-18 (meaning pill hidden when it sounds like the reading, bigger bottom romaji keyboard + cursor ring on top, Kitsu/Display text overlap fixes; user said "release 0.8.1").

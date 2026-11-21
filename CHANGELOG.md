@@ -3,6 +3,22 @@
 All notable changes to Banana Kana. Releases are built by GitHub Actions when `VERSION` changes on `main`;
 the release notes come from the matching section below.
 
+## 0.9.0 - 2026-11-21
+
+- New app icon: Kitsu, with her suzu bell and a big swooping tail, on a cream tile with an あ badge. The Ports shelf
+  icon, the README and the Welcome, Unlocked and Credits screens all use the same drawing.
+- Kana details: pick a kana in the chart to see its accuracy, when you last answered it, when its next review is due
+  and which kana you mix it up with.
+- Review mistakes: after a session, press X (or tap the button) to drill just the kana you got wrong.
+- Results now show newly known kana, steps won this session and your daily goal.
+- Get 3 or more right in a row and Kitsu pops up in the feedback to cheer you on.
+- Home shows what START does next ("10 questions · 2 new · ~3 min"), and Kitsu says she missed you after a couple of
+  days away.
+- The "F+START Quit" hint on Home is now a real button (tap it, or press down from the bottom-right tile). It asks
+  before quitting and warns if a paused session would be lost. F + START still quits at once.
+- Setup has a new step where you try the d-pad and A (stylus players can skip it).
+- Fixed: "Practise again" after a practice set of several kana only drilled the first one.
+
 ## 0.8.3 - 2026-11-18
 
 - Flatter buttons: every button now has one smooth shade instead of the shiny two-tone gloss. Outlines, shadows and
